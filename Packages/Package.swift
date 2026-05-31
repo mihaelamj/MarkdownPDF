@@ -28,6 +28,7 @@ let package = Package(
         .testTarget(
             name: "MarkdownPDFTests",
             dependencies: ["MarkdownPDF"],
+            exclude: ["Fixtures"],
         ),
     ],
 )
