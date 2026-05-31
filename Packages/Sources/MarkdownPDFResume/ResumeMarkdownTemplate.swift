@@ -32,9 +32,9 @@ private struct Writer {
     var lines: [String] = []
 
     mutating func render(_ document: ResumeDocument) {
-        heading(1, document.basics.name)
+        heading(1, markdownText(document.basics.name))
         if let headline = document.basics.headline.cleanValue {
-            heading(2, headline)
+            heading(2, markdownText(headline))
         }
         contact(document.basics)
         paragraphs(document.summary)
@@ -61,10 +61,10 @@ private struct Writer {
             parts.append(link("Email", url: email.hasPrefix("mailto:") ? email : "mailto:\(email)"))
         }
         if let phone = basics.phone.cleanValue {
-            parts.append(phone)
+            parts.append(markdownText(phone))
         }
         if let location = basics.location.cleanValue {
-            parts.append(location)
+            parts.append(markdownText(location))
         }
         parts.append(contentsOf: basics.links.map { link($0.label, url: $0.url) })
 
@@ -82,7 +82,7 @@ private struct Writer {
                 continue
             }
             blank()
-            line(value)
+            line(markdownText(value))
         }
     }
 
@@ -93,10 +93,13 @@ private struct Writer {
 
         section("Experience")
         for item in values {
-            let title = [linkedTitle(item.organization, url: item.url), "(\(item.start) - \(item.end)), \(item.title)"].joined(separator: " ")
+            let title = [
+                linkedTitle(item.organization, url: item.url),
+                "(\(markdownText(item.start)) - \(markdownText(item.end))), \(markdownText(item.title))",
+            ].joined(separator: " ")
             heading(3, title)
             if let location = item.location.cleanValue {
-                line(location)
+                line(markdownText(location))
             }
             paragraphs([item.summary].compactMap(\.self))
             list(item.highlights)
@@ -112,9 +115,9 @@ private struct Writer {
 
         section("Education")
         for item in values {
-            var title = item.degree
+            var title = markdownText(item.degree)
             if let field = item.field.cleanValue {
-                title += " in \(field)"
+                title += " in \(markdownText(field))"
             }
             var subtitle = linkedTitle(item.institution, url: item.url)
             if let range = dateRange(start: item.start, end: item.end) {
@@ -145,7 +148,10 @@ private struct Writer {
         section("Publications")
         for item in values {
             var title = linkedTitle(item.title, url: item.url)
-            let metadata = [item.venue.cleanValue, item.date.cleanValue].compactMap(\.self).joined(separator: ", ")
+            let metadata = [item.venue.cleanValue, item.date.cleanValue]
+                .compactMap(\.self)
+                .map(markdownText)
+                .joined(separator: ", ")
             if !metadata.isEmpty {
                 title += " (\(metadata))"
             }
@@ -166,7 +172,8 @@ private struct Writer {
             if wroteGroup {
                 blank()
             }
-            line("**\(group.name):** \(group.items.joined(separator: ", "))")
+            let items = group.items.map(markdownText).joined(separator: ", ")
+            line("**\(markdownText(group.name)):** \(items)")
             wroteGroup = true
         }
     }
@@ -198,7 +205,7 @@ private struct Writer {
     mutating func project(_ item: ResumeDocument.Project, level: Int) {
         var title = linkedTitle(item.name, url: item.url)
         if let role = item.role.cleanValue {
-            title += ", \(role)"
+            title += ", \(markdownText(role))"
         }
         heading(level, title)
         paragraphs([item.summary].compactMap(\.self))
@@ -211,7 +218,7 @@ private struct Writer {
             return
         }
         blank()
-        line("**Technologies:** \(values.joined(separator: ", "))")
+        line("**Technologies:** \(values.map(markdownText).joined(separator: ", "))")
     }
 
     mutating func list(_ values: [String]) {
@@ -219,12 +226,13 @@ private struct Writer {
             guard let value = value.cleanValue else {
                 continue
             }
-            line("- \(value)")
+            line("- \(markdownText(value))")
         }
     }
 
     mutating func section(_ title: String) {
-        heading(2, options.uppercaseSectionHeadings ? title.uppercased() : title)
+        let sectionTitle = options.uppercaseSectionHeadings ? title.uppercased() : title
+        heading(2, markdownText(sectionTitle))
     }
 
     mutating func heading(_ level: Int, _ text: String) {
@@ -249,13 +257,13 @@ private struct Writer {
 
     func linkedTitle(_ title: String, url: String?) -> String {
         guard let url = url.cleanValue else {
-            return title
+            return markdownText(title)
         }
         return link(title, url: url)
     }
 
     func link(_ label: String, url: String) -> String {
-        "[\(label)](\(url))"
+        "[\(markdownText(label))](\(markdownDestination(url)))"
     }
 
     func dateRange(start: String?, end: String?) -> String? {
@@ -263,7 +271,55 @@ private struct Writer {
         guard !values.isEmpty else {
             return nil
         }
-        return values.joined(separator: " - ")
+        return values.map(markdownText).joined(separator: " - ")
+    }
+
+    func markdownText(_ value: String) -> String {
+        var output = ""
+        for character in value
+            .replacingOccurrences(of: "\r\n", with: " ")
+            .replacingOccurrences(of: "\r", with: " ")
+            .replacingOccurrences(of: "\n", with: " ")
+        {
+            switch character {
+            case "\\", "`", "*", "_", "[", "]", "(", ")", "<", ">", "!", "|", "~":
+                output.append("\\")
+                output.append(character)
+            default:
+                output.append(character)
+            }
+        }
+
+        return output.escapingInitialBlockMarker()
+    }
+
+    func markdownDestination(_ value: String) -> String {
+        var output = ""
+        for scalar in value.unicodeScalars {
+            switch scalar {
+            case " ":
+                output += "%20"
+            case "\"":
+                output += "%22"
+            case "(":
+                output += "%28"
+            case ")":
+                output += "%29"
+            case "<":
+                output += "%3C"
+            case ">":
+                output += "%3E"
+            case "\\":
+                output += "%5C"
+            case "\n":
+                output += "%0A"
+            case "\r":
+                output += "%0D"
+            default:
+                output.append(Character(scalar))
+            }
+        }
+        return output
     }
 }
 
@@ -282,5 +338,38 @@ private extension String {
     var cleanValue: String? {
         let value = trimmingCharacters(in: .whitespacesAndNewlines)
         return value.isEmpty ? nil : value
+    }
+
+    func escapingInitialBlockMarker() -> String {
+        if hasPrefix("#") ||
+            hasPrefix("+") ||
+            hasPrefix("-") ||
+            hasPrefix("=")
+        {
+            return "\\\(self)"
+        }
+
+        var cursor = startIndex
+        var foundDigit = false
+        while cursor < endIndex, self[cursor].isNumber {
+            foundDigit = true
+            cursor = index(after: cursor)
+        }
+
+        guard foundDigit, cursor < endIndex else {
+            return self
+        }
+
+        let marker = self[cursor]
+        let afterMarker = index(after: cursor)
+        guard marker == "." || marker == ")",
+              afterMarker == endIndex || self[afterMarker] == " "
+        else {
+            return self
+        }
+
+        var output = self
+        output.insert("\\", at: cursor)
+        return output
     }
 }

@@ -31,6 +31,62 @@ struct ResumeMarkdownTemplateTests {
         #expect(text.contains("/URI (https://example.com/northbridge)"))
     }
 
+    @Test("Escapes structured resume fields before emitting Markdown")
+    func escapesStructuredResumeFieldsBeforeEmittingMarkdown() throws {
+        let resume = ResumeDocument(
+            basics: ResumeDocument.Basics(
+                name: "# Alex [Rivera]",
+                headline: "1. Lead *Architect*",
+                location: "Example | City",
+                email: "alex@example.com",
+                links: [
+                    ResumeDocument.Link(label: "Git[Hub]", url: "https://example.com/profile(1)"),
+                ],
+            ),
+            summary: [
+                "- not a list",
+                "# not a heading",
+            ],
+            experience: [
+                ResumeDocument.Experience(
+                    organization: "Northbridge [Systems]",
+                    url: "https://example.com/company(a)",
+                    location: "> Remote",
+                    title: "Senior *Architect*",
+                    start: "Sep 2025",
+                    end: "Present",
+                    highlights: [
+                        "*not emphasis*",
+                        "1. not ordered",
+                    ],
+                    technologies: [
+                        "Swift|UI",
+                        "C++",
+                    ],
+                ),
+            ],
+            skills: [
+                ResumeDocument.SkillGroup(
+                    name: "Core|Skills",
+                    items: ["A*B", "Tables | Markdown"],
+                ),
+            ],
+        )
+
+        let markdown = ResumeMarkdownTemplate().markdown(for: resume)
+        let data = try MarkdownPDFRenderer().render(markdown: markdown)
+        let text = String(decoding: data, as: UTF8.self)
+
+        #expect(markdown.contains("# \\# Alex \\[Rivera\\]"))
+        #expect(markdown.contains("## 1\\. Lead \\*Architect\\*"))
+        #expect(markdown.contains("[Northbridge \\[Systems\\]](https://example.com/company%28a%29)"))
+        #expect(markdown.contains("- \\*not emphasis\\*"))
+        #expect(markdown.contains("- 1\\. not ordered"))
+        #expect(markdown.contains("**Core\\|Skills:** A\\*B, Tables \\| Markdown"))
+        #expect(text.contains("/URI (https://example.com/company%28a%29)"))
+        #expect(text.contains("/URI (https://example.com/profile%281%29)"))
+    }
+
     @Test("Decodes omitted arrays as empty values")
     func decodesOmittedArraysAsEmptyValues() throws {
         let json = """

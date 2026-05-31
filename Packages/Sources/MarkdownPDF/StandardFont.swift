@@ -23,19 +23,6 @@ enum StandardFont: String, CaseIterable {
         fontSet.subtype
     }
 
-    var nominalWidth: Int {
-        switch self {
-        case .courier:
-            600
-        case .helveticaBold:
-            560
-        case .helveticaOblique:
-            530
-        case .helvetica:
-            520
-        }
-    }
-
     var italicAngle: Int {
         switch self {
         case .helveticaOblique:
@@ -50,19 +37,30 @@ enum StandardFont: String, CaseIterable {
         size: Double,
         fontSet: PDFOptions.FontSet,
     ) -> Double {
-        let baseName = baseName(in: fontSet)
-        let widths = if baseName.hasPrefix("Courier") || baseName.hasPrefix("SFMono") {
-            FontWidths.courier
-        } else if baseName.hasPrefix("Helvetica-Bold") {
-            FontWidths.helveticaBold
-        } else {
-            FontWidths.helvetica
-        }
+        let widths = widthTable(in: fontSet)
 
         let units = text.unicodeScalars.reduce(0) { partialResult, scalar in
             partialResult + widths.width(for: scalar)
         }
         return Double(units) * size / 1000
+    }
+
+    func widthsForPDF(in fontSet: PDFOptions.FontSet) -> [Int] {
+        let widths = widthTable(in: fontSet)
+        return (32 ... 126).compactMap(UnicodeScalar.init).map {
+            widths.width(for: $0)
+        }
+    }
+
+    private func widthTable(in fontSet: PDFOptions.FontSet) -> WidthTable {
+        let baseName = baseName(in: fontSet)
+        if self == .courier || baseName.hasPrefix("Courier") || baseName.hasPrefix("SFMono") {
+            return FontWidths.courier
+        }
+        if self == .helveticaBold {
+            return FontWidths.helveticaBold
+        }
+        return FontWidths.helvetica
     }
 }
 

@@ -23,6 +23,8 @@ struct InlineParser {
                     result.append(.lineBreak)
                 } else if consume("\n") {
                     result.append(.softBreak)
+                } else if let escaped = parseEscape() {
+                    result.append(escaped)
                 } else if let image = parseImage() {
                     result.append(image)
                 } else if let link = parseLink() {
@@ -67,6 +69,22 @@ struct InlineParser {
             return transform(InlineParser().parse(raw))
         }
 
+        private mutating func parseEscape() -> MarkdownInline? {
+            guard source[index] == "\\" else {
+                return nil
+            }
+
+            let escapedIndex = source.index(after: index)
+            guard escapedIndex < source.endIndex,
+                  isASCIIPunctuation(source[escapedIndex])
+            else {
+                return nil
+            }
+
+            index = source.index(after: escapedIndex)
+            return .text(String(source[escapedIndex]))
+        }
+
         private mutating func parseCodeSpan() -> MarkdownInline? {
             guard source[index] == "`" else {
                 return nil
@@ -88,7 +106,7 @@ struct InlineParser {
             }
 
             let labelStart = source.index(index, offsetBy: 2)
-            guard let labelEnd = source[labelStart...].firstIndex(of: "]") else {
+            guard let labelEnd = firstUnescaped("]", from: labelStart) else {
                 return nil
             }
             let afterLabel = source.index(after: labelEnd)
@@ -113,7 +131,7 @@ struct InlineParser {
             }
 
             let labelStart = source.index(after: index)
-            guard let labelEnd = source[labelStart...].firstIndex(of: "]") else {
+            guard let labelEnd = firstUnescaped("]", from: labelStart) else {
                 return nil
             }
             let afterLabel = source.index(after: labelEnd)
@@ -191,6 +209,7 @@ struct InlineParser {
                     source[index...].hasPrefix("_") ||
                     source[index...].hasPrefix("`") ||
                     source[index...].hasPrefix("<") ||
+                    source[index...].hasPrefix("\\") ||
                     source[index...].hasPrefix("\n")
                 {
                     break
@@ -205,6 +224,39 @@ struct InlineParser {
             }
 
             return String(source[start ..< index])
+        }
+
+        private func firstUnescaped(
+            _ character: Character,
+            from start: String.Index,
+        ) -> String.Index? {
+            var cursor = start
+            var escaped = false
+            while cursor < source.endIndex {
+                if escaped {
+                    escaped = false
+                } else if source[cursor] == "\\" {
+                    escaped = true
+                } else if source[cursor] == character {
+                    return cursor
+                }
+                cursor = source.index(after: cursor)
+            }
+
+            return nil
+        }
+
+        private func isASCIIPunctuation(_ character: Character) -> Bool {
+            guard let scalar = character.unicodeScalars.first,
+                  character.unicodeScalars.count == 1
+            else {
+                return false
+            }
+
+            return (0x21 ... 0x2F).contains(scalar.value)
+                || (0x3A ... 0x40).contains(scalar.value)
+                || (0x5B ... 0x60).contains(scalar.value)
+                || (0x7B ... 0x7E).contains(scalar.value)
         }
 
         private mutating func consume(_ prefix: String) -> Bool {
