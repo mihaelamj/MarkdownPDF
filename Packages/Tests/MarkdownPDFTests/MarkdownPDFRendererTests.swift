@@ -20,6 +20,8 @@ struct MarkdownPDFRendererTests {
         |---|---:|
         | Swift | 10 |
 
+        Use `markdownpdf`.
+
         - Linux
         - PDF
         """
@@ -75,6 +77,31 @@ struct MarkdownPDFRendererTests {
         #expect(inspector.streamLengthsMatch())
     }
 
+    @Test("Writes minimal canonical PDF for one text page")
+    func writesMinimalCanonicalPDFForOneTextPage() throws {
+        let data = try MarkdownPDFRenderer().render(markdown: "Hello from MarkdownPDF.")
+        let inspector = PDFInspector(data)
+
+        #expect(inspector.text.hasPrefix("%PDF-1.4"))
+        #expect(inspector.text.hasSuffix("%%EOF"))
+        #expect(inspector.pageCount == 1)
+        #expect(inspector.indirectObjectCount == 5)
+        #expect(inspector.streams.count == 1)
+        #expect(inspector.hasValidXrefOffsets())
+        #expect(inspector.streamLengthsMatch())
+        #expect(inspector.text.contains("<< /Type /Catalog /Pages 2 0 R >>"))
+        #expect(inspector.text.contains("<< /Type /Pages /Kids [5 0 R] /Count 1 >>"))
+        #expect(inspector.text.contains("/Resources << /Font << /F1 3 0 R >> >>"))
+        #expect(inspector.text.contains("trailer\n<< /Size 6 /Root 1 0 R >>"))
+        #expect(!inspector.text.contains("/BaseFont /Helvetica-Bold"))
+        #expect(!inspector.text.contains("/BaseFont /Helvetica-Oblique"))
+        #expect(!inspector.text.contains("/BaseFont /Courier"))
+        #expect(!inspector.text.contains("/XObject"))
+        #expect(!inspector.text.contains("/Annots"))
+        #expect(!inspector.text.contains("/ViewerPreferences"))
+        #expect(!inspector.text.contains("/FontFile"))
+    }
+
     @Test("Writes deterministic page resource dictionaries")
     func writesDeterministicPageResourceDictionaries() throws {
         let directory = FileManager.default.temporaryDirectory
@@ -89,7 +116,7 @@ struct MarkdownPDFRendererTests {
         )
         let text = String(decoding: data, as: UTF8.self)
 
-        #expect(text.contains("/Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R /F4 6 0 R >> /XObject << /Im1 7 0 R >> >>"))
+        #expect(text.contains("/Resources << /Font << /F2 3 0 R >> /XObject << /Im1 4 0 R >> >>"))
     }
 
     @Test("Reports page count and link annotations in generated PDF")
@@ -162,7 +189,7 @@ struct MarkdownPDFRendererTests {
     func writesProportionalWidthsForAppleSystemTrueTypeFontDictionaries() throws {
         let data = try MarkdownPDFRenderer(
             options: PDFOptions(fontSet: .appleSystem),
-        ).render(markdown: "# WWW\n\n**Bold**\n\n`code`")
+        ).render(markdown: "# WWW\n\nRegular\n\n**Bold**\n\n`code`")
         let text = String(decoding: data, as: UTF8.self)
 
         #expect(text.contains("/BaseFont /SFProText-Regular"))

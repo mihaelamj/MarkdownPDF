@@ -23,6 +23,10 @@ struct PDFInspector {
         occurrences(of: "/Subtype /Link")
     }
 
+    var indirectObjectCount: Int {
+        occurrences(of: " 0 obj\n")
+    }
+
     var streams: [Stream] {
         let streamMarker = Array("stream\n".utf8)
         let endMarker = Array("\nendstream".utf8)

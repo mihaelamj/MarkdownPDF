@@ -3,6 +3,8 @@ import Foundation
 final class PDFPageCanvas {
     private(set) var commands: String = ""
     private(set) var linkAnnotations: [PDFLinkAnnotation] = []
+    private(set) var usedFonts: Set<StandardFont> = []
+    private(set) var usedImageNames: Set<String> = []
 
     func drawTextRun(
         _ run: PDFTextRun,
@@ -10,6 +12,7 @@ final class PDFPageCanvas {
         y: Double,
         fontSet: PDFOptions.FontSet,
     ) {
+        usedFonts.insert(run.font)
         setFillColor(run.color)
         append("BT /\(run.font.rawValue) \(format(run.size)) Tf \(format(x)) \(format(y)) Td \(run.text.pdfLiteralString) Tj ET\n")
 
@@ -84,6 +87,7 @@ final class PDFPageCanvas {
         width: Double,
         height: Double,
     ) {
+        usedImageNames.insert(name)
         append("q \(format(width)) 0 0 \(format(height)) \(format(x)) \(format(y)) cm /\(name) Do Q\n")
     }
 
