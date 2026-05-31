@@ -75,6 +75,23 @@ struct MarkdownPDFRendererTests {
         #expect(inspector.streamLengthsMatch())
     }
 
+    @Test("Writes deterministic page resource dictionaries")
+    func writesDeterministicPageResourceDictionaries() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("MarkdownPDFTests-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let imageURL = directory.appendingPathComponent("image.jpg")
+        try minimalJPEG().write(to: imageURL)
+
+        let data = try MarkdownPDFRenderer().render(
+            markdown: "# Image\n\n![pixel](image.jpg)",
+            assetsBaseURL: directory,
+        )
+        let text = String(decoding: data, as: UTF8.self)
+
+        #expect(text.contains("/Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R /F4 6 0 R >> /XObject << /Im1 7 0 R >> >>"))
+    }
+
     @Test("Reports page count and link annotations in generated PDF")
     func reportsPagesAndLinkAnnotations() throws {
         let longBody = Array(
