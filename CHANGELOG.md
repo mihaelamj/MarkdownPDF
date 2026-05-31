@@ -12,3 +12,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial Pure Swift Markdown parser, PDF renderer, and `markdownpdf` CLI.
 - Direct PDF serialization with Apple font names and no embedded fonts.
 - Parser and renderer tests for tables, images, inline styles, and PDF structure.
+- `MarkdownPDFLinux` and `MarkdownPDFMac` renderer entry products.

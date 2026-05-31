@@ -4,7 +4,7 @@ import MarkdownPDFLinux
 import Testing
 
 #if canImport(MarkdownPDFMac)
-import MarkdownPDFMac
+    import MarkdownPDFMac
 #endif
 
 @Suite("PDF renderer")
@@ -52,14 +52,14 @@ struct MarkdownPDFRendererTests {
     }
 
     #if canImport(MarkdownPDFMac)
-    @Test("Mac product renders through macOS entry point")
-    func macProductRendersPDF() throws {
-        let data = try MarkdownPDFMacRenderer().render(markdown: "# Mac\n\nPlatform output.")
-        let inspector = PDFInspector(data)
+        @Test("Mac product renders through macOS entry point")
+        func macProductRendersPDF() throws {
+            let data = try MarkdownPDFMacRenderer().render(markdown: "# Mac\n\nPlatform output.")
+            let inspector = PDFInspector(data)
 
-        #expect(inspector.text.hasPrefix("%PDF-1.4"))
-        #expect(inspector.hasValidXrefOffsets())
-    }
+            #expect(inspector.text.hasPrefix("%PDF-1.4"))
+            #expect(inspector.hasValidXrefOffsets())
+        }
     #endif
 
     @Test("Writes stream lengths that match emitted bytes")
