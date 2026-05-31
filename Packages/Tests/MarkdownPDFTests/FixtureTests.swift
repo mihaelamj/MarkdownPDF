@@ -81,6 +81,9 @@ struct FixtureTests {
             #expect(inspector.pageCount >= 1)
             #expect(inspector.hasValidXrefOffsets())
             #expect(inspector.streamLengthsMatch())
+
+            let qpdf = try PDFValidation.qpdfCheck(data: data, name: fixtureName)
+            #expect(qpdf.exitCode == 0, "qpdf --check failed for \(fixtureName):\n\(qpdf.output)")
         }
     }
 
