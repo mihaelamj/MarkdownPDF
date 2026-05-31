@@ -73,6 +73,9 @@
 *.log
 **/*.log
 
+# Local third-party source snapshots used for research only.
+researchcode/
+
 # Local SQLite DB created by autoMigrate at first boot.
 # Codeweaver scaffolds (template-time/bookings/crm/inventory) all default
 # to FluentSQLiteDriver with `.file("db.sqlite")` and run autoMigrate at
