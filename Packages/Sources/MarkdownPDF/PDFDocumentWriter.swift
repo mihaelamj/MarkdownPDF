@@ -40,39 +40,62 @@ struct PDFDocumentWriter {
             return PageResources(fonts: pageFonts, xObjects: pageXObjects)
         }
 
-        var pageRefs: [Int] = []
+        var pageRefs: [PDFSyntax.Reference] = []
         for page in pages {
             let contentData = Data(page.commands.utf8)
-            let contentRef = builder.addStream(dictionary: "<<", data: contentData)
+            let contentRef = builder.addStream(dictionary: PDFSyntax.Dictionary(), data: contentData)
             let annotationRefs = page.linkAnnotations.map { builder.addLinkAnnotation($0) }
-            var pageDictionary = """
-            << /Type /Page
-            /Parent \(pagesRef) 0 R
-            /MediaBox [0 0 \(format(pageSize.width)) \(format(pageSize.height))]
-            /Resources \(resources(for: page).pdfDictionary)
-            /Contents \(contentRef) 0 R
-            """
+
+            var pageEntries: [PDFSyntax.Dictionary.Entry] = [
+                .init("Type", .pdfName("Page")),
+                .init("Parent", .reference(pagesRef)),
+                .init(
+                    "MediaBox",
+                    .pdfArray([
+                        .int(0),
+                        .int(0),
+                        .number(pageSize.width),
+                        .number(pageSize.height),
+                    ]),
+                ),
+                .init("Resources", .dictionary(resources(for: page).pdfDictionary)),
+                .init("Contents", .reference(contentRef)),
+            ]
             if !annotationRefs.isEmpty {
-                let annotations = annotationRefs.map { "\($0) 0 R" }.joined(separator: " ")
-                pageDictionary += "\n/Annots [\(annotations)]"
+                pageEntries.append(.init("Annots", .pdfArray(annotationRefs.map { .reference($0) })))
             }
-            pageDictionary += " >>"
-            let pageRef = builder.addString(pageDictionary)
+
+            let pageRef = builder.addDictionary(
+                PDFSyntax.Dictionary(pageEntries),
+                style: .multiline,
+            )
             pageRefs.append(pageRef)
         }
 
-        let kids = pageRefs.map { "\($0) 0 R" }.joined(separator: " ")
         builder.set(
             pagesRef,
-            "<< /Type /Pages /Kids [\(kids)] /Count \(pageRefs.count) >>",
+            .dictionary(PDFSyntax.Dictionary([
+                .init("Type", .pdfName("Pages")),
+                .init("Kids", .pdfArray(pageRefs.map { .reference($0) })),
+                .init("Count", .int(pageRefs.count)),
+            ])),
         )
 
-        var catalog = "<< /Type /Catalog /Pages \(pagesRef) 0 R"
+        var catalogEntries: [PDFSyntax.Dictionary.Entry] = [
+            .init("Type", .pdfName("Catalog")),
+            .init("Pages", .reference(pagesRef)),
+        ]
         if let title, !title.isEmpty {
-            catalog += " /ViewerPreferences << /DisplayDocTitle true >>"
+            catalogEntries.append(
+                .init(
+                    "ViewerPreferences",
+                    .pdfDictionary([
+                        .init("DisplayDocTitle", .bool(true)),
+                    ]),
+                ),
+            )
         }
-        catalog += " >>"
-        builder.set(catalogRef, catalog)
+        builder.set(catalogRef, .dictionary(PDFSyntax.Dictionary(catalogEntries)))
 
         return builder.build(root: catalogRef)
     }
@@ -81,26 +104,33 @@ struct PDFDocumentWriter {
         var fonts: [Entry]
         var xObjects: [Entry]
 
-        var pdfDictionary: String {
-            var sections: [String] = []
+        var pdfDictionary: PDFSyntax.Dictionary {
+            var entries: [PDFSyntax.Dictionary.Entry] = []
             if !fonts.isEmpty {
-                sections.append("/Font << \(fonts.map(\.pdfEntry).joined(separator: " ")) >>")
+                entries.append(
+                    .init(
+                        "Font",
+                        .dictionary(PDFSyntax.Dictionary(fonts.map(\.pdfEntry))),
+                    ),
+                )
             }
             if !xObjects.isEmpty {
-                sections.append("/XObject << \(xObjects.map(\.pdfEntry).joined(separator: " ")) >>")
+                entries.append(
+                    .init(
+                        "XObject",
+                        .dictionary(PDFSyntax.Dictionary(xObjects.map(\.pdfEntry))),
+                    ),
+                )
             }
-            if sections.isEmpty {
-                return "<< >>"
-            }
-            return "<< \(sections.joined(separator: " ")) >>"
+            return PDFSyntax.Dictionary(entries)
         }
 
         struct Entry {
             var name: String
-            var objectRef: Int
+            var objectRef: PDFSyntax.Reference
 
-            var pdfEntry: String {
-                "/\(name.pdfName) \(objectRef) 0 R"
+            var pdfEntry: PDFSyntax.Dictionary.Entry {
+                .init(name, .reference(objectRef))
             }
         }
     }
@@ -108,107 +138,143 @@ struct PDFDocumentWriter {
     private struct Builder {
         private var objects: [Data?] = []
 
-        mutating func reserve() -> Int {
+        mutating func reserve() -> PDFSyntax.Reference {
             objects.append(nil)
-            return objects.count
+            return PDFSyntax.Reference(objectNumber: objects.count)
         }
 
-        mutating func set(_ ref: Int, _ value: String) {
-            objects[ref - 1] = Data(value.utf8)
+        mutating func set(_ ref: PDFSyntax.Reference, _ value: PDFSyntax.Value) {
+            set(ref, Data(value.serialized.utf8))
         }
 
-        mutating func addString(_ value: String) -> Int {
-            objects.append(Data(value.utf8))
-            return objects.count
+        mutating func set(_ ref: PDFSyntax.Reference, _ value: Data) {
+            objects[ref.objectNumber - 1] = value
+        }
+
+        mutating func addDictionary(
+            _ dictionary: PDFSyntax.Dictionary,
+            style: PDFSyntax.Dictionary.Style = .inline,
+        ) -> PDFSyntax.Reference {
+            addData(Data(dictionary.serialized(style: style).utf8))
         }
 
         mutating func addFont(
             _ font: StandardFont,
             fontSet: PDFOptions.FontSet,
-        ) -> Int {
-            let baseName = font.baseName(in: fontSet).pdfName
+        ) -> PDFSyntax.Reference {
+            let baseName = font.baseName(in: fontSet)
             if font.subtype(in: fontSet) == "Type1" {
-                return addString("<< /Type /Font /Subtype /Type1 /BaseFont /\(baseName) /Encoding /WinAnsiEncoding >>")
+                return addDictionary(PDFSyntax.Dictionary([
+                    .init("Type", .pdfName("Font")),
+                    .init("Subtype", .pdfName("Type1")),
+                    .init("BaseFont", .pdfName(baseName)),
+                    .init("Encoding", .pdfName("WinAnsiEncoding")),
+                ]))
             }
 
-            let descriptorRef = addString("""
-            << /Type /FontDescriptor
-            /FontName /\(baseName)
-            /Flags 32
-            /FontBBox [-200 -250 1200 1000]
-            /ItalicAngle \(font.italicAngle)
-            /Ascent 900
-            /Descent -220
-            /CapHeight 700
-            /StemV 80 >>
-            """)
-            let widths = font
-                .widthsForPDF(in: fontSet)
-                .map(String.init)
-                .joined(separator: " ")
-            return addString("""
-            << /Type /Font
-            /Subtype /TrueType
-            /BaseFont /\(baseName)
-            /Encoding /WinAnsiEncoding
-            /FirstChar 32
-            /LastChar 126
-            /Widths [\(widths)]
-            /FontDescriptor \(descriptorRef) 0 R >>
-            """)
+            let descriptorRef = addDictionary(PDFSyntax.Dictionary([
+                .init("Type", .pdfName("FontDescriptor")),
+                .init("FontName", .pdfName(baseName)),
+                .init("Flags", .int(32)),
+                .init(
+                    "FontBBox",
+                    .pdfArray([
+                        .int(-200),
+                        .int(-250),
+                        .int(1200),
+                        .int(1000),
+                    ]),
+                ),
+                .init("ItalicAngle", .int(font.italicAngle)),
+                .init("Ascent", .int(900)),
+                .init("Descent", .int(-220)),
+                .init("CapHeight", .int(700)),
+                .init("StemV", .int(80)),
+            ]))
+            return addDictionary(PDFSyntax.Dictionary([
+                .init("Type", .pdfName("Font")),
+                .init("Subtype", .pdfName("TrueType")),
+                .init("BaseFont", .pdfName(baseName)),
+                .init("Encoding", .pdfName("WinAnsiEncoding")),
+                .init("FirstChar", .int(32)),
+                .init("LastChar", .int(126)),
+                .init("Widths", .pdfArray(font.widthsForPDF(in: fontSet).map { .int($0) })),
+                .init("FontDescriptor", .reference(descriptorRef)),
+            ]))
         }
 
-        mutating func addStream(dictionary: String, data: Data) -> Int {
-            var object = Data()
-            object.appendString("\(dictionary) /Length \(data.count) >>\nstream\n")
-            object.append(data)
-            object.appendString("\nendstream")
-            objects.append(object)
-            return objects.count
+        mutating func addStream(dictionary: PDFSyntax.Dictionary, data: Data) -> PDFSyntax.Reference {
+            addData(PDFSyntax.Stream(dictionary: dictionary, data: data).serialized)
         }
 
-        mutating func addImage(_ image: PDFImage) -> Int {
-            var dictionary = """
-            << /Type /XObject
-            /Subtype /Image
-            /Width \(image.width)
-            /Height \(image.height)
-            /ColorSpace \(image.colorSpace)
-            /BitsPerComponent \(image.bitsPerComponent)
-            /Filter \(image.filter)
-            """
+        mutating func addImage(_ image: PDFImage) -> PDFSyntax.Reference {
+            var entries: [PDFSyntax.Dictionary.Entry] = [
+                .init("Type", .pdfName("XObject")),
+                .init("Subtype", .pdfName("Image")),
+                .init("Width", .int(image.width)),
+                .init("Height", .int(image.height)),
+                .init("ColorSpace", .name(image.colorSpace)),
+                .init("BitsPerComponent", .int(image.bitsPerComponent)),
+                .init("Filter", .name(image.filter)),
+            ]
             if let decodeParms = image.decodeParms {
-                dictionary += "\n/DecodeParms \(decodeParms)"
+                entries.append(.init("DecodeParms", .dictionary(decodeParms)))
             }
-            dictionary += "\n"
 
-            return addStream(dictionary: dictionary, data: image.data)
+            return addStream(dictionary: PDFSyntax.Dictionary(entries), data: image.data)
         }
 
-        mutating func addLinkAnnotation(_ annotation: PDFLinkAnnotation) -> Int {
+        mutating func addLinkAnnotation(_ annotation: PDFLinkAnnotation) -> PDFSyntax.Reference {
             let minX = annotation.x
             let minY = annotation.y
             let maxX = annotation.x + annotation.width
             let maxY = annotation.y + annotation.height
-            return addString("""
-            << /Type /Annot
-            /Subtype /Link
-            /Rect [\(format(minX)) \(format(minY)) \(format(maxX)) \(format(maxY))]
-            /Border [0 0 0]
-            /A << /S /URI /URI \(annotation.destination.pdfURI.pdfLiteralString) >> >>
-            """)
+            return addDictionary(
+                PDFSyntax.Dictionary([
+                    .init("Type", .pdfName("Annot")),
+                    .init("Subtype", .pdfName("Link")),
+                    .init(
+                        "Rect",
+                        .pdfArray([
+                            .number(minX),
+                            .number(minY),
+                            .number(maxX),
+                            .number(maxY),
+                        ]),
+                    ),
+                    .init(
+                        "Border",
+                        .pdfArray([
+                            .int(0),
+                            .int(0),
+                            .int(0),
+                        ]),
+                    ),
+                    .init(
+                        "A",
+                        .pdfDictionary([
+                            .init("S", .pdfName("URI")),
+                            .init("URI", .pdfString(annotation.destination.pdfURI)),
+                        ]),
+                    ),
+                ]),
+                style: .multiline,
+            )
         }
 
-        func build(root: Int) -> Data {
+        func build(root: PDFSyntax.Reference) -> Data {
             var output = Data()
             output.appendString("%PDF-1.4\n%\u{00E2}\u{00E3}\u{00CF}\u{00D3}\n")
             var offsets = [0]
 
             for (offset, object) in objects.enumerated() {
+                let reference = PDFSyntax.Reference(objectNumber: offset + 1)
+                let indirectObject = PDFSyntax.IndirectObject(
+                    reference: reference,
+                    body: object ?? Data(PDFSyntax.Dictionary().serialized().utf8),
+                )
                 offsets.append(output.count)
-                output.appendString("\(offset + 1) 0 obj\n")
-                output.append(object ?? Data("<<>>".utf8))
-                output.appendString("\nendobj\n")
+                output.append(indirectObject.serialized)
             }
 
             let xrefStart = output.count
@@ -219,7 +285,10 @@ struct PDFDocumentWriter {
             }
             output.appendString("""
             trailer
-            << /Size \(objects.count + 1) /Root \(root) 0 R >>
+            \(PDFSyntax.Dictionary([
+                .init("Size", .int(objects.count + 1)),
+                .init("Root", .reference(root)),
+            ]).serialized())
             startxref
             \(xrefStart)
             %%EOF
@@ -227,14 +296,15 @@ struct PDFDocumentWriter {
 
             return output
         }
+
+        private mutating func addData(_ data: Data) -> PDFSyntax.Reference {
+            objects.append(data)
+            return PDFSyntax.Reference(objectNumber: objects.count)
+        }
     }
 }
 
 private extension String {
-    var pdfName: String {
-        replacingOccurrences(of: " ", with: "#20")
-    }
-
     var pdfURI: String {
         if contains("://") || hasPrefix("mailto:") || hasPrefix("#") || hasPrefix("/") || hasPrefix(".") {
             return self
@@ -245,43 +315,5 @@ private extension String {
         }
 
         return self
-    }
-
-    var pdfLiteralString: String {
-        var output = "("
-        for scalar in unicodeScalars {
-            switch scalar.value {
-            case 0x08:
-                output += "\\b"
-            case 0x09:
-                output += "\\t"
-            case 0x0A:
-                output += "\\n"
-            case 0x0C:
-                output += "\\f"
-            case 0x0D:
-                output += "\\r"
-            case 0x28:
-                output += "\\("
-            case 0x29:
-                output += "\\)"
-            case 0x5C:
-                output += "\\\\"
-            case 32 ... 126:
-                output.append(Character(scalar))
-            case 160 ... 255:
-                output += String(format: "\\%03o", scalar.value)
-            default:
-                output += "?"
-            }
-        }
-        output += ")"
-        return output
-    }
-}
-
-private extension Data {
-    mutating func appendString(_ string: String) {
-        append(Data(string.utf8))
     }
 }
