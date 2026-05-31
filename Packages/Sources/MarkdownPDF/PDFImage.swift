@@ -4,10 +4,10 @@ struct PDFImage {
     var name: String
     var width: Int
     var height: Int
-    var colorSpace: String
+    var colorSpace: PDFSyntax.Name
     var bitsPerComponent: Int
-    var filter: String
-    var decodeParms: String?
+    var filter: PDFSyntax.Name
+    var decodeParms: PDFSyntax.Dictionary?
     var data: Data
 
     static func load(
@@ -85,7 +85,7 @@ struct PDFImage {
                 let height = Int(bytes[index + 3]) << 8 | Int(bytes[index + 4])
                 let width = Int(bytes[index + 5]) << 8 | Int(bytes[index + 6])
                 let components = Int(bytes[index + 7])
-                let colorSpace = components == 1 ? "/DeviceGray" : "/DeviceRGB"
+                let colorSpace = components == 1 ? PDFSyntax.Name("DeviceGray") : PDFSyntax.Name("DeviceRGB")
 
                 return PDFImage(
                     name: name,
@@ -93,7 +93,7 @@ struct PDFImage {
                     height: height,
                     colorSpace: colorSpace,
                     bitsPerComponent: 8,
-                    filter: "/DCTDecode",
+                    filter: PDFSyntax.Name("DCTDecode"),
                     decodeParms: nil,
                     data: data,
                 )
@@ -116,7 +116,7 @@ struct PDFImage {
         var width: Int?
         var height: Int?
         var bits = 8
-        var colorSpace = "/DeviceRGB"
+        var colorSpace = PDFSyntax.Name("DeviceRGB")
         var colors = 3
         var idat = Data()
 
@@ -142,10 +142,10 @@ struct PDFImage {
 
                 switch colorType {
                 case 0:
-                    colorSpace = "/DeviceGray"
+                    colorSpace = PDFSyntax.Name("DeviceGray")
                     colors = 1
                 case 2:
-                    colorSpace = "/DeviceRGB"
+                    colorSpace = PDFSyntax.Name("DeviceRGB")
                     colors = 3
                 default:
                     return nil
@@ -169,8 +169,13 @@ struct PDFImage {
             height: height,
             colorSpace: colorSpace,
             bitsPerComponent: bits,
-            filter: "/FlateDecode",
-            decodeParms: "<< /Predictor 15 /Colors \(colors) /BitsPerComponent \(bits) /Columns \(width) >>",
+            filter: PDFSyntax.Name("FlateDecode"),
+            decodeParms: PDFSyntax.Dictionary([
+                .init("Predictor", .int(15)),
+                .init("Colors", .int(colors)),
+                .init("BitsPerComponent", .int(bits)),
+                .init("Columns", .int(width)),
+            ]),
             data: idat,
         )
     }
