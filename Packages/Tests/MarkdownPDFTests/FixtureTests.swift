@@ -81,6 +81,10 @@ struct FixtureTests {
             #expect(inspector.pageCount >= 1)
             #expect(inspector.hasValidXrefOffsets())
             #expect(inspector.streamLengthsMatch())
+            #expect(
+                inspector.canonicalStructureIssues().isEmpty,
+                "Canonical PDF structure failed for \(fixtureName):\n\(inspector.canonicalStructureReport())",
+            )
 
             let qpdf = try PDFValidation.qpdfCheck(data: data, name: fixtureName)
             #expect(qpdf.exitCode == 0, "qpdf --check failed for \(fixtureName):\n\(qpdf.output)")

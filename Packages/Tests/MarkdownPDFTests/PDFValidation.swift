@@ -77,6 +77,15 @@ enum PDFValidation {
         try Tool.run("pdftotext", arguments: [url.path, "-"])
     }
 
+    static func pdftotextTSV(data: some DataProtocol, name: String) throws -> Result {
+        let url = try temporaryPDF(name: name, data: data)
+        return try pdftotextTSV(url: url)
+    }
+
+    static func pdftotextTSV(url: URL) throws -> Result {
+        try Tool.run("pdftotext", arguments: ["-tsv", url.path, "-"])
+    }
+
     static func pdftoppmPNG(data: some DataProtocol, name: String) throws -> (result: Result, pngURL: URL) {
         let url = try temporaryPDF(name: name, data: data)
         return try pdftoppmPNG(url: url)
