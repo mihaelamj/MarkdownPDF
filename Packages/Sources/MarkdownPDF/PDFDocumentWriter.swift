@@ -12,25 +12,25 @@ struct PDFDocumentWriter {
         let catalogRef = builder.reserve()
         let pagesRef = builder.reserve()
 
-        let fontRefs = StandardFont.allCases.map { font in
-            (font, builder.addFont(font, fontSet: fontSet))
+        let fontResources = StandardFont.allCases.map { font in
+            PageResources.Entry(name: font.rawValue, objectRef: builder.addFont(font, fontSet: fontSet))
         }
 
-        let imageRefs = images.map { image in
-            (image.name, builder.addImage(image))
+        let imageResources = images.map { image in
+            PageResources.Entry(name: image.name, objectRef: builder.addImage(image))
         }
+        let pageResources = PageResources(fonts: fontResources, xObjects: imageResources)
 
         var pageRefs: [Int] = []
         for page in pages {
             let contentData = Data(page.commands.utf8)
             let contentRef = builder.addStream(dictionary: "<<", data: contentData)
             let annotationRefs = page.linkAnnotations.map { builder.addLinkAnnotation($0) }
-            let resourceDictionary = resources(fontRefs: fontRefs, imageRefs: imageRefs)
             var pageDictionary = """
             << /Type /Page
             /Parent \(pagesRef) 0 R
             /MediaBox [0 0 \(format(pageSize.width)) \(format(pageSize.height))]
-            /Resources \(resourceDictionary)
+            /Resources \(pageResources.pdfDictionary)
             /Contents \(contentRef) 0 R
             """
             if !annotationRefs.isEmpty {
@@ -58,22 +58,26 @@ struct PDFDocumentWriter {
         return builder.build(root: catalogRef)
     }
 
-    private func resources(
-        fontRefs: [(StandardFont, Int)],
-        imageRefs: [(String, Int)],
-    ) -> String {
-        let fonts = fontRefs
-            .map { "/\($0.0.rawValue) \($0.1) 0 R" }
-            .joined(separator: " ")
-        let xObjects = imageRefs
-            .map { "/\($0.0) \($0.1) 0 R" }
-            .joined(separator: " ")
+    private struct PageResources {
+        var fonts: [Entry]
+        var xObjects: [Entry]
 
-        if xObjects.isEmpty {
-            return "<< /Font << \(fonts) >> >>"
+        var pdfDictionary: String {
+            var sections = ["/Font << \(fonts.map(\.pdfEntry).joined(separator: " ")) >>"]
+            if !xObjects.isEmpty {
+                sections.append("/XObject << \(xObjects.map(\.pdfEntry).joined(separator: " ")) >>")
+            }
+            return "<< \(sections.joined(separator: " ")) >>"
         }
 
-        return "<< /Font << \(fonts) >> /XObject << \(xObjects) >> >>"
+        struct Entry {
+            var name: String
+            var objectRef: Int
+
+            var pdfEntry: String {
+                "/\(name.pdfName) \(objectRef) 0 R"
+            }
+        }
     }
 
     private struct Builder {
