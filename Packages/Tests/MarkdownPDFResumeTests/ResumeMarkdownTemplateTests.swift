@@ -71,6 +71,19 @@ struct ResumeMarkdownTemplateTests {
                     items: ["A*B", "Tables | Markdown"],
                 ),
             ],
+            sections: [
+                ResumeDocument.Section(
+                    title: "Research",
+                    entries: [
+                        ResumeDocument.Entry(
+                            title: "Open [Source]",
+                            subtitle: "*Maintainer*",
+                            details: ["[literal]"],
+                            technologies: ["Docs|PDF"],
+                        ),
+                    ],
+                ),
+            ],
         )
 
         let markdown = ResumeMarkdownTemplate().markdown(for: resume)
@@ -83,6 +96,9 @@ struct ResumeMarkdownTemplateTests {
         #expect(markdown.contains("- \\*not emphasis\\*"))
         #expect(markdown.contains("- 1\\. not ordered"))
         #expect(markdown.contains("**Core\\|Skills:** A\\*B, Tables \\| Markdown"))
+        #expect(markdown.contains("### Open \\[Source\\] (\\*Maintainer\\*)"))
+        #expect(markdown.contains("- \\[literal\\]"))
+        #expect(markdown.contains("**Technologies:** Docs\\|PDF"))
         #expect(text.contains("/URI (https://example.com/company%28a%29)"))
         #expect(text.contains("/URI (https://example.com/profile%281%29)"))
     }

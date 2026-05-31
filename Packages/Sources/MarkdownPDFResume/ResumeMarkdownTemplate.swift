@@ -187,7 +187,7 @@ private struct Writer {
             for entry in sectionValue.entries {
                 var title = linkedTitle(entry.title, url: entry.url)
                 if let subtitle = entry.subtitle.cleanValue {
-                    title += " (\(subtitle))"
+                    title += " (\(markdownText(subtitle)))"
                 }
                 heading(3, title)
                 list(entry.details)
