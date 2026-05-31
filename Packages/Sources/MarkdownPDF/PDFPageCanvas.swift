@@ -8,11 +8,12 @@ final class PDFPageCanvas {
         _ run: PDFTextRun,
         x: Double,
         y: Double,
+        fontSet: PDFOptions.FontSet,
     ) {
         setFillColor(run.color)
         append("BT /\(run.font.rawValue) \(format(run.size)) Tf \(format(x)) \(format(y)) Td \(run.text.pdfLiteralString) Tj ET\n")
 
-        let width = run.width()
+        let width = run.width(fontSet: fontSet)
         if run.underline {
             drawLine(
                 x1: x,

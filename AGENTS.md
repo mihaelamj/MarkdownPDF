@@ -25,8 +25,8 @@ or PDF libraries.
 - Generate PDF bytes directly in Swift.
 - Keep the core Linux-buildable.
 - Do not embed font files in the public repo.
-- Use Apple system font names by default (`SFProText` and `SFMono`), with
-  substitute rendering expected on systems without those fonts.
+- Use standard PDF base fonts by default. Apple system font names remain
+  available through `PDFOptions.FontSet.appleSystem`.
 - Treat CommonMark plus GitHub Flavored Markdown tables and images as the
   compatibility target.
 - Keep public API small and testable.

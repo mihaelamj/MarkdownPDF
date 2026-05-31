@@ -19,7 +19,7 @@ CommonMark plus GitHub Flavored Markdown tables and images.
 - Keep source Pure Swift.
 - Render PDFs without PDFKit, CoreGraphics, WebKit, browser automation, LaTeX,
   or C libraries.
-- Use Apple font names by default without embedding font files.
+- Use standard PDF base fonts by default without embedding font files.
 - Support Markdown block and inline syntax, including tables and images.
 
 ## Non-Goals
@@ -58,17 +58,27 @@ IDAT bytes with PDF PNG predictor parameters.
 
 ## Font Policy
 
-The default font set references Apple system font names:
+The default font set references standard PDF base names:
+
+- `Helvetica`
+- `Helvetica-Bold`
+- `Helvetica-Oblique`
+- `Courier`
+
+The repo does not embed or redistribute font files. Standard PDF base fonts are
+portable across PDF viewers, which keeps the early renderer predictable while
+supporting proportional text layout.
+
+Apple system font names remain available through
+`PDFOptions.FontSet.appleSystem`:
 
 - `SFProText-Regular`
 - `SFProText-Bold`
 - `SFProText-RegularItalic`
 - `SFMono-Regular`
 
-The repo does not embed or redistribute those font files. PDF viewers that lack
-the fonts may substitute. `PDFOptions.FontSet.pdfBase` switches to standard PDF
-base fonts when strict portability of visual appearance matters more than Apple
-font naming.
+`PDFOptions.FontSet.pdfBaseMonospaced` switches all text roles to Courier when
+strict monospaced output is preferred.
 
 ## Compatibility Target
 

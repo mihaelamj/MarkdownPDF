@@ -33,7 +33,8 @@ private struct Layout {
     }
 
     mutating func render(_ document: MarkdownDocument) throws {
-        for block in document.blocks {
+        for (index, block) in document.blocks.enumerated() {
+            keepHeadingWithNextBlock(block, isLast: index == document.blocks.count - 1)
             try render(block)
         }
     }
@@ -135,6 +136,7 @@ private struct Layout {
                     PDFTextRun(text: "\(number).", font: .helvetica, size: options.baseFontSize),
                     x: options.margins.left,
                     y: y,
+                    fontSet: options.fontSet,
                 )
                 number += 1
             }
@@ -169,6 +171,7 @@ private struct Layout {
                 PDFTextRun(text: line, font: .courier, size: size),
                 x: options.margins.left,
                 y: y - size,
+                fontSet: options.fontSet,
             )
             y -= lineHeight
         }
@@ -240,7 +243,7 @@ private struct Layout {
 
             var lineY = y - cellPadding - fontSize
             for line in cellLines[column] {
-                let width = line.reduce(0) { $0 + $1.width() }
+                let width = line.reduce(0) { $0 + $1.width(fontSet: options.fontSet) }
                 let alignment = column < alignments.count ? alignments[column] : .leading
                 let textX = switch alignment {
                 case .leading:
@@ -398,7 +401,7 @@ private struct Layout {
                 continue
             }
 
-            let width = token.width()
+            let width = token.width(fontSet: options.fontSet)
             if currentWidth + width > maxWidth, !current.isEmpty {
                 lines.append(current)
                 current = [token]
@@ -451,8 +454,8 @@ private struct Layout {
     ) {
         var cursor = x
         for run in runs {
-            currentPage.drawTextRun(run, x: cursor, y: y)
-            cursor += run.width()
+            currentPage.drawTextRun(run, x: cursor, y: y, fontSet: options.fontSet)
+            cursor += run.width(fontSet: options.fontSet)
         }
     }
 
@@ -463,9 +466,23 @@ private struct Layout {
         }
     }
 
+    private mutating func keepHeadingWithNextBlock(
+        _ block: MarkdownBlock,
+        isLast: Bool,
+    ) {
+        guard !isLast,
+              case let .heading(level, _) = block
+        else {
+            return
+        }
+
+        let topSpacing = y < pageTopY - 1 ? headingTopSpacing(level) : 0
+        let height = topSpacing + headingSize(level) * 1.8 + headingKeepWithNextHeight(level)
+        ensureSpace(height)
+    }
+
     private mutating func addHeadingTopSpacing(_ spacing: Double) {
-        let pageTop = options.pageSize.height - options.margins.top
-        guard y < pageTop - 1 else {
+        guard y < pageTopY - 1 else {
             return
         }
 
@@ -484,6 +501,17 @@ private struct Layout {
             options.baseFontSize * 0.95
         default:
             options.baseFontSize * 0.5
+        }
+    }
+
+    private func headingKeepWithNextHeight(_ level: Int) -> Double {
+        switch level {
+        case 1, 2:
+            options.baseFontSize * 9.0
+        case 3:
+            options.baseFontSize * 4.5
+        default:
+            options.baseFontSize * 2.6
         }
     }
 
@@ -514,6 +542,10 @@ private struct Layout {
 
     private var contentWidth: Double {
         options.pageSize.width - options.margins.left - options.margins.right
+    }
+
+    private var pageTopY: Double {
+        options.pageSize.height - options.margins.top
     }
 
     private var currentPage: PDFPageCanvas {

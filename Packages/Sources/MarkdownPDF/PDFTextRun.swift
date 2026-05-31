@@ -27,7 +27,7 @@ struct PDFTextRun {
         self.linkDestination = linkDestination
     }
 
-    func width() -> Double {
-        font.width(of: text, size: size)
+    func width(fontSet: PDFOptions.FontSet) -> Double {
+        font.width(of: text, size: size, fontSet: fontSet)
     }
 }
