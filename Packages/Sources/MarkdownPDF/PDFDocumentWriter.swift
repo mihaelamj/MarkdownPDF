@@ -113,7 +113,10 @@ struct PDFDocumentWriter {
             /CapHeight 700
             /StemV 80 >>
             """)
-            let widths = Array(repeating: String(font.nominalWidth), count: 95).joined(separator: " ")
+            let widths = font
+                .widthsForPDF(in: fontSet)
+                .map(String.init)
+                .joined(separator: " ")
             return addString("""
             << /Type /Font
             /Subtype /TrueType

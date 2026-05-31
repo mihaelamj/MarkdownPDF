@@ -1,6 +1,11 @@
 import Foundation
 import MarkdownPDF
+import MarkdownPDFLinux
 import Testing
+
+#if canImport(MarkdownPDFMac)
+import MarkdownPDFMac
+#endif
 
 @Suite("PDF renderer")
 struct MarkdownPDFRendererTests {
@@ -27,6 +32,77 @@ struct MarkdownPDFRendererTests {
         #expect(text.contains("/BaseFont /Courier"))
         #expect(!text.contains("/FontFile"))
         #expect(text.contains("xref"))
+    }
+
+    @Test("Writes xref entries that point at PDF objects")
+    func writesValidXrefOffsets() throws {
+        let data = try MarkdownPDFRenderer().render(markdown: "# Title\n\nBody text.")
+        let inspector = PDFInspector(data)
+
+        #expect(inspector.hasValidXrefOffsets())
+    }
+
+    @Test("Linux product renders with portable renderer")
+    func linuxProductRendersPDF() throws {
+        let data = try MarkdownPDFLinuxRenderer().render(markdown: "# Linux\n\nPortable output.")
+        let inspector = PDFInspector(data)
+
+        #expect(inspector.text.hasPrefix("%PDF-1.4"))
+        #expect(inspector.hasValidXrefOffsets())
+    }
+
+    #if canImport(MarkdownPDFMac)
+    @Test("Mac product renders through macOS entry point")
+    func macProductRendersPDF() throws {
+        let data = try MarkdownPDFMacRenderer().render(markdown: "# Mac\n\nPlatform output.")
+        let inspector = PDFInspector(data)
+
+        #expect(inspector.text.hasPrefix("%PDF-1.4"))
+        #expect(inspector.hasValidXrefOffsets())
+    }
+    #endif
+
+    @Test("Writes stream lengths that match emitted bytes")
+    func writesMatchingStreamLengths() throws {
+        let data = try MarkdownPDFRenderer().render(markdown: """
+        # Title
+
+        Body text with [a link](https://example.com/docs).
+        """)
+        let inspector = PDFInspector(data)
+
+        #expect(inspector.streamLengthsMatch())
+    }
+
+    @Test("Reports page count and link annotations in generated PDF")
+    func reportsPagesAndLinkAnnotations() throws {
+        let longBody = Array(
+            repeating: "This paragraph forces the renderer to continue onto another page.",
+            count: 24,
+        ).joined(separator: "\n\n")
+        let data = try MarkdownPDFRenderer(
+            options: PDFOptions(
+                pageSize: PDFOptions.PageSize(width: 220, height: 180),
+                margins: PDFOptions.Margins(top: 20, right: 20, bottom: 20, left: 20),
+                baseFontSize: 10,
+            ),
+        ).render(markdown: "[Docs](https://example.com/docs)\n\n\(longBody)")
+        let inspector = PDFInspector(data)
+
+        #expect(inspector.pageCount > 1)
+        #expect(inspector.linkAnnotationCount == 1)
+    }
+
+    @Test("Escapes literal strings in content streams")
+    func escapesLiteralStrings() throws {
+        let data = try MarkdownPDFRenderer().render(
+            markdown: #"Text (with parens) and slash \ here."#,
+        )
+        let streamBodies = PDFInspector(data).streams.map(\.body).joined(separator: "\n")
+
+        #expect(streamBodies.contains(#"(\(with "#))
+        #expect(streamBodies.contains(#"parens\) "#))
+        #expect(streamBodies.contains(#"(\\ )"#))
     }
 
     @Test("Supports monospaced PDF base font set")
@@ -62,6 +138,22 @@ struct MarkdownPDFRendererTests {
 
         #expect(narrowLineCount == 1)
         #expect(wideLineCount > narrowLineCount)
+    }
+
+    @Test("Writes proportional widths for Apple system TrueType font dictionaries")
+    func writesProportionalWidthsForAppleSystemTrueTypeFontDictionaries() throws {
+        let data = try MarkdownPDFRenderer(
+            options: PDFOptions(fontSet: .appleSystem),
+        ).render(markdown: "# WWW\n\n**Bold**\n\n`code`")
+        let text = String(decoding: data, as: UTF8.self)
+
+        #expect(text.contains("/BaseFont /SFProText-Regular"))
+        #expect(text.contains("/BaseFont /SFProText-Bold"))
+        #expect(text.contains("/BaseFont /SFMono-Regular"))
+        #expect(text.contains("/Widths [278 278 355 556"))
+        #expect(text.contains("/Widths [278 333 474 556"))
+        #expect(text.contains("/Widths [600 600 600 600"))
+        #expect(!text.contains("/FontFile"))
     }
 
     @Test("Renders Markdown links as PDF URI annotations")

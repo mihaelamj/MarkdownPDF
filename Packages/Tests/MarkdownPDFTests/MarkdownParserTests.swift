@@ -49,4 +49,19 @@ struct MarkdownParserTests {
         #expect(source == "image.jpg")
         #expect(title == "Title")
     }
+
+    @Test("Parses backslash escapes in text and link labels")
+    func parsesBackslashEscapes() {
+        let document = MarkdownParser().parse(#"\[literal\] \*not strong\* [ACME \[Labs\]](https://example.com/a%29)"#)
+
+        guard case let .paragraph(inlines) = document.blocks.first else {
+            Issue.record("Expected an escaped text paragraph")
+            return
+        }
+
+        #expect(inlines == [
+            .text("[literal] *not strong* "),
+            .link(children: [.text("ACME [Labs]")], destination: "https://example.com/a%29", title: nil),
+        ])
+    }
 }
