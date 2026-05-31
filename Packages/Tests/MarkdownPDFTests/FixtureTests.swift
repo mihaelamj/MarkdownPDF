@@ -2,11 +2,14 @@ import Foundation
 import MarkdownPDF
 import Testing
 
+#if canImport(MarkdownPDFMac)
+    import MarkdownPDFMac
+#endif
+
 @Suite("Fixtures")
 struct FixtureTests {
-    @Test("Demo CV fixture is anonymized")
-    func demoCVFixtureIsAnonymized() throws {
-        let fixture = try demoCVFixture()
+    @Test("Public fixtures are anonymized")
+    func publicFixturesAreAnonymized() throws {
         let forbiddenIdentifiers = [
             "Mihaela",
             "Mihaljevic",
@@ -46,8 +49,11 @@ struct FixtureTests {
             "Logroño",
         ]
 
-        for identifier in forbiddenIdentifiers {
-            #expect(!fixture.localizedCaseInsensitiveContains(identifier))
+        for fixtureName in publicFixtureNames {
+            let fixture = try fixture(named: fixtureName)
+            for identifier in forbiddenIdentifiers {
+                #expect(!fixture.localizedCaseInsensitiveContains(identifier))
+            }
         }
     }
 
@@ -63,11 +69,67 @@ struct FixtureTests {
         #expect(text.contains("xref"))
     }
 
+    @Test("Renders article-grade fixtures with valid PDF structure")
+    func rendersArticleGradeFixtures() throws {
+        for fixtureName in articleGradeFixtureNames {
+            let data = try MarkdownPDFRenderer().render(markdown: fixture(named: fixtureName))
+            let inspector = PDFInspector(data)
+
+            #expect(inspector.text.hasPrefix("%PDF-1.4"))
+            #expect(inspector.text.contains("/BaseFont /Helvetica"))
+            #expect(!inspector.text.contains("/FontFile"))
+            #expect(inspector.pageCount >= 1)
+            #expect(inspector.hasValidXrefOffsets())
+            #expect(inspector.streamLengthsMatch())
+        }
+    }
+
+    @Test("Scientific article fixture covers links and image fallback")
+    func scientificArticleFixtureCoversLinksAndImageFallback() throws {
+        let data = try MarkdownPDFRenderer().render(markdown: fixture(named: "scientific-article.md"))
+        let inspector = PDFInspector(data)
+        let streamText = inspector.streams.map(\.body).joined(separator: "\n")
+
+        #expect(inspector.linkAnnotationCount >= 1)
+        #expect(inspector.text.contains("/URI (https://example.com/research/layout-measurements)"))
+        #expect(streamText.contains("([Remote )"))
+        #expect(streamText.contains("(image: )"))
+        #expect(streamText.contains("(flowchart TD)"))
+    }
+
+    #if canImport(MarkdownPDFMac)
+        @Test("Mac product renders scientific article fixture")
+        func macProductRendersScientificArticleFixture() throws {
+            let data = try MarkdownPDFMacRenderer().render(markdown: fixture(named: "scientific-article.md"))
+            let inspector = PDFInspector(data)
+
+            #expect(inspector.text.hasPrefix("%PDF-1.4"))
+            #expect(!inspector.text.contains("/FontFile"))
+            #expect(inspector.hasValidXrefOffsets())
+            #expect(inspector.streamLengthsMatch())
+        }
+    #endif
+
     private func demoCVFixture() throws -> String {
+        try fixture(named: "democv.md")
+    }
+
+    private func fixture(named name: String) throws -> String {
         let testFile = URL(fileURLWithPath: #filePath)
         let fixtureURL = testFile
             .deletingLastPathComponent()
-            .appendingPathComponent("Fixtures/democv.md")
+            .appendingPathComponent("Fixtures/\(name)")
         return try String(contentsOf: fixtureURL, encoding: .utf8)
+    }
+
+    private var publicFixtureNames: [String] {
+        ["democv.md"] + articleGradeFixtureNames
+    }
+
+    private var articleGradeFixtureNames: [String] {
+        [
+            "scientific-article.md",
+            "technical-report.md",
+        ]
     }
 }
