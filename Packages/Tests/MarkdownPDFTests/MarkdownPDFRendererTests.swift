@@ -58,6 +58,7 @@ struct MarkdownPDFRendererTests {
             let inspector = PDFInspector(data)
 
             #expect(inspector.text.hasPrefix("%PDF-1.4"))
+            #expect(!inspector.text.contains("/FontFile"))
             #expect(inspector.hasValidXrefOffsets())
         }
     #endif
