@@ -10,11 +10,11 @@ Apple system font names remain available through `PDFOptions.FontSet.appleSystem
 
 ## Status
 
-Early implementation. The project contract is CommonMark plus GitHub Flavored
-Markdown tables and images. The first renderer covers headings, paragraphs,
-emphasis, strong text, strike-through, inline code, links, local JPEG and PNG
-images, block quotes, ordered and unordered lists, fenced code blocks, thematic
-breaks, raw HTML as visible text, and tables.
+Early implementation. The compatibility target is CommonMark plus GitHub
+Flavored Markdown tables and images. The first renderer currently covers
+headings, paragraphs, emphasis, strong text, strike-through, inline code, links,
+local JPEG and PNG images, block quotes, ordered and unordered lists, fenced
+code blocks, thematic breaks, raw HTML as visible text, and tables.
 
 The resume and CV template is separate from the generic renderer. It lives in
 the `MarkdownPDFResume` target and emits Markdown from structured resume JSON.
