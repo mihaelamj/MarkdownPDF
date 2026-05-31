@@ -2,6 +2,28 @@
 
 import PackageDescription
 
+#if os(macOS)
+    let macProducts: [Product] = [
+        .library(
+            name: "MarkdownPDFMac",
+            targets: ["MarkdownPDFMac"],
+        ),
+    ]
+
+    let macTargets: [Target] = [
+        .target(
+            name: "MarkdownPDFMac",
+            dependencies: ["MarkdownPDF"],
+        ),
+    ]
+
+    let macTestDependencies: [Target.Dependency] = ["MarkdownPDFMac"]
+#else
+    let macProducts: [Product] = []
+    let macTargets: [Target] = []
+    let macTestDependencies: [Target.Dependency] = []
+#endif
+
 let package = Package(
     name: "MarkdownPDF",
     platforms: [
@@ -11,6 +33,10 @@ let package = Package(
         .library(
             name: "MarkdownPDF",
             targets: ["MarkdownPDF"],
+        ),
+        .library(
+            name: "MarkdownPDFLinux",
+            targets: ["MarkdownPDFLinux"],
         ),
         .library(
             name: "MarkdownPDFResume",
@@ -24,10 +50,14 @@ let package = Package(
             name: "resumepdf",
             targets: ["ResumePDFCLI"],
         ),
-    ],
+    ] + macProducts,
     targets: [
         .target(
             name: "MarkdownPDF",
+        ),
+        .target(
+            name: "MarkdownPDFLinux",
+            dependencies: ["MarkdownPDF"],
         ),
         .executableTarget(
             name: "MarkdownPDFCLI",
@@ -42,7 +72,7 @@ let package = Package(
         ),
         .testTarget(
             name: "MarkdownPDFTests",
-            dependencies: ["MarkdownPDF"],
+            dependencies: ["MarkdownPDF", "MarkdownPDFLinux"] + macTestDependencies,
             exclude: ["Fixtures"],
         ),
         .testTarget(
@@ -50,5 +80,5 @@ let package = Package(
             dependencies: ["MarkdownPDF", "MarkdownPDFResume"],
             exclude: ["Fixtures"],
         ),
-    ],
+    ] + macTargets,
 )

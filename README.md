@@ -20,6 +20,11 @@ The resume and CV template is separate from the generic renderer. It lives in
 the `MarkdownPDFResume` target and emits Markdown from structured resume JSON.
 The `resumepdf` executable combines that template with the generic renderer.
 
+The package also exposes platform entry products. `MarkdownPDFLinux` is the
+portable renderer entry point for Linux-compatible generation.
+`MarkdownPDFMac` is a macOS-only entry point reserved for a future native macOS
+backend; it currently delegates to the portable renderer.
+
 See [docs/DESIGN.md](docs/DESIGN.md) for the architecture.
 
 ## Use
@@ -30,6 +35,22 @@ import MarkdownPDF
 let markdown = "# Hello\n\nA small PDF renderer."
 let data = try MarkdownPDFRenderer().render(markdown: markdown)
 try data.write(to: URL(fileURLWithPath: "hello.pdf"))
+```
+
+Portable Linux-facing product:
+
+```swift
+import MarkdownPDFLinux
+
+let data = try MarkdownPDFLinuxRenderer().render(markdown: markdown)
+```
+
+macOS-facing product:
+
+```swift
+import MarkdownPDFMac
+
+let data = try MarkdownPDFMacRenderer().render(markdown: markdown)
 ```
 
 Command line:

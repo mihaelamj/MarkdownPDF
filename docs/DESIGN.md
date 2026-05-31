@@ -39,6 +39,14 @@ Markdown source
   -> Data
 ```
 
+## Package Products
+
+`MarkdownPDF` remains the core portable library and current public API.
+`MarkdownPDFLinux` is a Linux-compatible product entry point that delegates to
+the portable renderer. `MarkdownPDFMac` is built only on macOS and gives the
+package a separate platform-specific surface for future macOS renderer work.
+The macOS product currently delegates to the portable renderer.
+
 ## Components
 
 `MarkdownParser` builds the AST from Markdown source. It owns block parsing and
