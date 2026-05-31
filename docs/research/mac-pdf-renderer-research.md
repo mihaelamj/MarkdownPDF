@@ -1,5 +1,10 @@
 # macOS PDF renderer research
 
+Direction update on 2026-05-31: this note is historical macOS API research. The
+current implementation focus is a pure-Swift renderer that works on Linux and
+macOS without depending on Apple frameworks. Apple APIs remain possible optional
+backend research, not the primary architecture.
+
 This note records the first research pass for GitHub issues #3 and #11.
 It focuses on the planned `MarkdownPDFMac` renderer for scientific and
 technical articles.
