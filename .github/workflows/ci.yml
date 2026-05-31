@@ -34,7 +34,7 @@ jobs:
             echo "No Packages/Package.swift yet; skipping Swift gates."
             exit 0
           fi
-          brew install qpdf swiftformat swiftlint
+          brew install poppler qpdf swiftformat swiftlint
           swiftformat . --config .swiftformat --lint
           swiftlint --config .swiftlint.yml --strict
           cd Packages && swift build && swift test
@@ -52,5 +52,5 @@ jobs:
             exit 0
           fi
           apt-get update
-          apt-get install -y qpdf
+          apt-get install -y poppler-utils qpdf
           cd Packages && swift build && swift test

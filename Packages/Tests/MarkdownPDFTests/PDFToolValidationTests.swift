@@ -4,10 +4,12 @@ import Testing
 
 @Suite("PDF tool validation")
 struct PDFToolValidationTests {
+    private let minimalMarkdown = "Hello from MarkdownPDF."
+
     @Test("qpdf validates minimal PDF structure")
     func qpdfValidatesMinimalPDFStructure() throws {
         let result = try PDFValidation.qpdfCheck(
-            data: MarkdownPDFRenderer().render(markdown: "Hello from MarkdownPDF."),
+            data: minimalPDF,
             name: "minimal-valid",
         )
 
@@ -16,7 +18,7 @@ struct PDFToolValidationTests {
 
     @Test("qpdf reports damaged PDF structure")
     func qpdfReportsDamagedPDFStructure() throws {
-        let data = try MarkdownPDFRenderer().render(markdown: "Hello from MarkdownPDF.")
+        let data = try minimalPDF
         let result = try PDFValidation.qpdfCheck(
             data: data.prefix(data.count / 2),
             name: "minimal-truncated",
@@ -24,5 +26,42 @@ struct PDFToolValidationTests {
 
         #expect(result.exitCode == 2 || result.exitCode == 3, "qpdf unexpectedly accepted damaged PDF:\n\(result.output)")
         #expect(result.output.contains("WARNING") || result.output.contains("ERROR") || result.output.contains("qpdf:"))
+    }
+
+    @Test("pdfinfo reports minimal PDF version and page count")
+    func pdfinfoReportsMinimalPDFMetadata() throws {
+        let result = try PDFValidation.pdfinfo(data: minimalPDF, name: "minimal-info")
+        let info = PDFValidation.parsedInfo(from: result)
+
+        #expect(result.exitCode == 0, "pdfinfo failed:\n\(result.output)")
+        #expect(info["PDF version"] == "1.4", "Unexpected pdfinfo output:\n\(result.output)")
+        #expect(info["Pages"] == "1", "Unexpected pdfinfo output:\n\(result.output)")
+        #expect(info["Encrypted"] == "no", "Unexpected pdfinfo output:\n\(result.output)")
+    }
+
+    @Test("pdftotext extracts minimal PDF text")
+    func pdftotextExtractsMinimalPDFText() throws {
+        let result = try PDFValidation.pdftotext(data: minimalPDF, name: "minimal-text")
+
+        #expect(result.exitCode == 0, "pdftotext failed:\n\(result.output)")
+        #expect(result.output.contains(minimalMarkdown), "Unexpected pdftotext output:\n\(result.output)")
+    }
+
+    @Test("pdftoppm renders minimal PDF page")
+    func pdftoppmRendersMinimalPDFPage() throws {
+        let render = try PDFValidation.pdftoppmPNG(data: minimalPDF, name: "minimal-render")
+        let pngData = try? Data(contentsOf: render.pngURL)
+        let dimensions = PDFValidation.pngDimensions(in: pngData)
+
+        #expect(render.result.exitCode == 0, "pdftoppm failed:\n\(render.result.output)")
+        #expect(dimensions != nil)
+        #expect((dimensions?.width ?? 0) > 0)
+        #expect((dimensions?.height ?? 0) > 0)
+    }
+
+    private var minimalPDF: Data {
+        get throws {
+            try MarkdownPDFRenderer().render(markdown: minimalMarkdown)
+        }
     }
 }

@@ -84,6 +84,27 @@ struct FixtureTests {
 
             let qpdf = try PDFValidation.qpdfCheck(data: data, name: fixtureName)
             #expect(qpdf.exitCode == 0, "qpdf --check failed for \(fixtureName):\n\(qpdf.output)")
+
+            let infoResult = try PDFValidation.pdfinfo(data: data, name: fixtureName)
+            let info = PDFValidation.parsedInfo(from: infoResult)
+            #expect(infoResult.exitCode == 0, "pdfinfo failed for \(fixtureName):\n\(infoResult.output)")
+            #expect(info["PDF version"] == "1.4", "Unexpected pdfinfo output for \(fixtureName):\n\(infoResult.output)")
+            #expect(info["Pages"] == "\(inspector.pageCount)", "Unexpected pdfinfo output for \(fixtureName):\n\(infoResult.output)")
+
+            let textResult = try PDFValidation.pdftotext(data: data, name: fixtureName)
+            #expect(textResult.exitCode == 0, "pdftotext failed for \(fixtureName):\n\(textResult.output)")
+            #expect(
+                textResult.output.contains(expectedTextFragment(for: fixtureName)),
+                "Unexpected pdftotext output for \(fixtureName):\n\(textResult.output)",
+            )
+
+            let render = try PDFValidation.pdftoppmPNG(data: data, name: fixtureName)
+            let pngData = try? Data(contentsOf: render.pngURL)
+            let dimensions = PDFValidation.pngDimensions(in: pngData)
+            #expect(render.result.exitCode == 0, "pdftoppm failed for \(fixtureName):\n\(render.result.output)")
+            #expect(dimensions != nil)
+            #expect((dimensions?.width ?? 0) > 0)
+            #expect((dimensions?.height ?? 0) > 0)
         }
     }
 
@@ -134,5 +155,16 @@ struct FixtureTests {
             "scientific-article.md",
             "technical-report.md",
         ]
+    }
+
+    private func expectedTextFragment(for fixtureName: String) -> String {
+        switch fixtureName {
+        case "scientific-article.md":
+            "Reproducible Layout Measurements"
+        case "technical-report.md":
+            "Portable PDF Validation Technical Report"
+        default:
+            fixtureName
+        }
     }
 }
