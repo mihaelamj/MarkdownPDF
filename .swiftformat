@@ -5,6 +5,7 @@
 # the engine package. Run `swiftformat . --config .swiftformat` before committing.
 
 --swiftversion 6.1
+--exclude researchcode
 
 # House style.
 --indent 4
