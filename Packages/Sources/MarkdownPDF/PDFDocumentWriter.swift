@@ -12,14 +12,33 @@ struct PDFDocumentWriter {
         let catalogRef = builder.reserve()
         let pagesRef = builder.reserve()
 
-        let fontResources = StandardFont.allCases.map { font in
-            PageResources.Entry(name: font.rawValue, objectRef: builder.addFont(font, fontSet: fontSet))
+        let usedFonts = StandardFont.allCases.filter { font in
+            pages.contains { $0.usedFonts.contains(font) }
         }
+        let fontResources = Dictionary(uniqueKeysWithValues: usedFonts.map { font in
+            (
+                font,
+                PageResources.Entry(name: font.rawValue, objectRef: builder.addFont(font, fontSet: fontSet))
+            )
+        })
 
-        let imageResources = images.map { image in
-            PageResources.Entry(name: image.name, objectRef: builder.addImage(image))
+        let usedImageNames = Set(pages.flatMap(\.usedImageNames))
+        let imageResources = Dictionary(uniqueKeysWithValues: images.filter { usedImageNames.contains($0.name) }.map { image in
+            (
+                image.name,
+                PageResources.Entry(name: image.name, objectRef: builder.addImage(image))
+            )
+        })
+
+        func resources(for page: PDFPageCanvas) -> PageResources {
+            let pageFonts = StandardFont.allCases.compactMap { font in
+                page.usedFonts.contains(font) ? fontResources[font] : nil
+            }
+            let pageXObjects = images.compactMap { image in
+                page.usedImageNames.contains(image.name) ? imageResources[image.name] : nil
+            }
+            return PageResources(fonts: pageFonts, xObjects: pageXObjects)
         }
-        let pageResources = PageResources(fonts: fontResources, xObjects: imageResources)
 
         var pageRefs: [Int] = []
         for page in pages {
@@ -30,7 +49,7 @@ struct PDFDocumentWriter {
             << /Type /Page
             /Parent \(pagesRef) 0 R
             /MediaBox [0 0 \(format(pageSize.width)) \(format(pageSize.height))]
-            /Resources \(pageResources.pdfDictionary)
+            /Resources \(resources(for: page).pdfDictionary)
             /Contents \(contentRef) 0 R
             """
             if !annotationRefs.isEmpty {
@@ -63,9 +82,15 @@ struct PDFDocumentWriter {
         var xObjects: [Entry]
 
         var pdfDictionary: String {
-            var sections = ["/Font << \(fonts.map(\.pdfEntry).joined(separator: " ")) >>"]
+            var sections: [String] = []
+            if !fonts.isEmpty {
+                sections.append("/Font << \(fonts.map(\.pdfEntry).joined(separator: " ")) >>")
+            }
             if !xObjects.isEmpty {
                 sections.append("/XObject << \(xObjects.map(\.pdfEntry).joined(separator: " ")) >>")
+            }
+            if sections.isEmpty {
+                return "<< >>"
             }
             return "<< \(sections.joined(separator: " ")) >>"
         }
