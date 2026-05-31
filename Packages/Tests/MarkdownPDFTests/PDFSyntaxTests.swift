@@ -1,0 +1,75 @@
+import Foundation
+@testable import MarkdownPDF
+import Testing
+
+@Suite("PDF syntax serialization")
+struct PDFSyntaxTests {
+    @Test("Escapes PDF names")
+    func escapesPDFNames() {
+        #expect(PDFSyntax.Name("SF Pro/Text#100%").serialized == "/SF#20Pro#2FText#23100#25")
+        #expect(PDFSyntax.Name("Cvor").serialized == "/Cvor")
+        #expect(PDFSyntax.Name("čvor").serialized == "/#C4#8Dvor")
+    }
+
+    @Test("Escapes PDF literal strings")
+    func escapesPDFLiteralStrings() {
+        #expect(PDFSyntax.LiteralString(#"a(b)\"# + "\n").serialized == #"(a\(b\)\\\n)"#)
+        #expect(PDFSyntax.LiteralString("\u{00A0}").serialized == #"(\240)"#)
+        #expect(PDFSyntax.LiteralString("č").serialized == "(?)")
+    }
+
+    @Test("Serializes dictionaries, arrays, and references")
+    func serializesDictionariesArraysAndReferences() {
+        let reference = PDFSyntax.Reference(objectNumber: 7)
+        let dictionary = PDFSyntax.Dictionary([
+            .init("Type", .pdfName("Example")),
+            .init("Kids", .pdfArray([.reference(reference)])),
+            .init("Title", .pdfString("A (B)")),
+        ])
+
+        #expect(dictionary.serialized() == "<< /Type /Example /Kids [7 0 R] /Title (A \\(B\\)) >>")
+    }
+
+    @Test("Serializes PDF numbers")
+    func serializesPDFNumbers() {
+        #expect(PDFSyntax.Number(12).serialized == "12")
+        #expect(PDFSyntax.Number(12.3456).serialized == "12.346")
+    }
+
+    @Test("Serializes stream length from bytes")
+    func serializesStreamLengthFromBytes() {
+        let stream = PDFSyntax.Stream(
+            dictionary: PDFSyntax.Dictionary([
+                .init("Subtype", .pdfName("Image")),
+            ]),
+            data: Data([0, 1, 2, 10]),
+        )
+        let text = String(decoding: stream.serialized, as: UTF8.self)
+
+        #expect(text.hasPrefix("<< /Subtype /Image /Length 4 >>\nstream\n"))
+        #expect(text.hasSuffix("\nendstream"))
+    }
+
+    @Test("Stream length replaces caller supplied length")
+    func streamLengthReplacesCallerSuppliedLength() {
+        let stream = PDFSyntax.Stream(
+            dictionary: PDFSyntax.Dictionary([
+                .init("Length", .int(99)),
+            ]),
+            data: Data([1, 2, 3]),
+        )
+        let text = String(decoding: stream.serialized, as: UTF8.self)
+
+        #expect(text.hasPrefix("<< /Length 3 >>\nstream\n"))
+    }
+
+    @Test("Serializes indirect objects")
+    func serializesIndirectObjects() {
+        let object = PDFSyntax.IndirectObject(
+            reference: PDFSyntax.Reference(objectNumber: 3),
+            body: Data("<< >>".utf8),
+        )
+
+        #expect(String(decoding: object.serialized, as: UTF8.self) == "3 0 obj\n<< >>\nendobj\n")
+    }
+}
