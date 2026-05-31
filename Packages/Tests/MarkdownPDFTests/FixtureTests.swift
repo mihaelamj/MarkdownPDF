@@ -58,7 +58,7 @@ struct FixtureTests {
         let text = String(decoding: data, as: UTF8.self)
 
         #expect(text.hasPrefix("%PDF-1.4"))
-        #expect(text.contains("/BaseFont /Courier"))
+        #expect(text.contains("/BaseFont /Helvetica"))
         #expect(text.contains("/Type /Page"))
         #expect(text.contains("xref"))
     }

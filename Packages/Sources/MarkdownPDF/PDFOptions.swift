@@ -11,7 +11,7 @@ public struct PDFOptions: Equatable, Sendable {
         pageSize: PageSize = .a4,
         margins: Margins = .standard,
         baseFontSize: Double = 11,
-        fontSet: FontSet = .pdfBaseMonospaced,
+        fontSet: FontSet = .pdfBase,
         title: String? = nil,
     ) {
         self.pageSize = pageSize

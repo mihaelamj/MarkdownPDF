@@ -12,9 +12,17 @@ let package = Package(
             name: "MarkdownPDF",
             targets: ["MarkdownPDF"],
         ),
+        .library(
+            name: "MarkdownPDFResume",
+            targets: ["MarkdownPDFResume"],
+        ),
         .executable(
             name: "markdownpdf",
             targets: ["MarkdownPDFCLI"],
+        ),
+        .executable(
+            name: "resumepdf",
+            targets: ["ResumePDFCLI"],
         ),
     ],
     targets: [
@@ -25,9 +33,21 @@ let package = Package(
             name: "MarkdownPDFCLI",
             dependencies: ["MarkdownPDF"],
         ),
+        .target(
+            name: "MarkdownPDFResume",
+        ),
+        .executableTarget(
+            name: "ResumePDFCLI",
+            dependencies: ["MarkdownPDF", "MarkdownPDFResume"],
+        ),
         .testTarget(
             name: "MarkdownPDFTests",
             dependencies: ["MarkdownPDF"],
+            exclude: ["Fixtures"],
+        ),
+        .testTarget(
+            name: "MarkdownPDFResumeTests",
+            dependencies: ["MarkdownPDF", "MarkdownPDFResume"],
             exclude: ["Fixtures"],
         ),
     ],

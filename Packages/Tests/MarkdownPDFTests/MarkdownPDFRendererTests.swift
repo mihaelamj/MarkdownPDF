@@ -23,9 +23,45 @@ struct MarkdownPDFRendererTests {
         let text = String(decoding: data, as: UTF8.self)
 
         #expect(text.hasPrefix("%PDF-1.4"))
+        #expect(text.contains("/BaseFont /Helvetica"))
         #expect(text.contains("/BaseFont /Courier"))
         #expect(!text.contains("/FontFile"))
         #expect(text.contains("xref"))
+    }
+
+    @Test("Supports monospaced PDF base font set")
+    func supportsMonospacedPDFBaseFontSet() throws {
+        let markdown = """
+        # Jane Doe
+
+        Swift engineer.
+        """
+        let data = try MarkdownPDFRenderer(
+            options: PDFOptions(fontSet: .pdfBaseMonospaced),
+        ).render(markdown: markdown)
+        let text = String(decoding: data, as: UTF8.self)
+
+        #expect(text.contains("/BaseFont /Courier"))
+        #expect(!text.contains("/FontFile"))
+    }
+
+    @Test("Uses proportional metrics for PDF base fonts")
+    func usesProportionalMetricsForPDFBaseFonts() throws {
+        let options = PDFOptions(
+            pageSize: PDFOptions.PageSize(width: 140, height: 220),
+            margins: PDFOptions.Margins(top: 20, right: 20, bottom: 20, left: 20),
+            baseFontSize: 10,
+            fontSet: .pdfBase,
+        )
+
+        let narrowData = try MarkdownPDFRenderer(options: options).render(markdown: "iiiiiiiiii iiiiiiiiii iiiiiiiiii")
+        let wideData = try MarkdownPDFRenderer(options: options).render(markdown: "WWWWWWWWWW WWWWWWWWWW WWWWWWWWWW")
+
+        let narrowLineCount = textLineYCoordinates(in: String(decoding: narrowData, as: UTF8.self)).count
+        let wideLineCount = textLineYCoordinates(in: String(decoding: wideData, as: UTF8.self)).count
+
+        #expect(narrowLineCount == 1)
+        #expect(wideLineCount > narrowLineCount)
     }
 
     @Test("Renders Markdown links as PDF URI annotations")
@@ -42,6 +78,35 @@ struct MarkdownPDFRendererTests {
         #expect(text.contains("/S /URI"))
         #expect(text.contains("/URI (https://example.com/docs)"))
         #expect(text.contains("/URI (mailto:person@example.com)"))
+    }
+
+    @Test("Keeps section headings with first child content")
+    func keepsSectionHeadingsWithFirstChildContent() throws {
+        let markdown = """
+        # Intro
+
+        Line one
+
+        ## Projects
+
+        ### DocHarbor
+
+        Summary line
+        """
+        let options = PDFOptions(
+            pageSize: PDFOptions.PageSize(width: 300, height: 220),
+            margins: PDFOptions.Margins(top: 20, right: 20, bottom: 20, left: 20),
+            baseFontSize: 10,
+        )
+        let data = try MarkdownPDFRenderer(options: options).render(markdown: markdown)
+        let text = String(decoding: data, as: UTF8.self)
+        let streams = contentStreams(in: text)
+        let projectsStream = streams.first { $0.contains("(Projects)") }
+
+        #expect(streams.count >= 2)
+        #expect(projectsStream?.contains("(DocHarbor)") == true)
+        #expect(projectsStream?.contains("(Summary )") == true)
+        #expect(projectsStream?.contains("(line)") == true)
     }
 
     @Test("Embeds local JPEG images")
@@ -71,5 +136,29 @@ struct MarkdownPDFRendererTests {
             0x00,
             0xFF, 0xD9,
         ])
+    }
+
+    private func contentStreams(in text: String) -> [String] {
+        text.components(separatedBy: "stream\n")
+            .dropFirst()
+            .compactMap { component in
+                component.components(separatedBy: "\nendstream").first
+            }
+    }
+
+    private func textLineYCoordinates(in text: String) -> Set<String> {
+        Set(
+            text.components(separatedBy: "\n").compactMap { line in
+                guard line.hasPrefix("BT "),
+                      let tfRange = line.range(of: " Tf "),
+                      let tdRange = line.range(of: " Td", range: tfRange.upperBound ..< line.endIndex)
+                else {
+                    return nil
+                }
+
+                let coordinates = line[tfRange.upperBound ..< tdRange.lowerBound].split(separator: " ")
+                return coordinates.last.map(String.init)
+            },
+        )
     }
 }
