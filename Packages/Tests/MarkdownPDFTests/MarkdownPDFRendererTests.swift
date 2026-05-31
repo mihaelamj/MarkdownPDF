@@ -28,6 +28,22 @@ struct MarkdownPDFRendererTests {
         #expect(text.contains("xref"))
     }
 
+    @Test("Renders Markdown links as PDF URI annotations")
+    func rendersLinkAnnotations() throws {
+        let markdown = """
+        [Example](https://example.com/docs) and <person@example.com>
+        """
+
+        let data = try MarkdownPDFRenderer().render(markdown: markdown)
+        let text = String(decoding: data, as: UTF8.self)
+
+        #expect(text.contains("/Annots ["))
+        #expect(text.contains("/Subtype /Link"))
+        #expect(text.contains("/S /URI"))
+        #expect(text.contains("/URI (https://example.com/docs)"))
+        #expect(text.contains("/URI (mailto:person@example.com)"))
+    }
+
     @Test("Embeds local JPEG images")
     func embedsJPEGImages() throws {
         let directory = FileManager.default.temporaryDirectory

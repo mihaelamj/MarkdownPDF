@@ -7,6 +7,7 @@ struct PDFTextRun {
     var color: PDFColor
     var underline: Bool
     var strikethrough: Bool
+    var linkDestination: String?
 
     init(
         text: String,
@@ -15,6 +16,7 @@ struct PDFTextRun {
         color: PDFColor = .black,
         underline: Bool = false,
         strikethrough: Bool = false,
+        linkDestination: String? = nil,
     ) {
         self.text = text
         self.font = font
@@ -22,6 +24,7 @@ struct PDFTextRun {
         self.color = color
         self.underline = underline
         self.strikethrough = strikethrough
+        self.linkDestination = linkDestination
     }
 
     func width() -> Double {

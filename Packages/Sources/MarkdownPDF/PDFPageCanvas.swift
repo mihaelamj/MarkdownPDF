@@ -2,6 +2,7 @@ import Foundation
 
 final class PDFPageCanvas {
     private(set) var commands: String = ""
+    private(set) var linkAnnotations: [PDFLinkAnnotation] = []
 
     func drawTextRun(
         _ run: PDFTextRun,
@@ -30,6 +31,17 @@ final class PDFPageCanvas {
                 y2: y + run.size * 0.32,
                 width: 0.5,
                 color: run.color,
+            )
+        }
+        if let destination = run.linkDestination, !destination.isEmpty, width > 0 {
+            linkAnnotations.append(
+                PDFLinkAnnotation(
+                    x: x,
+                    y: y - run.size * 0.25,
+                    width: width,
+                    height: run.size * 1.15,
+                    destination: destination,
+                ),
             )
         }
     }

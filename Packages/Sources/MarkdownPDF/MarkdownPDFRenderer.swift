@@ -305,30 +305,63 @@ private struct Layout {
         color: PDFColor = .black,
         underline: Bool = false,
         strikethrough: Bool = false,
+        linkDestination: String? = nil,
     ) -> [PDFTextRun] {
         var runs: [PDFTextRun] = []
 
         for inline in inlines {
             switch inline {
             case let .text(text):
-                runs.append(PDFTextRun(text: text, font: font, size: size, color: color, underline: underline, strikethrough: strikethrough))
+                runs.append(PDFTextRun(text: text, font: font, size: size, color: color, underline: underline, strikethrough: strikethrough, linkDestination: linkDestination))
             case .softBreak:
-                runs.append(PDFTextRun(text: " ", font: font, size: size, color: color, underline: underline, strikethrough: strikethrough))
+                runs.append(PDFTextRun(text: " ", font: font, size: size, color: color, underline: underline, strikethrough: strikethrough, linkDestination: linkDestination))
             case .lineBreak:
-                runs.append(PDFTextRun(text: "\n", font: font, size: size, color: color, underline: underline, strikethrough: strikethrough))
+                runs.append(PDFTextRun(text: "\n", font: font, size: size, color: color, underline: underline, strikethrough: strikethrough, linkDestination: linkDestination))
             case let .code(text):
-                runs.append(PDFTextRun(text: text, font: .courier, size: size * 0.95, color: color, underline: underline, strikethrough: strikethrough))
+                runs.append(PDFTextRun(
+                    text: text,
+                    font: .courier,
+                    size: size * 0.95,
+                    color: color,
+                    underline: underline,
+                    strikethrough: strikethrough,
+                    linkDestination: linkDestination,
+                ))
             case let .emphasis(children):
-                runs.append(contentsOf: flatten(children, font: .helveticaOblique, size: size, color: color, underline: underline, strikethrough: strikethrough))
+                runs.append(contentsOf: flatten(
+                    children,
+                    font: .helveticaOblique,
+                    size: size,
+                    color: color,
+                    underline: underline,
+                    strikethrough: strikethrough,
+                    linkDestination: linkDestination,
+                ))
             case let .strong(children):
-                runs.append(contentsOf: flatten(children, font: .helveticaBold, size: size, color: color, underline: underline, strikethrough: strikethrough))
+                runs.append(contentsOf: flatten(
+                    children,
+                    font: .helveticaBold,
+                    size: size,
+                    color: color,
+                    underline: underline,
+                    strikethrough: strikethrough,
+                    linkDestination: linkDestination,
+                ))
             case let .strikethrough(children):
-                runs.append(contentsOf: flatten(children, font: font, size: size, color: color, underline: underline, strikethrough: true))
-            case let .link(children, _, _):
-                runs.append(contentsOf: flatten(children, font: font, size: size, color: .link, underline: true, strikethrough: strikethrough))
+                runs.append(contentsOf: flatten(children, font: font, size: size, color: color, underline: underline, strikethrough: true, linkDestination: linkDestination))
+            case let .link(children, destination, _):
+                runs.append(contentsOf: flatten(children, font: font, size: size, color: .link, underline: true, strikethrough: strikethrough, linkDestination: destination))
             case let .image(alt, source, _):
                 let label = alt.isEmpty ? source : alt
-                runs.append(PDFTextRun(text: "[Image: \(label)]", font: .helveticaOblique, size: size, color: .gray, underline: underline, strikethrough: strikethrough))
+                runs.append(PDFTextRun(
+                    text: "[Image: \(label)]",
+                    font: .helveticaOblique,
+                    size: size,
+                    color: .gray,
+                    underline: underline,
+                    strikethrough: strikethrough,
+                    linkDestination: linkDestination,
+                ))
             }
         }
 
@@ -497,6 +530,7 @@ private extension PDFTextRun {
             color: color,
             underline: underline,
             strikethrough: strikethrough,
+            linkDestination: linkDestination,
         )
     }
 }

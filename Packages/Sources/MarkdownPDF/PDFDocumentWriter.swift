@@ -24,14 +24,21 @@ struct PDFDocumentWriter {
         for page in pages {
             let contentData = Data(page.commands.utf8)
             let contentRef = builder.addStream(dictionary: "<<", data: contentData)
+            let annotationRefs = page.linkAnnotations.map { builder.addLinkAnnotation($0) }
             let resourceDictionary = resources(fontRefs: fontRefs, imageRefs: imageRefs)
-            let pageRef = builder.addString("""
+            var pageDictionary = """
             << /Type /Page
             /Parent \(pagesRef) 0 R
             /MediaBox [0 0 \(format(pageSize.width)) \(format(pageSize.height))]
             /Resources \(resourceDictionary)
-            /Contents \(contentRef) 0 R >>
-            """)
+            /Contents \(contentRef) 0 R
+            """
+            if !annotationRefs.isEmpty {
+                let annotations = annotationRefs.map { "\($0) 0 R" }.joined(separator: " ")
+                pageDictionary += "\n/Annots [\(annotations)]"
+            }
+            pageDictionary += " >>"
+            let pageRef = builder.addString(pageDictionary)
             pageRefs.append(pageRef)
         }
 
@@ -146,6 +153,20 @@ struct PDFDocumentWriter {
             return addStream(dictionary: dictionary, data: image.data)
         }
 
+        mutating func addLinkAnnotation(_ annotation: PDFLinkAnnotation) -> Int {
+            let minX = annotation.x
+            let minY = annotation.y
+            let maxX = annotation.x + annotation.width
+            let maxY = annotation.y + annotation.height
+            return addString("""
+            << /Type /Annot
+            /Subtype /Link
+            /Rect [\(format(minX)) \(format(minY)) \(format(maxX)) \(format(maxY))]
+            /Border [0 0 0]
+            /A << /S /URI /URI \(annotation.destination.pdfURI.pdfLiteralString) >> >>
+            """)
+        }
+
         func build(root: Int) -> Data {
             var output = Data()
             output.appendString("%PDF-1.4\n%\u{00E2}\u{00E3}\u{00CF}\u{00D3}\n")
@@ -180,6 +201,50 @@ struct PDFDocumentWriter {
 private extension String {
     var pdfName: String {
         replacingOccurrences(of: " ", with: "#20")
+    }
+
+    var pdfURI: String {
+        if contains("://") || hasPrefix("mailto:") || hasPrefix("#") || hasPrefix("/") || hasPrefix(".") {
+            return self
+        }
+
+        if contains("@"), !contains("/") {
+            return "mailto:\(self)"
+        }
+
+        return self
+    }
+
+    var pdfLiteralString: String {
+        var output = "("
+        for scalar in unicodeScalars {
+            switch scalar.value {
+            case 0x08:
+                output += "\\b"
+            case 0x09:
+                output += "\\t"
+            case 0x0A:
+                output += "\\n"
+            case 0x0C:
+                output += "\\f"
+            case 0x0D:
+                output += "\\r"
+            case 0x28:
+                output += "\\("
+            case 0x29:
+                output += "\\)"
+            case 0x5C:
+                output += "\\\\"
+            case 32 ... 126:
+                output.append(Character(scalar))
+            case 160 ... 255:
+                output += String(format: "\\%03o", scalar.value)
+            default:
+                output += "?"
+            }
+        }
+        output += ")"
+        return output
     }
 }
 
