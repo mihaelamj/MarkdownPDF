@@ -4,7 +4,7 @@ import Testing
 
 @Suite("PDF renderer")
 struct MarkdownPDFRendererTests {
-    @Test("Renders a compact PDF with Apple font names and no embedded fonts")
+    @Test("Renders a compact PDF with base fonts and no embedded fonts")
     func rendersPDF() throws {
         let markdown = """
         # Jane Doe
@@ -23,7 +23,7 @@ struct MarkdownPDFRendererTests {
         let text = String(decoding: data, as: UTF8.self)
 
         #expect(text.hasPrefix("%PDF-1.4"))
-        #expect(text.contains("/BaseFont /SFProText-Regular"))
+        #expect(text.contains("/BaseFont /Courier"))
         #expect(!text.contains("/FontFile"))
         #expect(text.contains("xref"))
     }

@@ -24,6 +24,7 @@ private struct Layout {
     var pages: [PDFPageCanvas] = [PDFPageCanvas()]
     var images: [PDFImage] = []
     var y: Double
+    var listDepth = 0
 
     init(options: PDFOptions, assetsBaseURL: URL?) {
         self.options = options
@@ -51,7 +52,9 @@ private struct Layout {
         switch block {
         case let .heading(level, content):
             let size = headingSize(level)
-            ensureSpace(size * 1.8)
+            let topSpacing = headingTopSpacing(level)
+            ensureSpace(size * 1.8 + topSpacing)
+            addHeadingTopSpacing(topSpacing)
             drawWrapped(
                 flatten(content, font: .helveticaBold, size: size),
                 x: options.margins.left,
@@ -67,9 +70,9 @@ private struct Layout {
                     flatten(content, font: .helvetica, size: options.baseFontSize),
                     x: options.margins.left,
                     maxWidth: contentWidth,
-                    lineHeight: options.baseFontSize * 1.45,
+                    lineHeight: bodyLineHeight,
                 )
-                y -= 9
+                y -= paragraphSpacing
             }
         case let .blockQuote(blocks):
             ensureSpace(24)
@@ -123,21 +126,18 @@ private struct Layout {
         start: Int?,
     ) throws {
         var number = start ?? 0
+        listDepth += 1
+        defer { listDepth -= 1 }
         for item in items {
-            ensureSpace(options.baseFontSize * 1.6)
-            let marker = if start != nil {
-                "\(number)."
-            } else {
-                "\u{2022}"
-            }
+            ensureSpace(bodyLineHeight)
             if start != nil {
+                currentPage.drawTextRun(
+                    PDFTextRun(text: "\(number).", font: .helvetica, size: options.baseFontSize),
+                    x: options.margins.left,
+                    y: y,
+                )
                 number += 1
             }
-            currentPage.drawTextRun(
-                PDFTextRun(text: marker, font: .helvetica, size: options.baseFontSize),
-                x: options.margins.left,
-                y: y,
-            )
             let savedLeft = options.margins.left
             options.margins.left += 24
             for block in item.blocks {
@@ -145,7 +145,7 @@ private struct Layout {
             }
             options.margins.left = savedLeft
         }
-        y -= 3
+        y -= listTrailingSpacing
     }
 
     private mutating func renderCodeBlock(_ code: String) {
@@ -430,6 +430,30 @@ private struct Layout {
         }
     }
 
+    private mutating func addHeadingTopSpacing(_ spacing: Double) {
+        let pageTop = options.pageSize.height - options.margins.top
+        guard y < pageTop - 1 else {
+            return
+        }
+
+        y -= spacing
+    }
+
+    private func headingTopSpacing(_ level: Int) -> Double {
+        switch level {
+        case 1:
+            options.baseFontSize * 1.4
+        case 2:
+            options.baseFontSize * 1.8
+        case 3:
+            options.baseFontSize * 1.45
+        case 4:
+            options.baseFontSize * 0.95
+        default:
+            options.baseFontSize * 0.5
+        }
+    }
+
     private func headingSize(_ level: Int) -> Double {
         switch level {
         case 1:
@@ -441,6 +465,18 @@ private struct Layout {
         default:
             options.baseFontSize * 1.1
         }
+    }
+
+    private var bodyLineHeight: Double {
+        options.baseFontSize * (listDepth > 0 ? 1.15 : 1.24)
+    }
+
+    private var paragraphSpacing: Double {
+        listDepth > 0 ? 2 : 6
+    }
+
+    private var listTrailingSpacing: Double {
+        listDepth > 1 ? 1 : 3
     }
 
     private var contentWidth: Double {

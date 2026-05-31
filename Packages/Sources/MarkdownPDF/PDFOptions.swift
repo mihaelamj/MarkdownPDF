@@ -11,7 +11,7 @@ public struct PDFOptions: Equatable, Sendable {
         pageSize: PageSize = .a4,
         margins: Margins = .standard,
         baseFontSize: Double = 11,
-        fontSet: FontSet = .appleSystem,
+        fontSet: FontSet = .pdfBaseMonospaced,
         title: String? = nil,
     ) {
         self.pageSize = pageSize
@@ -88,6 +88,14 @@ public struct PDFOptions: Equatable, Sendable {
             regular: "Helvetica",
             bold: "Helvetica-Bold",
             italic: "Helvetica-Oblique",
+            monospaced: "Courier",
+            subtype: "Type1",
+        )
+
+        public static let pdfBaseMonospaced = FontSet(
+            regular: "Courier",
+            bold: "Courier-Bold",
+            italic: "Courier-Oblique",
             monospaced: "Courier",
             subtype: "Type1",
         )

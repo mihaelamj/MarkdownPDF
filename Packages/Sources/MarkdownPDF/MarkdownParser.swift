@@ -15,11 +15,25 @@ private struct BlockParser {
     private var index: Int = 0
 
     init(markdown: String) {
-        lines = markdown
-            .replacingOccurrences(of: "\r\n", with: "\n")
-            .replacingOccurrences(of: "\r", with: "\n")
-            .split(separator: "\n", omittingEmptySubsequences: false)
-            .map(String.init)
+        lines = Self.stripFrontMatter(
+            markdown
+                .replacingOccurrences(of: "\r\n", with: "\n")
+                .replacingOccurrences(of: "\r", with: "\n")
+                .split(separator: "\n", omittingEmptySubsequences: false)
+                .map(String.init),
+        )
+    }
+
+    private static func stripFrontMatter(_ lines: [String]) -> [String] {
+        guard lines.first?.trimmingCharacters(in: .whitespaces) == "---" else {
+            return lines
+        }
+
+        guard let endIndex = lines.dropFirst().firstIndex(where: { $0.trimmingCharacters(in: .whitespaces) == "---" }) else {
+            return lines
+        }
+
+        return Array(lines.dropFirst(endIndex + 1))
     }
 
     mutating func parseBlocks() -> [MarkdownBlock] {

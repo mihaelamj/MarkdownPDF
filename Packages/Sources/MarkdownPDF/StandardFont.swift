@@ -46,19 +46,6 @@ enum StandardFont: String, CaseIterable {
     }
 
     func width(of text: String, size: Double) -> Double {
-        let factor = switch self {
-        case .courier:
-            0.6
-        case .helveticaBold:
-            0.56
-        case .helveticaOblique:
-            0.53
-        case .helvetica:
-            0.52
-        }
-
-        return Double(text.reduce(0) { count, character in
-            count + (character.isWhitespace ? 1 : 1)
-        }) * size * factor
+        Double(text.count) * size * 0.6
     }
 }
