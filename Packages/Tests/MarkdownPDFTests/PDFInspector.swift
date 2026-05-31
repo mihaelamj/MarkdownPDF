@@ -7,6 +7,24 @@ struct PDFInspector {
         var body: String
     }
 
+    struct IndirectObject: Equatable {
+        var number: Int
+        var content: String
+        var isStream: Bool
+    }
+
+    struct ResourceDictionary: Equatable {
+        var fonts: [String: Int]
+        var xObjects: [String: Int]
+    }
+
+    private struct XrefEntry: Equatable {
+        var objectNumber: Int
+        var offset: Int
+        var generation: Int
+        var inUse: Bool
+    }
+
     private let bytes: [UInt8]
     let text: String
 
@@ -69,7 +87,248 @@ struct PDFInspector {
         return !streams.isEmpty && streams.allSatisfy { $0.declaredLength == $0.actualLength }
     }
 
-    private func xrefEntries() -> [(objectNumber: Int, offset: Int, inUse: Bool)]? {
+    var indirectObjects: [IndirectObject] {
+        guard let entries = xrefEntries() else {
+            return []
+        }
+
+        return entries.compactMap { entry in
+            guard entry.inUse else {
+                return nil
+            }
+
+            let objectMarker = Array("\(entry.objectNumber) 0 obj\n".utf8)
+            guard hasBytes(objectMarker, at: entry.offset),
+                  let endRange = range(of: Array("\nendobj".utf8), from: entry.offset + objectMarker.count)
+            else {
+                return nil
+            }
+
+            let contentBytes = bytes[(entry.offset + objectMarker.count) ..< endRange.lowerBound]
+            let content = String(decoding: contentBytes, as: UTF8.self)
+            return IndirectObject(
+                number: entry.objectNumber,
+                content: content,
+                isStream: content.contains("\nstream\n"),
+            )
+        }
+    }
+
+    func canonicalStructureIssues() -> [String] {
+        var issues: [String] = []
+        if !text.hasPrefix("%PDF-1.4\n%") {
+            issues.append("header is not the expected PDF 1.4 header")
+        }
+        if !text.hasSuffix("%%EOF") {
+            issues.append("file does not end with %%EOF")
+        }
+        if !streamLengthsMatch() {
+            issues.append("one or more stream lengths do not match emitted bytes")
+        }
+        if !hasValidXrefOffsets() {
+            issues.append("xref table has offsets that do not point to matching objects")
+        }
+
+        guard let entries = xrefEntries() else {
+            issues.append("xref table is missing or malformed")
+            return issues
+        }
+        validateXrefEntries(entries, issues: &issues)
+
+        if let startXref = startXrefOffset() {
+            if !hasBytes(Array("xref\n".utf8), at: startXref) {
+                issues.append("startxref does not point to the xref table")
+            }
+        } else {
+            issues.append("startxref is missing or malformed")
+        }
+
+        let objects = Dictionary(uniqueKeysWithValues: indirectObjects.map { ($0.number, $0) })
+        let objectCount = entries.filter(\.inUse).count
+        if objects.count != objectCount {
+            issues.append("parsed object count \(objects.count) does not match xref in-use count \(objectCount)")
+        }
+
+        guard let trailer = trailerDictionary() else {
+            issues.append("trailer dictionary is missing")
+            return issues
+        }
+
+        if integer(after: "/Size", in: trailer) != entries.count {
+            issues.append("trailer /Size does not match xref entry count")
+        }
+
+        guard let rootRef = reference(after: "/Root", in: trailer) else {
+            issues.append("trailer /Root reference is missing")
+            return issues
+        }
+        guard let catalog = objects[rootRef] else {
+            issues.append("trailer /Root object \(rootRef) is missing")
+            return issues
+        }
+        validateCatalog(catalog, objects: objects, issues: &issues)
+
+        return issues
+    }
+
+    func canonicalStructureReport() -> String {
+        canonicalStructureIssues().joined(separator: "\n")
+    }
+
+    private func validateCatalog(
+        _ catalog: IndirectObject,
+        objects: [Int: IndirectObject],
+        issues: inout [String],
+    ) {
+        if !hasName("/Type", value: "Catalog", in: catalog.content) {
+            issues.append("root object \(catalog.number) is not a catalog")
+        }
+
+        guard let pagesRef = reference(after: "/Pages", in: catalog.content) else {
+            issues.append("catalog is missing /Pages")
+            return
+        }
+        guard let pages = objects[pagesRef] else {
+            issues.append("catalog /Pages object \(pagesRef) is missing")
+            return
+        }
+
+        validatePages(pages, objects: objects, issues: &issues)
+    }
+
+    private func validatePages(
+        _ pages: IndirectObject,
+        objects: [Int: IndirectObject],
+        issues: inout [String],
+    ) {
+        if !hasName("/Type", value: "Pages", in: pages.content) {
+            issues.append("pages object \(pages.number) is missing /Type /Pages")
+        }
+
+        let kids = references(inArrayAfter: "/Kids", in: pages.content)
+        if kids.isEmpty {
+            issues.append("pages object \(pages.number) has no /Kids")
+        }
+        if integer(after: "/Count", in: pages.content) != kids.count {
+            issues.append("pages object \(pages.number) /Count does not match /Kids")
+        }
+
+        for pageRef in kids {
+            guard let page = objects[pageRef] else {
+                issues.append("page object \(pageRef) is missing")
+                continue
+            }
+            validatePage(page, parentRef: pages.number, objects: objects, issues: &issues)
+        }
+    }
+
+    private func validatePage(
+        _ page: IndirectObject,
+        parentRef: Int,
+        objects: [Int: IndirectObject],
+        issues: inout [String],
+    ) {
+        if !hasName("/Type", value: "Page", in: page.content) {
+            issues.append("page object \(page.number) is missing /Type /Page")
+        }
+        for key in requiredPageKeys() where !page.content.contains(key) {
+            issues.append("page object \(page.number) is missing \(key)")
+        }
+        if reference(after: "/Parent", in: page.content) != parentRef {
+            issues.append("page object \(page.number) has an invalid /Parent")
+        }
+
+        let resources = resourceDictionary(in: page.content) ?? ResourceDictionary(fonts: [:], xObjects: [:])
+        validateResources(resources, objects: objects, issues: &issues)
+
+        if let contentRef = reference(after: "/Contents", in: page.content) {
+            guard let content = objects[contentRef] else {
+                issues.append("page object \(page.number) references missing content object \(contentRef)")
+                return
+            }
+            guard content.isStream, let body = streamBody(in: content.content) else {
+                issues.append("content object \(contentRef) is not a stream")
+                return
+            }
+            validateResourceUsage(
+                body,
+                resources: resources,
+                pageNumber: page.number,
+                issues: &issues,
+            )
+        }
+
+        for annotationRef in references(inArrayAfter: "/Annots", in: page.content) {
+            guard let annotation = objects[annotationRef] else {
+                issues.append("page object \(page.number) references missing annotation object \(annotationRef)")
+                continue
+            }
+            validateAnnotation(annotation, issues: &issues)
+        }
+    }
+
+    private func validateResources(
+        _ resources: ResourceDictionary,
+        objects: [Int: IndirectObject],
+        issues: inout [String],
+    ) {
+        for (name, ref) in resources.fonts {
+            guard let font = objects[ref] else {
+                issues.append("font resource /\(name) references missing object \(ref)")
+                continue
+            }
+            if !hasName("/Type", value: "Font", in: font.content) {
+                issues.append("font resource /\(name) object \(ref) is not a font")
+            }
+        }
+
+        for (name, ref) in resources.xObjects {
+            guard let xObject = objects[ref] else {
+                issues.append("XObject resource /\(name) references missing object \(ref)")
+                continue
+            }
+            if !hasName("/Type", value: "XObject", in: xObject.content)
+                || !hasName("/Subtype", value: "Image", in: xObject.content)
+            {
+                issues.append("XObject resource /\(name) object \(ref) is not an image XObject")
+            }
+        }
+    }
+
+    private func validateResourceUsage(
+        _ streamBody: String,
+        resources: ResourceDictionary,
+        pageNumber: Int,
+        issues: inout [String],
+    ) {
+        for name in usedFonts(in: streamBody) where resources.fonts[name] == nil {
+            issues.append("page object \(pageNumber) uses undeclared font /\(name)")
+        }
+        for name in usedXObjects(in: streamBody) where resources.xObjects[name] == nil {
+            issues.append("page object \(pageNumber) uses undeclared XObject /\(name)")
+        }
+    }
+
+    private func validateAnnotation(_ annotation: IndirectObject, issues: inout [String]) {
+        let required = ["/Type /Annot", "/Subtype /Link", "/Rect [", "/A <<", "/S /URI", "/URI "]
+        for key in required where !annotation.content.contains(key) {
+            issues.append("annotation object \(annotation.number) is missing \(key)")
+        }
+    }
+
+    private func validateXrefEntries(_ entries: [XrefEntry], issues: inout [String]) {
+        if entries.first != XrefEntry(objectNumber: 0, offset: 0, generation: 65535, inUse: false) {
+            issues.append("xref table is missing canonical free object 0")
+        }
+
+        let expectedObjectNumbers = Array(0 ..< entries.count)
+        let actualObjectNumbers = entries.map(\.objectNumber)
+        if actualObjectNumbers != expectedObjectNumbers {
+            issues.append("xref table object numbers are not consecutive from 0")
+        }
+    }
+
+    private func xrefEntries() -> [XrefEntry]? {
         let lines = text.components(separatedBy: "\n")
         guard let xrefIndex = lines.firstIndex(of: "xref"),
               xrefIndex + 2 < lines.count
@@ -90,25 +349,192 @@ struct PDFInspector {
             return nil
         }
 
-        var entries: [(objectNumber: Int, offset: Int, inUse: Bool)] = []
+        var entries: [XrefEntry] = []
         for relativeIndex in 0 ..< objectCount {
             let fields = lines[firstEntryIndex + relativeIndex].split(separator: " ")
             guard fields.count >= 3,
-                  let offset = Int(fields[0])
+                  let offset = Int(fields[0]),
+                  let generation = Int(fields[1]),
+                  ["f", "n"].contains(fields[2])
             else {
                 return nil
             }
 
             entries.append(
-                (
+                XrefEntry(
                     objectNumber: firstObject + relativeIndex,
                     offset: offset,
-                    inUse: fields[2] == "n"
+                    generation: generation,
+                    inUse: fields[2] == "n",
                 ),
             )
         }
 
         return entries
+    }
+
+    private func trailerDictionary() -> String? {
+        guard let trailerRange = text.range(of: "trailer\n"),
+              let startXrefRange = text.range(
+                  of: "\nstartxref",
+                  range: trailerRange.upperBound ..< text.endIndex,
+              )
+        else {
+            return nil
+        }
+
+        return String(text[trailerRange.upperBound ..< startXrefRange.lowerBound])
+    }
+
+    private func startXrefOffset() -> Int? {
+        guard let range = text.range(of: "startxref\n") else {
+            return nil
+        }
+
+        let digits = text[range.upperBound...].prefix(while: \.isNumber)
+        return Int(digits)
+    }
+
+    private func resourceDictionary(in page: String) -> ResourceDictionary? {
+        guard let resources = dictionary(after: "/Resources", in: page) else {
+            return nil
+        }
+
+        return ResourceDictionary(
+            fonts: namedReferences(in: dictionary(after: "/Font", in: resources) ?? ""),
+            xObjects: namedReferences(in: dictionary(after: "/XObject", in: resources) ?? ""),
+        )
+    }
+
+    private func dictionary(after marker: String, in text: String) -> String? {
+        guard let markerRange = text.range(of: marker) else {
+            return nil
+        }
+
+        var index = markerRange.upperBound
+        while index < text.endIndex, text[index].isWhitespace {
+            index = text.index(after: index)
+        }
+
+        guard text[index...].hasPrefix("<<") else {
+            return nil
+        }
+
+        return balancedDictionary(in: text, from: index)
+    }
+
+    private func balancedDictionary(in text: String, from start: String.Index) -> String? {
+        var depth = 0
+        var index = start
+
+        while index < text.endIndex {
+            if text[index...].hasPrefix("<<") {
+                depth += 1
+                index = text.index(index, offsetBy: 2)
+            } else if text[index...].hasPrefix(">>") {
+                depth -= 1
+                index = text.index(index, offsetBy: 2)
+                if depth == 0 {
+                    return String(text[start ..< index])
+                }
+            } else {
+                index = text.index(after: index)
+            }
+        }
+
+        return nil
+    }
+
+    private func integer(after marker: String, in text: String) -> Int? {
+        guard let markerRange = text.range(of: marker) else {
+            return nil
+        }
+
+        let suffix = text[markerRange.upperBound...].drop(while: \.isWhitespace)
+        return Int(suffix.prefix(while: \.isNumber))
+    }
+
+    private func reference(after marker: String, in text: String) -> Int? {
+        guard let markerRange = text.range(of: marker) else {
+            return nil
+        }
+
+        let fields = text[markerRange.upperBound...]
+            .split(whereSeparator: \.isWhitespace)
+        guard fields.count >= 3, fields[1] == "0", fields[2] == "R" else {
+            return nil
+        }
+        return Int(fields[0])
+    }
+
+    private func references(inArrayAfter marker: String, in text: String) -> [Int] {
+        guard let markerRange = text.range(of: marker),
+              let open = text[markerRange.upperBound...].firstIndex(of: "["),
+              let close = text[open...].firstIndex(of: "]")
+        else {
+            return []
+        }
+
+        return referenceNumbers(in: String(text[open ... close]))
+    }
+
+    private func namedReferences(in text: String) -> [String: Int] {
+        regexMatches(#"/([A-Za-z][A-Za-z0-9]*)\s+(\d+)\s+0\s+R"#, in: text)
+            .reduce(into: [String: Int]()) { values, groups in
+                guard groups.count == 2, let ref = Int(groups[1]) else {
+                    return
+                }
+                values[groups[0]] = ref
+            }
+    }
+
+    private func referenceNumbers(in text: String) -> [Int] {
+        regexMatches(#"(\d+)\s+0\s+R"#, in: text).compactMap { groups in
+            groups.first.flatMap(Int.init)
+        }
+    }
+
+    private func usedFonts(in text: String) -> Set<String> {
+        Set(regexMatches(#"/([A-Za-z][A-Za-z0-9]*)\s+[-+]?\d+(?:\.\d+)?\s+Tf"#, in: text).compactMap(\.first))
+    }
+
+    private func usedXObjects(in text: String) -> Set<String> {
+        Set(regexMatches(#"/([A-Za-z][A-Za-z0-9]*)\s+Do\b"#, in: text).compactMap(\.first))
+    }
+
+    private func hasName(_ name: String, value: String, in text: String) -> Bool {
+        let pattern = "\(NSRegularExpression.escapedPattern(for: name))\\s+/\(NSRegularExpression.escapedPattern(for: value))(?![A-Za-z0-9])"
+        return !regexMatches(pattern, in: text).isEmpty
+    }
+
+    private func regexMatches(_ pattern: String, in text: String) -> [[String]] {
+        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+            return []
+        }
+
+        let range = NSRange(text.startIndex ..< text.endIndex, in: text)
+        return regex.matches(in: text, range: range).map { match in
+            (1 ..< match.numberOfRanges).compactMap { index in
+                guard let range = Range(match.range(at: index), in: text) else {
+                    return nil
+                }
+                return String(text[range])
+            }
+        }
+    }
+
+    private func streamBody(in text: String) -> String? {
+        guard let streamRange = text.range(of: "stream\n"),
+              let endRange = text.range(of: "\nendstream", range: streamRange.upperBound ..< text.endIndex)
+        else {
+            return nil
+        }
+
+        return String(text[streamRange.upperBound ..< endRange.lowerBound])
+    }
+
+    private func requiredPageKeys() -> [String] {
+        ["/Parent ", "/MediaBox [", "/Resources ", "/Contents "]
     }
 
     private func declaredLength(before byteIndex: Int) -> Int? {
