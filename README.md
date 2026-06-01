@@ -232,6 +232,36 @@ flowchart TD
     class F6 done;
 ```
 
+## Embedded font foundation roadmap
+
+Epic [#63](https://github.com/mihaelamj/MarkdownPDF/issues/63) tracks the
+portable embedded-font implementation after the #55 research plan. This round is
+strictly macOS and Linux portable: the core remains Swift-only, does not use
+Apple-only rendering APIs, does not commit font binaries, and does not claim iOS
+support.
+
+```mermaid
+flowchart TD
+    E0["Phase 0<br/>#64 Type 0 object model<br/>Review"]
+    E1["Phase 1<br/>#65 TrueType parser gates<br/>Planned"]
+    E2["Phase 2<br/>#66 Glyph mapping and widths<br/>Planned"]
+    E3["Phase 3<br/>#67 ToUnicode CMaps<br/>Planned"]
+    E4["Phase 4<br/>#68 CID text writer witnesses<br/>Planned"]
+    E5["Phase 5<br/>#69 TrueType subsetting<br/>Planned"]
+    E6["Phase 6<br/>#70 Public API and CI font policy<br/>Planned"]
+    E7["Phase 7<br/>#71 Complex-script follow-up epic<br/>Planned"]
+
+    E0 --> E1 --> E2 --> E3 --> E4 --> E5 --> E6 --> E7
+
+    classDef done fill:#e8f5e9,stroke:#2e7d32,color:#111;
+    classDef active fill:#e3f2fd,stroke:#1565c0,color:#111;
+    classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
+    classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
+    classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
+    class E0 review;
+    class E1,E2,E3,E4,E5,E6,E7 todo;
+```
+
 ## Build and Test
 
 ```sh
@@ -265,6 +295,8 @@ swiftlint --config .swiftlint.yml
   canonical PDF structure notes.
 - [docs/research/markdownpdf-output-profile.md](docs/research/markdownpdf-output-profile.md):
   target output profile.
+- [docs/research/portable-embedded-fonts-tounicode-plan.md](docs/research/portable-embedded-fonts-tounicode-plan.md):
+  portable embedded-font and ToUnicode implementation plan.
 
 ## Platform Boundaries
 
