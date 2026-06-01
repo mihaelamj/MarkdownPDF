@@ -316,6 +316,7 @@ enum SyntheticTrueTypeFont {
         case compositeWitness
         case largeBMPWitness
         case latinWitness
+        case latinLigature
     }
 
     static func data(
@@ -343,6 +344,7 @@ enum SyntheticTrueTypeFont {
         shortOS2: Bool = false,
         glyphProfile: GlyphProfile = .basic,
         includeGlyphOutlines: Bool = false,
+        includeGSUBLigatures: Bool = false,
     ) -> Data {
         let glyphSet = GlyphSet(profile: glyphProfile)
         var tables = [
@@ -385,6 +387,9 @@ enum SyntheticTrueTypeFont {
             if !omittedTables.contains("loca") {
                 tables["loca"] = locaTable(glyphSet: glyphSet)
             }
+        }
+        if includeGSUBLigatures, !omittedTables.contains("GSUB") {
+            tables["GSUB"] = gsubLigatureTable(glyphSet: glyphSet)
         }
 
         var records: [(tag: String, checksum: UInt32, offset: UInt32, length: UInt32)] = []
@@ -641,8 +646,8 @@ enum SyntheticTrueTypeFont {
             return format4LatinWitnessCMapSubtable(malformedLength: malformedLength)
         }
 
-        let entries = glyphSet.glyphs.enumerated()
-            .map { index, glyph in (code: UInt16(glyph.scalar.value), glyphID: UInt16(index + 1)) }
+        let entries = glyphSet.encodedGlyphs
+            .map { (code: UInt16($0.scalar.value), glyphID: $0.glyphID) }
             .sorted { lhs, rhs in lhs.code < rhs.code }
         let segmentCount = entries.count + 1
         let length = 16 + segmentCount * 8
@@ -759,8 +764,8 @@ enum SyntheticTrueTypeFont {
             )
         }
 
-        let entries = glyphSet.glyphs.enumerated()
-            .map { index, glyph in (code: glyph.scalar.value, glyphID: UInt32(index + 1)) }
+        let entries = glyphSet.encodedGlyphs
+            .map { (code: $0.scalar.value, glyphID: UInt32($0.glyphID)) }
             .sorted { lhs, rhs in lhs.code < rhs.code }
         var data = Data()
         appendUInt16(12, to: &data)
@@ -792,6 +797,108 @@ enum SyntheticTrueTypeFont {
         appendUInt32(0x0041, to: &data)
         appendUInt32(0x005A, to: &data)
         appendUInt32(2, to: &data)
+        return data
+    }
+
+    private static func gsubLigatureTable(glyphSet: GlyphSet) -> Data {
+        guard let firstGlyphID = glyphSet.glyphID(for: "f"),
+              let secondGlyphID = glyphSet.glyphID(for: "i"),
+              let ligatureGlyphID = glyphSet.glyphID(named: "fi")
+        else {
+            preconditionFailure("The GSUB ligature fixture requires f, i, and fi glyphs")
+        }
+
+        let scriptList = gsubScriptListTable()
+        let featureList = gsubFeatureListTable()
+        let lookupList = gsubLookupListTable(
+            firstGlyphID: firstGlyphID,
+            secondGlyphID: secondGlyphID,
+            ligatureGlyphID: ligatureGlyphID,
+        )
+
+        var data = Data()
+        appendUInt16(1, to: &data)
+        appendUInt16(0, to: &data)
+        appendUInt16(10, to: &data)
+        appendUInt16(UInt16(10 + scriptList.count), to: &data)
+        appendUInt16(UInt16(10 + scriptList.count + featureList.count), to: &data)
+        data.append(scriptList)
+        data.append(featureList)
+        data.append(lookupList)
+        return data
+    }
+
+    private static func gsubScriptListTable() -> Data {
+        var data = Data()
+        appendUInt16(1, to: &data)
+        appendTag("latn", to: &data)
+        appendUInt16(8, to: &data)
+
+        appendUInt16(4, to: &data)
+        appendUInt16(0, to: &data)
+
+        appendUInt16(0, to: &data)
+        appendUInt16(0xFFFF, to: &data)
+        appendUInt16(1, to: &data)
+        appendUInt16(0, to: &data)
+        return data
+    }
+
+    private static func gsubFeatureListTable() -> Data {
+        var data = Data()
+        appendUInt16(1, to: &data)
+        appendTag("liga", to: &data)
+        appendUInt16(8, to: &data)
+
+        appendUInt16(0, to: &data)
+        appendUInt16(1, to: &data)
+        appendUInt16(0, to: &data)
+        return data
+    }
+
+    private static func gsubLookupListTable(
+        firstGlyphID: UInt16,
+        secondGlyphID: UInt16,
+        ligatureGlyphID: UInt16,
+    ) -> Data {
+        let subtable = gsubLigatureSubtable(
+            firstGlyphID: firstGlyphID,
+            secondGlyphID: secondGlyphID,
+            ligatureGlyphID: ligatureGlyphID,
+        )
+
+        var data = Data()
+        appendUInt16(1, to: &data)
+        appendUInt16(4, to: &data)
+
+        appendUInt16(4, to: &data)
+        appendUInt16(0, to: &data)
+        appendUInt16(1, to: &data)
+        appendUInt16(8, to: &data)
+        data.append(subtable)
+        return data
+    }
+
+    private static func gsubLigatureSubtable(
+        firstGlyphID: UInt16,
+        secondGlyphID: UInt16,
+        ligatureGlyphID: UInt16,
+    ) -> Data {
+        var data = Data()
+        appendUInt16(1, to: &data)
+        appendUInt16(18, to: &data)
+        appendUInt16(1, to: &data)
+        appendUInt16(8, to: &data)
+
+        appendUInt16(1, to: &data)
+        appendUInt16(4, to: &data)
+        appendUInt16(ligatureGlyphID, to: &data)
+        appendUInt16(2, to: &data)
+        appendUInt16(secondGlyphID, to: &data)
+
+        appendUInt16(1, to: &data)
+        appendUInt16(1, to: &data)
+        appendUInt16(firstGlyphID, to: &data)
         return data
     }
 
@@ -915,6 +1022,15 @@ enum SyntheticTrueTypeFont {
                             xMax: Int16(max(120, Int(width) - 70)),
                         )
                     }
+            case .latinLigature:
+                [
+                    GlyphRecord(scalar: "f", advanceWidth: 420, xMin: 50, xMax: 350),
+                    GlyphRecord(scalar: "i", advanceWidth: 250, xMin: 90, xMax: 170),
+                    GlyphRecord(scalar: "l", advanceWidth: 250, xMin: 80, xMax: 160),
+                    GlyphRecord(scalar: "e", advanceWidth: 500, xMin: 50, xMax: 430),
+                    GlyphRecord(scalar: "\u{0301}", advanceWidth: 0, xMin: 120, xMax: 260),
+                    GlyphRecord(scalar: nil, name: "fi", advanceWidth: 620, xMin: 40, xMax: 570),
+                ]
             }
         }
 
@@ -930,13 +1046,34 @@ enum SyntheticTrueTypeFont {
             glyphs.contains { !$0.components.isEmpty }
         }
 
+        var encodedGlyphs: [(glyphID: UInt16, scalar: UnicodeScalar, glyph: GlyphRecord)] {
+            glyphs.enumerated().compactMap { index, glyph in
+                guard let scalar = glyph.scalar else {
+                    return nil
+                }
+                return (glyphID: UInt16(index + 1), scalar: scalar, glyph: glyph)
+            }
+        }
+
         var numberOfHMetrics: UInt16 {
             switch profile {
             case .basic:
                 2
-            case .compositeWitness, .largeBMPWitness, .latinWitness:
+            case .compositeWitness, .largeBMPWitness, .latinWitness, .latinLigature:
                 numGlyphs
             }
+        }
+
+        func glyphID(for scalar: UnicodeScalar) -> UInt16? {
+            glyphs.enumerated().first { pair in
+                pair.element.scalar == scalar
+            }.map { pair in UInt16(pair.offset + 1) }
+        }
+
+        func glyphID(named name: String) -> UInt16? {
+            glyphs.enumerated().first { pair in
+                pair.element.name == name
+            }.map { pair in UInt16(pair.offset + 1) }
         }
 
         private static func latinWitnessAdvanceWidth(for scalar: UnicodeScalar) -> UInt16 {
@@ -960,11 +1097,28 @@ enum SyntheticTrueTypeFont {
     }
 
     private struct GlyphRecord {
-        var scalar: UnicodeScalar
+        var scalar: UnicodeScalar?
+        var name: String?
         var advanceWidth: UInt16
         var xMin: Int16?
         var xMax: Int16?
         var components: [UInt16] = []
+
+        init(
+            scalar: UnicodeScalar?,
+            name: String? = nil,
+            advanceWidth: UInt16,
+            xMin: Int16?,
+            xMax: Int16?,
+            components: [UInt16] = [],
+        ) {
+            self.scalar = scalar
+            self.name = name
+            self.advanceWidth = advanceWidth
+            self.xMin = xMin
+            self.xMax = xMax
+            self.components = components
+        }
     }
 
     private static func cmapSearchValues(segmentCount: Int) -> (
@@ -1053,6 +1207,12 @@ enum SyntheticTrueTypeFont {
         for index in 0 ..< 4 {
             data[offset + index] = bytes[index]
         }
+    }
+
+    private static func appendTag(_ tag: String, to data: inout Data) {
+        let bytes = Array(tag.utf8)
+        precondition(bytes.count == 4)
+        data.append(contentsOf: bytes)
     }
 
     private static func writeUInt16(_ value: UInt16, at offset: Int, in data: inout Data) {
