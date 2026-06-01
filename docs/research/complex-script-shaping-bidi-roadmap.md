@@ -173,6 +173,8 @@ flowchart TD
 Every behavior issue in #79 needs evidence that matches the claim:
 
 - qpdf structural validation with no warnings.
+- Swift structural checks for object graph, stream, resource, page, font, image,
+  and annotation invariants.
 - Poppler text extraction for source-faithful text.
 - Poppler `pdftotext -tsv` geometry for word and line boxes.
 - MuPDF structured text for character quads.
