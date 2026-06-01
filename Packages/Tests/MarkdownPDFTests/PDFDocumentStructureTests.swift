@@ -361,7 +361,109 @@ struct PDFDocumentStructureTests {
             embeddedFontFile: .trueType(PDFSyntax.Reference(objectNumber: 9)),
         )
 
-        #expect(descriptor.pdfDictionary.serialized().contains("/FontFile2 9 0 R"))
+        #expect(
+            descriptor.pdfDictionary.serialized()
+                ==
+                "<< /Type /FontDescriptor /FontName /PortableTrueType /Flags 32 /FontBBox [-200 -250 1200 1000] /ItalicAngle 0 /Ascent 900 /Descent -220 /CapHeight 700 /StemV 80 /FontFile2 9 0 R >>",
+        )
+    }
+
+    @Test("Serializes Type 0 parent font for embedded TrueType profile")
+    func serializesType0ParentFontForEmbeddedTrueTypeProfile() {
+        let font = PDFType0FontObject(
+            resourceName: "F9",
+            baseName: "ABCDEF+PortableSerif",
+            descendantFont: PDFSyntax.Reference(objectNumber: 10),
+            toUnicodeMap: PDFSyntax.Reference(objectNumber: 11),
+        )
+
+        #expect(font.resourceName == "F9")
+        #expect(
+            font.pdfDictionary.serialized()
+                == "<< /Type /Font /Subtype /Type0 /BaseFont /ABCDEF+PortableSerif /Encoding /Identity-H /DescendantFonts [10 0 R] /ToUnicode 11 0 R >>",
+        )
+    }
+
+    @Test("Serializes CIDFontType2 descendant with system info and widths")
+    func serializesCIDFontType2DescendantWithSystemInfoAndWidths() {
+        let font = PDFCIDFontType2Object(
+            baseName: "ABCDEF+PortableSerif",
+            fontDescriptor: PDFSyntax.Reference(objectNumber: 12),
+            widths: PDFCIDFontWidths(segments: [
+                .array(startCID: 1, widths: [500, 610]),
+                .range(startCID: 4, endCID: 6, width: 700),
+            ]),
+        )
+        let compactCIDFont = PDFCIDFontType2Object(
+            baseName: "ABCDEF+PortableSerif",
+            fontDescriptor: PDFSyntax.Reference(objectNumber: 12),
+            widths: PDFCIDFontWidths(segments: [
+                .array(startCID: 1, widths: [500]),
+            ]),
+            cidToGIDMap: .stream(PDFSyntax.Reference(objectNumber: 13)),
+        )
+
+        #expect(
+            font.pdfDictionary.serialized()
+                ==
+                "<< /Type /Font /Subtype /CIDFontType2 /BaseFont /ABCDEF+PortableSerif /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor 12 0 R /W [1 [500 610] 4 6 700] /CIDToGIDMap /Identity >>",
+        )
+        #expect(compactCIDFont.pdfDictionary.serialized().contains("/CIDToGIDMap 13 0 R"))
+    }
+
+    @Test("Serializes FontFile2 stream with uncompressed length")
+    func serializesFontFile2StreamWithUncompressedLength() {
+        let stream = PDFFontFile2Stream(fontProgram: Data([0x00, 0x01, 0x00, 0x00])).pdfStream
+
+        #expect(
+            String(decoding: stream.serialized, as: UTF8.self)
+                ==
+                """
+                << /Length1 4 /Length 4 >>
+                stream
+                \u{0}\u{1}\u{0}\u{0}
+                endstream
+                """,
+        )
+    }
+
+    @Test("Serializes deterministic ToUnicode CMap stream")
+    func serializesDeterministicToUnicodeCMapStream() {
+        let cmap = PDFToUnicodeCMap(mappings: [
+            PDFToUnicodeCMap.Mapping(code: 2, unicode: "B"),
+            PDFToUnicodeCMap.Mapping(code: 1, unicode: "A"),
+        ])
+        let chunked = PDFToUnicodeCMap(mappings: (0 ..< 101).map { index in
+            PDFToUnicodeCMap.Mapping(code: UInt16(index + 1), unicode: "A")
+        }).serialized
+
+        #expect(
+            cmap.serialized
+                ==
+                """
+                /CIDInit /ProcSet findresource begin
+                12 dict begin
+                begincmap
+                /CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def
+                /CMapName /MarkdownPDF-ToUnicode def
+                /CMapType 2 def
+                1 begincodespacerange
+                <0000> <FFFF>
+                endcodespacerange
+                2 beginbfchar
+                <0001> <0041>
+                <0002> <0042>
+                endbfchar
+                endcmap
+                CMapName currentdict /CMap defineresource pop
+                end
+                end
+
+                """,
+        )
+        #expect(cmap.pdfStream.serialized.contains(Data("/Length ".utf8)))
+        #expect(chunked.contains("100 beginbfchar"))
+        #expect(chunked.contains("1 beginbfchar"))
     }
 
     @Test("Font object keeps composite font references as explicit future hooks")
