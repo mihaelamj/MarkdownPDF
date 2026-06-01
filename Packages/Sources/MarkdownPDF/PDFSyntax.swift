@@ -265,7 +265,7 @@ enum PDFSyntax {
             }
         }
 
-        var entries: [Entry]
+        private(set) var entries: [Entry]
 
         init(objectOffsets: [(reference: Reference, offset: Int)]) {
             entries = [.freeObjectZero]
