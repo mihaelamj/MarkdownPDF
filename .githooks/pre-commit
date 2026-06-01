@@ -92,6 +92,9 @@ while IFS= read -r f; do
     fi
   done
   [ "$skipped" -eq 1 ] && continue
+  if git diff --cached --numstat -- "$f" | awk '{ exit ($1 == "-" || $2 == "-") ? 0 : 1 }'; then
+    continue
+  fi
   SCAN_FILES="${SCAN_FILES}${f}"$'\n'
 done <<<"$STAGED_FILES"
 

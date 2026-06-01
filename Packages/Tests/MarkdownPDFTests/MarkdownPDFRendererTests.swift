@@ -1,3 +1,4 @@
+import Dispatch
 import Foundation
 @testable import MarkdownPDF
 import MarkdownPDFLinux
@@ -42,6 +43,43 @@ struct MarkdownPDFRendererTests {
         let inspector = PDFInspector(data)
 
         #expect(inspector.hasValidXrefOffsets())
+    }
+
+    @Test("Renders on a non-main dispatch queue")
+    func rendersOnNonMainDispatchQueue() throws {
+        let result = try DispatchQueue.global(qos: .userInitiated).sync {
+            let data = try MarkdownPDFRenderer(
+                options: PDFOptions(
+                    pageSize: .a4,
+                    margins: PDFOptions.Margins(top: 56, right: 54, bottom: 56, left: 54),
+                    baseFontSize: 10,
+                    title: "Detached Render",
+                    tableOfContents: .enabled,
+                ),
+            ).render(markdown: """
+            # Detached Render
+
+            This render must not depend on the UI thread.
+
+            | Runtime | Requirement |
+            |---|---|
+            | CLI | Worker thread is acceptable |
+            | App UI | Caller must schedule rendering away from the main actor |
+
+            ```text
+            Detached rendering keeps large PDF creation out of the interface loop.
+            ```
+            """)
+
+            return (ranOnMainThread: Thread.isMainThread, data: data)
+        }
+        let inspector = PDFInspector(result.data)
+
+        #expect(!result.ranOnMainThread)
+        #expect(inspector.text.hasPrefix("%PDF-1.4"))
+        #expect(inspector.pageCount >= 1)
+        #expect(inspector.hasValidXrefOffsets())
+        #expect(inspector.streamLengthsMatch())
     }
 
     @Test("Linux product renders with portable renderer")

@@ -38,6 +38,9 @@ while IFS= read -r f; do
   case "$f" in
     researchcode/*) continue ;;
   esac
+  if ! LC_ALL=C grep -Iq . "$f" 2>/dev/null; then
+    continue
+  fi
   if LC_ALL=C grep -qF -- "$EMDASH" "$f" 2>/dev/null; then
     echo "style: em dash (U+2014) in $f" >&2
     FAIL=1
