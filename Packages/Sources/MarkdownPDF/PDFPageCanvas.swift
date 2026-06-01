@@ -42,7 +42,7 @@ final class PDFPageCanvas {
             return
         }
 
-        let mapping = try embeddedFonts.mapping(for: run, entry: entry)
+        let mapping = try embeddedFonts.shapedMapping(for: run, entry: entry)
         try drawCIDText(
             mapping: mapping,
             fontResource: entry.resource,
@@ -51,7 +51,7 @@ final class PDFPageCanvas {
             y: y,
             color: run.color,
         )
-        drawDecorations(for: run, x: x, y: y, width: mapping.totalWidth)
+        drawDecorations(for: run, x: x, y: y, width: mapping.totalAdvance)
     }
 
     func drawCIDText(
@@ -62,17 +62,35 @@ final class PDFPageCanvas {
         y: Double,
         color: PDFColor = .black,
     ) throws {
+        try drawCIDText(
+            mapping: mapping.shapedText(),
+            fontResource: fontResource,
+            fontSize: fontSize,
+            x: x,
+            y: y,
+            color: color,
+        )
+    }
+
+    func drawCIDText(
+        mapping: ShapedTextMapping,
+        fontResource: PDFEmbeddedFontResource,
+        fontSize: Double,
+        x: Double,
+        y: Double,
+        color: PDFColor = .black,
+    ) throws {
         guard !mapping.glyphs.isEmpty else {
             return
         }
 
-        try resourceUsage.useEmbeddedFont(fontResource, glyphs: mapping.glyphs)
+        try resourceUsage.useEmbeddedFont(fontResource, mapping: mapping)
         setFillColor(color)
         contentStream.append([
             .beginText,
             .setFont(PDFSyntax.Name(fontResource.resourceName), size: fontSize),
             .moveText(x: x, y: y),
-            .showCIDText(mapping.glyphs.map(\.pdfCharacterCode)),
+            .showCIDText(mapping.clusters.flatMap(\.pdfCharacterCodes)),
             .endText,
         ])
     }

@@ -102,14 +102,22 @@ struct MuPDFStructuredText {
         }
 
         var visibleRun: [Glyph] = []
-        for glyph in line.glyphs {
+        for (glyphIndex, glyph) in line.glyphs.enumerated() {
             if glyph.isWhitespace {
                 validateVisibleRun(visibleRun, line: line, page: page, tolerance: tolerance, issues: &issues)
                 visibleRun = []
                 continue
             }
 
-            validateGlyph(glyph, line: line, page: page, tolerance: tolerance, issues: &issues)
+            validateGlyph(
+                glyph,
+                previousGlyph: previousVisibleGlyph(in: line.glyphs, before: glyphIndex),
+                nextGlyph: nextVisibleGlyph(in: line.glyphs, after: glyphIndex),
+                line: line,
+                page: page,
+                tolerance: tolerance,
+                issues: &issues,
+            )
             visibleRun.append(glyph)
         }
         validateVisibleRun(visibleRun, line: line, page: page, tolerance: tolerance, issues: &issues)
@@ -117,12 +125,21 @@ struct MuPDFStructuredText {
 
     private func validateGlyph(
         _ glyph: Glyph,
+        previousGlyph: Glyph?,
+        nextGlyph: Glyph?,
         line: Line,
         page: Page,
         tolerance: Double,
         issues: inout [String],
     ) {
-        if glyph.box.width <= 0 || glyph.box.height <= 0 {
+        if glyph.box.height <= 0
+            || (glyph.box.width <= 0 && !isToUnicodeExpansionContinuation(
+                glyph,
+                previousGlyph: previousGlyph,
+                nextGlyph: nextGlyph,
+                tolerance: tolerance,
+            ))
+        {
             issues.append(glyphDescription(glyph, line: line, page: page) + " has non-positive size")
         }
 
@@ -133,6 +150,43 @@ struct MuPDFStructuredText {
         {
             issues.append(glyphDescription(glyph, line: line, page: page) + " is outside page bounds")
         }
+    }
+
+    private func previousVisibleGlyph(in glyphs: [Glyph], before index: Int) -> Glyph? {
+        guard index > 0 else {
+            return nil
+        }
+        return glyphs[..<index].last { !$0.isWhitespace }
+    }
+
+    private func nextVisibleGlyph(in glyphs: [Glyph], after index: Int) -> Glyph? {
+        let nextIndex = index + 1
+        guard nextIndex < glyphs.count else {
+            return nil
+        }
+        return glyphs[nextIndex...].first { !$0.isWhitespace }
+    }
+
+    private func isToUnicodeExpansionContinuation(
+        _ glyph: Glyph,
+        previousGlyph: Glyph?,
+        nextGlyph: Glyph?,
+        tolerance: Double,
+    ) -> Bool {
+        guard !glyph.isWhitespace,
+              abs(glyph.box.width) <= tolerance,
+              glyph.box.height > 0
+        else {
+            return false
+        }
+
+        let touchesPrevious = previousGlyph.map { previous in
+            abs(previous.box.right - glyph.box.left) <= tolerance
+        } ?? false
+        let touchesNext = nextGlyph.map { next in
+            abs(next.box.left - glyph.box.left) <= tolerance
+        } ?? false
+        return touchesPrevious || touchesNext
     }
 
     private func validateVisibleRun(

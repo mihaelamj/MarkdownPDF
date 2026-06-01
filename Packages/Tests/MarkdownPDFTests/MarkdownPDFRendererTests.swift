@@ -226,6 +226,60 @@ struct MarkdownPDFRendererTests {
         #expect(inspector.streams.contains { $0.body.contains("/F4 11.400 Tf") })
     }
 
+    @Test("Embedded font renderer emits shaped ligature ToUnicode witnesses")
+    func embeddedFontRendererEmitsShapedLigatureToUnicodeWitnesses() throws {
+        let fontData = SyntheticTrueTypeFont.data(
+            glyphProfile: .latinLigature,
+            includeGlyphOutlines: true,
+            includeGSUBLigatures: true,
+        )
+        let source = PDFOptions.EmbeddedFontSource(data: fontData, baseName: "Public Ligature")
+        let data = try MarkdownPDFRenderer(
+            options: PDFOptions(
+                pageSize: PDFOptions.PageSize(width: 220, height: 160),
+                margins: PDFOptions.Margins(top: 24, right: 24, bottom: 24, left: 24),
+                baseFontSize: 14,
+                embeddedFonts: PDFOptions.EmbeddedFonts(regular: source),
+                title: "Shaped Ligature Renderer",
+            ),
+        ).render(markdown: "file")
+        let inspector = PDFInspector(data)
+        let streams = inspector.streams.map(\.body).joined(separator: "\n")
+
+        #expect(streams.contains("<000600030004> Tj"))
+        #expect(inspector.text.contains("<0006> <00660069>"))
+        try PDFValidation.writeArtifact(data, name: "shaped-ligature-renderer-witness.pdf")
+
+        let qpdf = try PDFValidation.qpdfCheck(data: data, name: "shaped-ligature-renderer-qpdf")
+        try #require(qpdf.exitCode == 0, "qpdf --check failed:\n\(qpdf.output)")
+        let textResult = try PDFValidation.pdftotext(data: data, name: "shaped-ligature-renderer-text")
+        try #require(textResult.exitCode == 0, "pdftotext failed:\n\(textResult.output)")
+        #expect(textResult.output.contains("file"))
+        let mupdfText = try PDFValidation.mutoolStructuredText(data: data, name: "shaped-ligature-renderer-mupdf")
+        try #require(mupdfText.exitCode == 0, "mutool structured text failed:\n\(mupdfText.output)")
+        let layout = try MuPDFStructuredText(xml: mupdfText.output)
+        #expect(layout.characterQuadIssues().isEmpty)
+    }
+
+    @Test("Embedded font renderer rejects unsupported complex-script shaping")
+    func embeddedFontRendererRejectsUnsupportedComplexScriptShaping() throws {
+        let fontData = SyntheticTrueTypeFont.data(includeGlyphOutlines: true)
+        let source = PDFOptions.EmbeddedFontSource(data: fontData, baseName: "Unsupported Script")
+
+        do {
+            _ = try MarkdownPDFRenderer(
+                options: PDFOptions(embeddedFonts: PDFOptions.EmbeddedFonts(regular: source)),
+            ).render(markdown: "\u{0633}\u{0644}\u{0627}\u{0645}")
+            Issue.record("Expected unsupported complex-script shaping error")
+        } catch let error as PDFEmbeddedFontError {
+            #expect(error == .unsupportedComplexScriptScalar(scalar: "\u{0633}"))
+            #expect(error.errorDescription != nil)
+            #expect(error.recoverySuggestion != nil)
+        } catch {
+            Issue.record("Expected PDFEmbeddedFontError, got \(error)")
+        }
+    }
+
     @Test("Embedded font allRoles maps markdown style roles")
     func embeddedFontAllRolesMapsMarkdownStyleRoles() throws {
         let fontData = SyntheticTrueTypeFont.data(glyphProfile: .latinWitness, includeGlyphOutlines: true)

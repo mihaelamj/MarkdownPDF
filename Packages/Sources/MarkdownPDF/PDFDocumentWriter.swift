@@ -119,7 +119,7 @@ struct PDFDocumentWriter {
                     guard existing.resource == usage.resource else {
                         throw PDFEmbeddedFontError.conflictingFontResource(resourceName: usage.resource.resourceName)
                     }
-                    existing.append(glyphs: usage.glyphs)
+                    try existing.append(usage)
                     usagesByResourceName[usage.resource.resourceName] = existing
                 } else {
                     usagesByResourceName[usage.resource.resourceName] = usage
@@ -176,10 +176,10 @@ struct PDFDocumentWriter {
                     cidToGIDMap: cidToGIDMap,
                 ).pdfDictionary,
             )
-            let toUnicodeRef = try addData(
+            let toUnicodeRef = addData(
                 PDFToUnicodeCMap(
                     name: "\(resource.baseName)-ToUnicode",
-                    textMapping: TrueTypeGlyphMapper.TextMapping(sourceText: "", glyphs: usage.glyphs),
+                    mappings: usage.toUnicodeMappings,
                 ).pdfStream.serialized,
             )
             let fontRef = addDictionary(

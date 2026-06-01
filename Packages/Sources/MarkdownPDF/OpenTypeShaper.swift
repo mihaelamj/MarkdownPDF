@@ -125,6 +125,23 @@ struct OpenTypeShaper {
         return try ShapedTextMapping(sourceText: text, clusters: clusters)
     }
 
+    static func canShapeLatinIncrement(_ text: String) -> Bool {
+        var canAttachCombiningMark = false
+        for scalar in text.unicodeScalars {
+            if isCombiningMark(scalar) {
+                guard canAttachCombiningMark else {
+                    return false
+                }
+                continue
+            }
+            guard isSupportedLatinIncrementScalar(scalar) else {
+                return false
+            }
+            canAttachCombiningMark = isLatinBaseScalar(scalar)
+        }
+        return true
+    }
+
     private func validateSupportedScalars(_ scalars: [UnicodeScalar]) throws {
         var canAttachCombiningMark = false
         for (offset, scalar) in scalars.enumerated() {

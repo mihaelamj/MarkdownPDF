@@ -25,26 +25,24 @@ struct PDFPageResourceUsage {
 
     mutating func useEmbeddedFont(
         _ resource: PDFEmbeddedFontResource,
-        glyphs: [TrueTypeGlyphMapper.Glyph],
+        mapping: ShapedTextMapping,
     ) throws {
         guard !StandardFont.allCases.contains(where: { $0.rawValue == resource.resourceName }) else {
             throw PDFEmbeddedFontError.reservedBaseFontResourceName(resource.resourceName)
         }
-        guard !glyphs.isEmpty else {
+        guard !mapping.glyphs.isEmpty else {
             throw PDFEmbeddedFontError.emptyGlyphSet(resourceName: resource.resourceName)
         }
 
+        let newUsage = try PDFEmbeddedFontUsage(resource: resource, mapping: mapping)
         if var usage = embeddedFontsByResourceName[resource.resourceName] {
             guard usage.resource == resource else {
                 throw PDFEmbeddedFontError.conflictingFontResource(resourceName: resource.resourceName)
             }
-            usage.append(glyphs: glyphs)
+            try usage.append(newUsage)
             embeddedFontsByResourceName[resource.resourceName] = usage
         } else {
-            embeddedFontsByResourceName[resource.resourceName] = PDFEmbeddedFontUsage(
-                resource: resource,
-                glyphs: glyphs,
-            )
+            embeddedFontsByResourceName[resource.resourceName] = newUsage
         }
     }
 
