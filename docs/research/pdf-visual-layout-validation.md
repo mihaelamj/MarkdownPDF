@@ -109,13 +109,11 @@ Useful checks:
 - Fail if a character quad has non-positive area.
 - Fail if line boxes collide vertically.
 
-Limitations:
+Status:
 
-- `mutool` is not installed in this repo's current macOS environment.
-- Adding MuPDF to GitHub Actions is possible on Linux, but it is another
-  dependency to install and maintain on macOS and Linux CI.
-- This is stronger than Poppler for letter overlap, but should be a second
-  stage after Poppler TSV checks.
+- `mutool` is installed locally and in both Linux and macOS CI.
+- This is stronger than Poppler for letter overlap and is now part of the
+  canonical test gate after the Poppler TSV checks.
 
 ### Ghostscript: independent raster renderer
 
@@ -187,10 +185,9 @@ This confirms why `qpdf` is necessary but insufficient for the visual problem.
    - multi-page fixture.
 3. Fail on invalid word boxes, same-line word overlap, and suspicious line-box
    collisions.
-4. Keep the existing `pdftoppm` PNG smoke test, but preserve failed PNGs as
-   artifacts in CI later.
-5. Open a follow-up issue for MuPDF per-character quad validation. That is the
-   stronger answer for letter-level overlap, but it is a new dependency.
+4. Add MuPDF per-character quad validation for letter-level overlap.
+5. Add Poppler and MuPDF raster comparison for blank renders and divergent ink
+   bounds.
 6. Consider golden-image regression only after layout stabilizes. Start with
    one fixture and explicit tool versions to avoid noisy PRs.
 
@@ -203,17 +200,34 @@ On the current macOS machine:
 - `qpdf`: available at `/opt/homebrew/bin/qpdf`.
 - `gs`: available at `/opt/homebrew/bin/gs`.
 - `magick`: available at `/opt/homebrew/bin/magick`.
-- `mutool`: not installed.
+- `mutool`: available at `/opt/homebrew/bin/mutool`.
 - `diff-pdf`: not installed.
 
-The first implementation should therefore use Poppler TSV geometry because it is
-already installed locally and in the Linux CI dependency set.
+The first implementation used Poppler TSV geometry. The current canonical gate
+also uses MuPDF because it is an independent renderer and extractor that can
+inspect per-character quads.
 
-## Implementation status
+## Canonical testing status
 
-The first Poppler TSV geometry check was added on branch
-`test/25-canonical-pdf-structure-validation` after this research pass. It is a
-fast Swift test that runs `pdftotext -tsv`, parses word and line boxes, and
-fails on invalid boxes, same-line word overlap, words outside page bounds, or
-line-box collisions. MuPDF character-quad validation remains a stronger
-follow-up for letter-level overlap.
+The first Poppler TSV geometry check lives in
+`PDFVisualLayoutValidationTests.generatedPDFsDoNotHaveOverlappingPopplerWordBoxes`.
+It is a fast Swift test that runs `pdftotext -tsv`, parses word and line boxes,
+and fails on invalid boxes, same-line word overlap, words outside page bounds,
+or line-box collisions.
+
+MuPDF character-quad validation lives in
+`PDFVisualLayoutValidationTests.generatedPDFsDoNotHaveOverlappingMuPDFCharacterQuads`.
+It runs `mutool draw -F stext`, parses character quads, and fails on
+non-positive glyph boxes, glyphs outside page bounds, same-word glyph overlap,
+or glyph order moving backward inside a text run.
+
+Raster comparison lives in
+`PDFVisualLayoutValidationTests.popplerAndMuPDFRenderComparableInkBounds`. It
+renders the first representative page through Poppler and MuPDF as raw PNM,
+measures non-white pixels and ink bounds, and fails on blank renders, size
+divergence, or divergent ink bounds.
+
+Together, these tests are now the canonical visual gate for layout-affecting
+renderer changes. Remaining gaps are smaller: this is not a full
+pixel-perfect golden image suite, but it no longer relies on manual inspection
+or word-level geometry alone.

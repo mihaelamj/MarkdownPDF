@@ -130,7 +130,7 @@ flowchart TD
     P2["Phase 2<br/>#22 PDF syntax<br/>#30 Object registry, xref, trailer<br/>Done"]
     P3["Phase 3<br/>#18 Catalog, page tree, page dictionaries<br/>Done"]
     P4["Phase 4<br/>#19 Page resources Done<br/>#20 Font objects Done<br/>#23 Image XObjects Done"]
-    P5["Phase 5<br/>#21 Typed content streams Next"]
+    P5["Phase 5<br/>#21 Typed content streams PR #42 visual gate green"]
     P6["Phase 6<br/>#26 Metadata, outlines, destinations"]
     P7["Phase 7<br/>#37 Mermaid diagrams"]
     P8["Phase 8<br/>#36 Generated ToC"]
@@ -148,7 +148,7 @@ flowchart TD
 
 ## Validation
 
-The test suite validates generated PDFs in three ways:
+The test suite validates generated PDFs in four layers:
 
 - Swift structural inspection checks object references, xref offsets, stream
   lengths, page resources, annotations, fonts, images, and canonical page
@@ -156,6 +156,15 @@ The test suite validates generated PDFs in three ways:
 - `qpdf --check` validates syntax, xref, trailer, and stream-level structure.
 - Poppler tools inspect real reader behavior through `pdfinfo`, `pdftotext`, and
   `pdftoppm`.
+- MuPDF `mutool` independently extracts character quads and renders page rasters.
+
+Layout-affecting renderer changes must keep the visual geometry tests passing.
+Those tests render representative Markdown, extract Poppler word and line boxes
+with `pdftotext -tsv`, extract MuPDF character quads with `mutool draw -F stext`,
+and compare Poppler and MuPDF raster ink bounds. They fail on
+non-positive boxes, text outside page bounds, same-line word overlap,
+same-word glyph overlap, vertical line collisions, blank renders, or
+divergent ink bounds.
 
 See [docs/research/pdf-validation-tooling.md](docs/research/pdf-validation-tooling.md)
 and [docs/research/pdf-visual-layout-validation.md](docs/research/pdf-visual-layout-validation.md)
