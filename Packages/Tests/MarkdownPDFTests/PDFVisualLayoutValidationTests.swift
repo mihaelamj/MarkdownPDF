@@ -112,6 +112,12 @@ struct PDFVisualLayoutValidationTests {
         The renderer should wrap text without causing adjacent words to collide.
         Another paragraph gives Poppler enough lines to expose vertical spacing
         problems if text positions are too tight.
+
+        ```mermaid
+        flowchart TD
+            Source[Markdown source] --> Layout[PDF layout]
+            Layout --> Bytes[PDF bytes]
+        ```
         """
 
         return try MarkdownPDFRenderer(

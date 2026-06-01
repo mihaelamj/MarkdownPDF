@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MuPDF character-quad and cross-renderer raster validation for generated PDFs.
 - Deterministic PDF metadata, named heading destinations, outline objects, and
   internal heading links.
+- Portable Mermaid flowchart rendering for a documented Swift-only subset, with
+  visible fallback for unsupported Mermaid syntax.
 
 ### Changed
 

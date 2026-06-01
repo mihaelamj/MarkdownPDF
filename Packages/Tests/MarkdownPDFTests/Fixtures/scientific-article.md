@@ -34,7 +34,7 @@ adds richer typography and embedded fonts.
 |---|---:|---:|---|
 | Baseline article | 2 | 1 | Stable pagination target |
 | Dense tables | 2 | 1 | Exercises cell alignment |
-| Graph appendix | 3 | 1 | Keeps code block content |
+| Graph appendix | 3 | 1 | Renders flowchart labels |
 
 ![Figure 1: simulated throughput curve](https://example.com/figures/throughput.png)
 

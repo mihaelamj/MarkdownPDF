@@ -15,8 +15,10 @@ Swift source and tests.
 4. Use `pdf-type-modeling-policy.md` before adding new PDF model types.
 5. Use `pdf-validation-tooling.md` and `pdf-visual-layout-validation.md` before
    changing tests or CI validation.
-6. Use the source studies when planning new writer features.
-7. Use macOS-specific research only for macOS targets. It is not a Linux or iOS
+6. Use `portable-mermaid-flowcharts.md` before changing portable Mermaid
+   rendering.
+7. Use the source studies when planning new writer features.
+8. Use macOS-specific research only for macOS targets. It is not a Linux or iOS
    implementation plan.
 
 ## Boundaries
@@ -36,6 +38,7 @@ Swift source and tests.
 | `canonical-pdf-document-structure.md` | Canonical PDF object structure, xref, trailer, pages, resources, streams, outlines, and validation expectations. |
 | `markdownpdf-output-profile.md` | The portable output profile MarkdownPDF aims to emit and document. |
 | `pdf-type-modeling-policy.md` | Policy for adding internal typed PDF model structures. |
+| `portable-mermaid-flowcharts.md` | Portable Mermaid flowchart subset, unsupported fallback behavior, and validation expectations. |
 | `existing-pdf-writer-alignment.md` | Alignment notes between existing writer behavior and research findings. |
 | `pdf-validation-tooling.md` | Open source validation tools and the current CI validation strategy. |
 | `pdf-visual-layout-validation.md` | Visual layout validation strategy using text and render extraction tools. |
