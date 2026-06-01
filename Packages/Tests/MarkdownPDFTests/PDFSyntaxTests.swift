@@ -72,4 +72,17 @@ struct PDFSyntaxTests {
 
         #expect(String(decoding: object.serialized, as: UTF8.self) == "3 0 obj\n<< >>\nendobj\n")
     }
+
+    @Test("Serializes xref table entries from object references")
+    func serializesXrefTableEntriesFromObjectReferences() {
+        let xref = PDFSyntax.XrefTable(objectOffsets: [
+            (reference: PDFSyntax.Reference(objectNumber: 1), offset: 15),
+            (reference: PDFSyntax.Reference(objectNumber: 2, generation: 3), offset: 27),
+        ])
+
+        #expect(xref.entries[0] == .freeObjectZero)
+        #expect(xref.entries[1].objectNumber == 1)
+        #expect(xref.entries[2].generation == 3)
+        #expect(xref.serialized == "xref\n0 3\n0000000000 65535 f \n0000000015 00000 n \n0000000027 00003 n \n")
+    }
 }
