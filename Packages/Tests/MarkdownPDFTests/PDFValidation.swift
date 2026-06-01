@@ -106,21 +106,30 @@ enum PDFValidation {
         )
     }
 
-    static func pdftoppmPNM(data: some DataProtocol, name: String, resolution: Int = 96) throws -> (result: Result, pnmURL: URL) {
+    static func pdftoppmPNM(
+        data: some DataProtocol,
+        name: String,
+        page: Int = 1,
+        resolution: Int = 96,
+    ) throws -> (result: Result, pnmURL: URL) {
         let url = try temporaryPDF(name: name, data: data)
-        return try pdftoppmPNM(url: url, resolution: resolution)
+        return try pdftoppmPNM(url: url, page: page, resolution: resolution)
     }
 
-    static func pdftoppmPNM(url: URL, resolution: Int = 96) throws -> (result: Result, pnmURL: URL) {
+    static func pdftoppmPNM(
+        url: URL,
+        page: Int = 1,
+        resolution: Int = 96,
+    ) throws -> (result: Result, pnmURL: URL) {
         let directory = try temporaryDirectory()
-        let outputPrefix = directory.appendingPathComponent("page")
+        let outputPrefix = directory.appendingPathComponent("page-\(page)")
         let result = try Tool.run(
             "pdftoppm",
             arguments: [
                 "-f",
-                "1",
+                "\(page)",
                 "-l",
-                "1",
+                "\(page)",
                 "-singlefile",
                 "-r",
                 "\(resolution)",
@@ -131,14 +140,23 @@ enum PDFValidation {
         return (result, outputPrefix.appendingPathExtension("ppm"))
     }
 
-    static func mutoolPNM(data: some DataProtocol, name: String, resolution: Int = 96) throws -> (result: Result, pnmURL: URL) {
+    static func mutoolPNM(
+        data: some DataProtocol,
+        name: String,
+        page: Int = 1,
+        resolution: Int = 96,
+    ) throws -> (result: Result, pnmURL: URL) {
         let url = try temporaryPDF(name: name, data: data)
-        return try mutoolPNM(url: url, resolution: resolution)
+        return try mutoolPNM(url: url, page: page, resolution: resolution)
     }
 
-    static func mutoolPNM(url: URL, resolution: Int = 96) throws -> (result: Result, pnmURL: URL) {
+    static func mutoolPNM(
+        url: URL,
+        page: Int = 1,
+        resolution: Int = 96,
+    ) throws -> (result: Result, pnmURL: URL) {
         let directory = try temporaryDirectory()
-        let outputURL = directory.appendingPathComponent("page.pnm")
+        let outputURL = directory.appendingPathComponent("page-\(page).pnm")
         let result = try Tool.run(
             "mutool",
             arguments: [
@@ -151,7 +169,7 @@ enum PDFValidation {
                 "-o",
                 outputURL.path,
                 url.path,
-                "1",
+                "\(page)",
             ],
         )
         return (result, outputURL)

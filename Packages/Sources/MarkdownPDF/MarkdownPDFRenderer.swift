@@ -160,7 +160,15 @@ private struct Layout {
     private mutating func renderCodeBlock(_ code: String) {
         let size = options.baseFontSize * 0.9
         let lineHeight = size * 1.4
-        let lines = code.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        let lines = code
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .map { line in
+                wrappedLines(
+                    [PDFTextRun(text: String(line), font: .courier, size: size)],
+                    maxWidth: contentWidth,
+                )
+            }
+            .flatMap(\.self)
         let height = max(lineHeight, Double(lines.count) * lineHeight) + 12
         ensureSpace(height)
 
@@ -174,12 +182,7 @@ private struct Layout {
         )
 
         for line in lines {
-            currentPage.drawTextRun(
-                PDFTextRun(text: line, font: .courier, size: size),
-                x: options.margins.left,
-                y: y - size,
-                fontSet: options.fontSet,
-            )
+            drawRuns(line, x: options.margins.left, y: y - size)
             y -= lineHeight
         }
         y -= 12
