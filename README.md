@@ -216,7 +216,7 @@ flowchart TD
     F2["Phase 2<br/>#51 Text encoding Done"]
     F3["Phase 3<br/>#52 Oversized blocks Done"]
     F4["Phase 4<br/>#53 Tables Done"]
-    F5["Phase 5<br/>#54 Diagrams and charts In progress"]
+    F5["Phase 5<br/>#54 Diagrams and charts Review"]
     F6["Phase 6<br/>#55 Fonts and ToUnicode plan Ready"]
 
     F0 --> F1 --> F2 --> F3 --> F4 --> F5 --> F6
@@ -229,7 +229,7 @@ flowchart TD
     class F0,F1 done;
     class F2 done;
     class F3,F4 done;
-    class F5 active;
+    class F5 review;
     class F6 todo;
 ```
 
