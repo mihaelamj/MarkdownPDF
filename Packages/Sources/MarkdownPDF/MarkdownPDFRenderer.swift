@@ -23,6 +23,7 @@ private struct Layout {
     var assetsBaseURL: URL?
     var pages: [PDFPageCanvas] = [PDFPageCanvas()]
     var images: [PDFImage] = []
+    var imageCache: [String: PDFImage] = [:]
     var y: Double
     var listDepth = 0
 
@@ -277,9 +278,7 @@ private struct Layout {
             return true
         }
 
-        let name = "Im\(images.count + 1)"
-        let image = try PDFImage.load(source: source, baseURL: assetsBaseURL, name: name)
-        images.append(image)
+        let image = try loadImage(source: source)
 
         let maxWidth = contentWidth
         let maxHeight = options.pageSize.height * 0.45
@@ -299,6 +298,18 @@ private struct Layout {
         )
         y -= drawHeight
         return true
+    }
+
+    private mutating func loadImage(source: String) throws -> PDFImage {
+        if let image = imageCache[source] {
+            return image
+        }
+
+        let name = "Im\(images.count + 1)"
+        let image = try PDFImage.load(source: source, baseURL: assetsBaseURL, name: name)
+        images.append(image)
+        imageCache[source] = image
+        return image
     }
 
     private func flatten(

@@ -25,9 +25,10 @@ struct PDFDocumentWriter {
 
         let usedImageNames = Set(pages.flatMap(\.resourceUsage.usedImageXObjectNames))
         let imageResources = Dictionary(uniqueKeysWithValues: images.filter { usedImageNames.contains($0.name) }.map { image in
-            (
-                image.name,
-                PDFPageResources.Entry(name: image.name, objectRef: builder.addImage(image))
+            let imageXObject = PDFImageXObject(image: image)
+            return (
+                imageXObject.resourceName,
+                imageXObject.resource(objectRef: builder.addImage(imageXObject)),
             )
         })
 
@@ -110,21 +111,8 @@ struct PDFDocumentWriter {
             addData(PDFSyntax.Stream(dictionary: dictionary, data: data).serialized)
         }
 
-        mutating func addImage(_ image: PDFImage) -> PDFSyntax.Reference {
-            var entries: [PDFSyntax.Dictionary.Entry] = [
-                .init("Type", .pdfName("XObject")),
-                .init("Subtype", .pdfName("Image")),
-                .init("Width", .int(image.width)),
-                .init("Height", .int(image.height)),
-                .init("ColorSpace", .name(image.colorSpace)),
-                .init("BitsPerComponent", .int(image.bitsPerComponent)),
-                .init("Filter", .name(image.filter)),
-            ]
-            if let decodeParms = image.decodeParms {
-                entries.append(.init("DecodeParms", .dictionary(decodeParms)))
-            }
-
-            return addStream(dictionary: PDFSyntax.Dictionary(entries), data: image.data)
+        mutating func addImage(_ image: PDFImageXObject) -> PDFSyntax.Reference {
+            addData(image.pdfStream.serialized)
         }
 
         mutating func addLinkAnnotation(_ annotation: PDFLinkAnnotation) -> PDFSyntax.Reference {

@@ -1,12 +1,21 @@
 struct PDFPageResources {
     var fonts: [Entry] = []
-    var imageXObjects: [Entry] = []
-    var formXObjects: [Entry] = []
+    var imageXObjects: [PDFXObjectResource] = []
+    var formXObjects: [PDFXObjectResource] = []
     var extGStates: [Entry] = []
     var patterns: [Entry] = []
 
     var pdfDictionary: PDFSyntax.Dictionary {
         var entries: [PDFSyntax.Dictionary.Entry] = []
+        precondition(
+            imageXObjects.allSatisfy { $0.kind == .image },
+            "Image XObject resources must use image kind",
+        )
+        precondition(
+            formXObjects.allSatisfy { $0.kind == .form },
+            "Form XObject resources must use form kind",
+        )
+
         if !extGStates.isEmpty {
             entries.append(.init("ExtGState", .dictionary(PDFSyntax.Dictionary(extGStates.map(\.pdfEntry)))))
         }
