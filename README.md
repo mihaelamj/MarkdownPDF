@@ -302,8 +302,8 @@ flowchart TD
     S0["Phase 0<br/>#80 Standards and boundary<br/>Done"]
     S1["Phase 1<br/>#81 Fixtures and witnesses<br/>Done"]
     S2["Phase 2<br/>#82 Shaped cluster model<br/>Done"]
-    S3["Phase 3<br/>#83 Line-break opportunities<br/>Review and CI"]
-    S4["Phase 4<br/>#84 Bidi ordering<br/>Planned"]
+    S3["Phase 3<br/>#83 Line-break opportunities<br/>Done"]
+    S4["Phase 4<br/>#84 Bidi ordering<br/>Review and CI"]
     S5["Phase 5<br/>#85 Pure Swift shaping increments<br/>Planned"]
     S6["Phase 6<br/>#86 PDF emission and ToUnicode clusters<br/>Planned"]
 
@@ -314,9 +314,9 @@ flowchart TD
     classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
     classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
-    class S0,S1,S2 done;
-    class S3 review;
-    class S4,S5,S6 todo;
+    class S0,S1,S2,S3 done;
+    class S4 review;
+    class S5,S6 todo;
 ```
 
 ## Build and Test
