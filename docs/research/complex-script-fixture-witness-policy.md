@@ -57,6 +57,8 @@ Each future fixture that changes generated PDF output needs evidence matching
 the claim:
 
 - `qpdf` validates structure with no warnings.
+- Swift structural checks validate object graph invariants, resources, stream
+  lengths, page dictionaries, fonts, images, and annotations.
 - Poppler `pdftotext` validates extracted text.
 - Poppler `pdftotext -tsv` validates word and line geometry where the output has
   word-like units.
