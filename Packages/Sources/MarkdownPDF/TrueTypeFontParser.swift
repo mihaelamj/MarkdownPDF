@@ -72,6 +72,11 @@ struct TrueTypeFontParser {
         var namesByID: [UInt16: String]
     }
 
+    private struct NameCandidate {
+        var value: String
+        var priority: Int
+    }
+
     struct OS2Metrics: Equatable {
         var version: UInt16
         var weightClass: UInt16
@@ -442,7 +447,7 @@ struct TrueTypeFontParser {
             )
         }
         try reader.requireRange(offset: stringOffset, count: 0)
-        var names: [UInt16: String] = [:]
+        var names: [UInt16: NameCandidate] = [:]
 
         for index in 0 ..< count {
             let recordOffset = 6 + index * 12
@@ -453,16 +458,25 @@ struct TrueTypeFontParser {
             let offset = try Int(reader.uint16(at: recordOffset + 10))
             let start = stringOffset + offset
             try reader.requireRange(offset: start, count: length)
-            if names[nameID] == nil {
-                names[nameID] = try decodeNameString(
-                    platformID: platformID,
-                    encodingID: encodingID,
-                    bytes: Array(bytes[start ..< start + length]),
-                )
+            let decodedName = try decodeNameString(
+                platformID: platformID,
+                encodingID: encodingID,
+                bytes: Array(bytes[start ..< start + length]),
+            )
+            let candidate = NameCandidate(
+                value: decodedName,
+                priority: Self.namePriority(platformID: platformID, encodingID: encodingID),
+            )
+            if let existing = names[nameID] {
+                if candidate.priority > existing.priority {
+                    names[nameID] = candidate
+                }
+            } else {
+                names[nameID] = candidate
             }
         }
 
-        return NameTable(namesByID: names)
+        return NameTable(namesByID: names.mapValues(\.value))
     }
 
     private func decodeNameString(platformID: UInt16, encodingID: UInt16, bytes: [UInt8]) throws -> String {
@@ -560,6 +574,10 @@ struct TrueTypeFontParser {
 
     private static func isUnicodeEncoding(platformID: UInt16, encodingID: UInt16) -> Bool {
         platformID == 0 || (platformID == 3 && (encodingID == 1 || encodingID == 10))
+    }
+
+    private static func namePriority(platformID: UInt16, encodingID: UInt16) -> Int {
+        platformID == 3 || (platformID == 0 && encodingID <= 4) ? 2 : 1
     }
 
     private static let supportedScalerTypes: Set<UInt32> = [

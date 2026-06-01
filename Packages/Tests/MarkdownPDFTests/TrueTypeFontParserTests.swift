@@ -165,6 +165,13 @@ struct TrueTypeFontParserTests {
         #expect(metadata.names.namesByID[1] == "MarkdownPDF Synthetic")
     }
 
+    @Test("Prefers Unicode names over earlier non-Unicode records")
+    func prefersUnicodeNamesOverEarlierNonUnicodeRecords() throws {
+        let metadata = try TrueTypeFontParser().parse(SyntheticTrueTypeFont.data(leadingNonUnicodeName: true))
+
+        #expect(metadata.names.namesByID[1] == "MarkdownPDF Synthetic")
+    }
+
     @Test("Rejects malformed head records")
     func rejectsMalformedHeadRecords() {
         expectTrueTypeError {
@@ -302,6 +309,7 @@ private enum SyntheticTrueTypeFont {
         malformedCMapLength: Bool = false,
         invalidCMapGroupCount: Bool = false,
         nameFormat: UInt16 = 0,
+        leadingNonUnicodeName: Bool = false,
         overlappingNameStorage: Bool = false,
         overlappingLanguageTagStorage: Bool = false,
         shortOS2: Bool = false,
@@ -322,6 +330,7 @@ private enum SyntheticTrueTypeFont {
             ),
             "name": nameTable(
                 format: nameFormat,
+                leadingNonUnicodeName: leadingNonUnicodeName,
                 overlappingStringStorage: overlappingNameStorage,
                 overlappingLanguageTagStorage: overlappingLanguageTagStorage,
             ),
@@ -471,29 +480,64 @@ private enum SyntheticTrueTypeFont {
 
     private static func nameTable(
         format: UInt16,
+        leadingNonUnicodeName: Bool,
         overlappingStringStorage: Bool,
         overlappingLanguageTagStorage: Bool,
     ) -> Data {
+        let nonUnicodeFamily = Data("Wrong Family".utf8)
         let family = utf16BE("MarkdownPDF Synthetic")
         let full = utf16BE("MarkdownPDF Synthetic Regular")
-        let validStringOffset = format == 1 ? 36 : 30
+        let recordCount = leadingNonUnicodeName ? 3 : 2
+        let recordEnd = 6 + recordCount * 12
+        let languageTagRecordLength = format == 1 ? 6 : 0
+        let validStringOffset = recordEnd + languageTagRecordLength
         let stringOffset = if overlappingStringStorage {
             6
         } else if overlappingLanguageTagStorage {
-            34
+            validStringOffset - 2
         } else {
             validStringOffset
         }
         var data = Data()
         appendUInt16(format, to: &data)
-        appendUInt16(2, to: &data)
+        appendUInt16(UInt16(recordCount), to: &data)
         appendUInt16(UInt16(stringOffset), to: &data)
-        appendNameRecord(nameID: 1, length: UInt16(family.count), offset: 0, to: &data)
-        appendNameRecord(nameID: 4, length: UInt16(full.count), offset: UInt16(family.count), to: &data)
+        var storageOffset: UInt16 = 0
+        if leadingNonUnicodeName {
+            appendNameRecord(
+                platformID: 1,
+                encodingID: 0,
+                nameID: 1,
+                length: UInt16(nonUnicodeFamily.count),
+                offset: storageOffset,
+                to: &data,
+            )
+            storageOffset += UInt16(nonUnicodeFamily.count)
+        }
+        appendNameRecord(
+            platformID: 3,
+            encodingID: 1,
+            nameID: 1,
+            length: UInt16(family.count),
+            offset: storageOffset,
+            to: &data,
+        )
+        storageOffset += UInt16(family.count)
+        appendNameRecord(
+            platformID: 3,
+            encodingID: 1,
+            nameID: 4,
+            length: UInt16(full.count),
+            offset: storageOffset,
+            to: &data,
+        )
         if format == 1 {
             appendUInt16(1, to: &data)
             appendUInt16(0, to: &data)
             appendUInt16(0, to: &data)
+        }
+        if leadingNonUnicodeName {
+            data.append(nonUnicodeFamily)
         }
         data.append(family)
         data.append(full)
@@ -516,13 +560,15 @@ private enum SyntheticTrueTypeFont {
     }
 
     private static func appendNameRecord(
+        platformID: UInt16,
+        encodingID: UInt16,
         nameID: UInt16,
         length: UInt16,
         offset: UInt16,
         to data: inout Data,
     ) {
-        appendUInt16(3, to: &data)
-        appendUInt16(1, to: &data)
+        appendUInt16(platformID, to: &data)
+        appendUInt16(encodingID, to: &data)
         appendUInt16(0x0409, to: &data)
         appendUInt16(nameID, to: &data)
         appendUInt16(length, to: &data)
