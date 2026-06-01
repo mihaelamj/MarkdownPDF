@@ -4,6 +4,20 @@ struct PDFType0FontObject {
     var descendantFont: PDFSyntax.Reference
     var toUnicodeMap: PDFSyntax.Reference
 
+    init(
+        resourceName: String,
+        baseName: String,
+        descendantFont: PDFSyntax.Reference,
+        toUnicodeMap: PDFSyntax.Reference,
+    ) {
+        precondition(!resourceName.isEmpty, "Type 0 font objects require a resource name")
+        precondition(!baseName.isEmpty, "Type 0 font objects require a base font name")
+        self.resourceName = resourceName
+        self.baseName = baseName
+        self.descendantFont = descendantFont
+        self.toUnicodeMap = toUnicodeMap
+    }
+
     var pdfDictionary: PDFSyntax.Dictionary {
         PDFSyntax.Dictionary([
             .init("Type", .pdfName("Font")),

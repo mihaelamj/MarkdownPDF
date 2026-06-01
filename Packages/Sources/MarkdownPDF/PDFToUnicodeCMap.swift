@@ -10,6 +10,7 @@ struct PDFToUnicodeCMap {
     var mappings: [Mapping]
 
     init(name: String = "MarkdownPDF-ToUnicode", mappings: [Mapping]) {
+        precondition(!name.isEmpty, "ToUnicode CMaps require a CMap name")
         precondition(!mappings.isEmpty, "ToUnicode CMaps require at least one mapping")
         precondition(
             Set(mappings.map(\.code)).count == mappings.count,

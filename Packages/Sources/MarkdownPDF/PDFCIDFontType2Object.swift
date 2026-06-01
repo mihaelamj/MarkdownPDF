@@ -26,6 +26,7 @@ struct PDFCIDFontType2Object {
         widths: PDFCIDFontWidths,
         cidToGIDMap: CIDToGIDMap = .identity,
     ) {
+        precondition(!baseName.isEmpty, "CIDFontType2 objects require a base font name")
         self.baseName = baseName
         self.cidSystemInfo = cidSystemInfo
         self.fontDescriptor = fontDescriptor

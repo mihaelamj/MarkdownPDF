@@ -3,6 +3,15 @@ struct PDFCIDSystemInfo: Equatable {
     var ordering: String
     var supplement: Int
 
+    init(registry: String, ordering: String, supplement: Int) {
+        precondition(!registry.isEmpty, "CID system info requires a registry")
+        precondition(!ordering.isEmpty, "CID system info requires an ordering")
+        precondition(supplement >= 0, "CID system info supplement must be non-negative")
+        self.registry = registry
+        self.ordering = ordering
+        self.supplement = supplement
+    }
+
     static let identity = PDFCIDSystemInfo(
         registry: "Adobe",
         ordering: "Identity",
