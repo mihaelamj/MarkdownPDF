@@ -27,6 +27,8 @@ jobs:
           fi
           git checkout --detach FETCH_HEAD
       - name: Format, lint, build, test
+        env:
+          MARKDOWNPDF_ARTIFACT_DIR: ${{ github.workspace }}/rendered-test-artifacts/macos
         run: |
           brew install mupdf poppler qpdf swiftformat swiftlint
           brew install --cask font-urw-base35
@@ -34,3 +36,10 @@ jobs:
           swiftformat . --config .swiftformat --lint
           swiftlint --config .swiftlint.yml --strict
           cd Packages && swift build && swift test
+      - name: Upload PDF witness artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: markdownpdf-witness-macos
+          path: rendered-test-artifacts/macos
+          if-no-files-found: error

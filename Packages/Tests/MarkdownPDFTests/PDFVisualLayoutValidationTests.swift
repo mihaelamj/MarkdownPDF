@@ -9,6 +9,15 @@ struct PDFVisualLayoutValidationTests {
         let data = try visualValidationPDF()
         let result = try PDFValidation.pdftotextTSV(data: data, name: "visual-layout")
         try #require(result.exitCode == 0, "pdftotext -tsv failed:\n\(result.output)")
+        try PDFValidation.writeTextArtifact(result.output, name: "visual-layout/poppler.tsv")
+
+        let textResult = try PDFValidation.pdftotext(data: data, name: "visual-layout-text")
+        try #require(textResult.exitCode == 0, "pdftotext failed:\n\(textResult.output)")
+        try PDFValidation.writeTextArtifact(textResult.output, name: "visual-layout/text.txt")
+
+        let infoResult = try PDFValidation.pdfinfo(data: data, name: "visual-layout-info")
+        try #require(infoResult.exitCode == 0, "pdfinfo failed:\n\(infoResult.output)")
+        try PDFValidation.writeTextArtifact(infoResult.output, name: "visual-layout/pdfinfo.txt")
 
         let layout = try PopplerTextLayout(tsv: result.output)
         let issues = layout.visualLayoutIssues()
@@ -54,6 +63,7 @@ struct PDFVisualLayoutValidationTests {
         let data = try visualValidationPDF()
         let result = try PDFValidation.mutoolStructuredText(data: data, name: "visual-layout-mupdf")
         try #require(result.exitCode == 0, "mutool structured text failed:\n\(result.output)")
+        try PDFValidation.writeTextArtifact(result.output, name: "visual-layout/mupdf-stext.xml")
 
         let layout = try MuPDFStructuredText(xml: result.output)
         let visibleGlyphCount = layout.glyphs.count(where: { !$0.isWhitespace })
@@ -79,11 +89,21 @@ struct PDFVisualLayoutValidationTests {
         let mupdf = try PDFValidation.mutoolPNMs(url: url, pageCount: pageCount)
         try #require(poppler.result.exitCode == 0, "pdftoppm PNM failed:\n\(poppler.result.output)")
         try #require(mupdf.result.exitCode == 0, "mutool PNM failed:\n\(mupdf.result.output)")
+        try PDFValidation.writeTextArtifact(poppler.result.output, name: "visual-layout/poppler-render.log")
+        try PDFValidation.writeTextArtifact(mupdf.result.output, name: "visual-layout/mupdf-render.log")
 
         var issues: [String] = []
         for page in 1 ... pageCount {
             let popplerImage = try PNMImage(data: Data(contentsOf: poppler.pnmURLs[page - 1]))
             let mupdfImage = try PNMImage(data: Data(contentsOf: mupdf.pnmURLs[page - 1]))
+            try PDFValidation.copyArtifact(
+                from: poppler.pnmURLs[page - 1],
+                name: "visual-layout-pages/poppler/page-\(page).ppm",
+            )
+            try PDFValidation.copyArtifact(
+                from: mupdf.pnmURLs[page - 1],
+                name: "visual-layout-pages/mupdf/page-\(page).pnm",
+            )
             issues += rasterComparisonIssues(poppler: popplerImage, mupdf: mupdfImage).map {
                 "page \(page): \($0)"
             }
@@ -247,7 +267,7 @@ struct PDFVisualLayoutValidationTests {
         and Open tools.
         """
 
-        return try MarkdownPDFRenderer(
+        let data = try MarkdownPDFRenderer(
             options: PDFOptions(
                 pageSize: PDFOptions.PageSize(width: 260, height: 320),
                 margins: PDFOptions.Margins(top: 24, right: 22, bottom: 24, left: 22),
@@ -255,7 +275,41 @@ struct PDFVisualLayoutValidationTests {
                 tableOfContents: .enabled,
             ),
         ).render(markdown: markdown)
+        try PDFValidation.writeTextArtifact(Self.artifactManifest, name: "README.txt")
+        try PDFValidation.writeArtifact(data, name: "visual-layout-stress.pdf")
+        return data
     }
+
+    private static let artifactManifest = """
+    MarkdownPDF PDF witness artifacts
+
+    visual-layout-stress.pdf
+    Representative generated PDF used by the visual layout tests.
+
+    visual-layout/text.txt
+    Poppler pdftotext output for text extraction review.
+
+    visual-layout/pdfinfo.txt
+    Poppler pdfinfo output for page count and metadata review.
+
+    visual-layout/poppler.tsv
+    Poppler pdftotext -tsv geometry output used for word and line checks.
+
+    visual-layout/mupdf-stext.xml
+    MuPDF structured text output used for character quad checks.
+
+    visual-layout/poppler-render.log
+    Poppler raster command output.
+
+    visual-layout/mupdf-render.log
+    MuPDF raster command output.
+
+    visual-layout-pages/poppler/
+    Poppler page rasters used for raster ink bounds comparison.
+
+    visual-layout-pages/mupdf/
+    MuPDF page rasters used for raster ink bounds comparison.
+    """
 
     private func rasterComparisonIssues(poppler: PNMImage, mupdf: PNMImage) -> [String] {
         var issues: [String] = []
