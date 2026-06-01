@@ -219,9 +219,10 @@ uploads those files as `markdownpdf-witness-linux` and
 `markdownpdf-witness-macos` artifacts for pull request review.
 
 Embedded-font tests use generated Swift TrueType fixtures for deterministic
-coverage and CI-installed DejaVu Sans for an external open-font smoke test. The
-font path is supplied through `MARKDOWNPDF_OPEN_FONT_PATH`; the public
-repository does not commit font binaries.
+coverage and CI-installed open fonts for an external smoke test. Linux CI uses
+DejaVu Sans, macOS CI uses Liberation Sans, and both pass the chosen font path
+through `MARKDOWNPDF_OPEN_FONT_PATH`; the public repository does not commit font
+binaries.
 
 See [docs/research/pdf-validation-tooling.md](docs/research/pdf-validation-tooling.md)
 and [docs/research/pdf-visual-layout-validation.md](docs/research/pdf-visual-layout-validation.md)
