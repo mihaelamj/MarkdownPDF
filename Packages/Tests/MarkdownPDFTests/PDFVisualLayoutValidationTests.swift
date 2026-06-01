@@ -115,6 +115,78 @@ struct PDFVisualLayoutValidationTests {
         )
     }
 
+    @Test("Article stress fixture passes visual witness stack")
+    func articleStressFixturePassesVisualWitnessStack() throws {
+        let data = try articleStressFixturePDF()
+        let url = try PDFValidation.temporaryPDF(name: "article-grade-stress", data: data)
+        let pageCount = PDFInspector(data).pageCount
+
+        #expect(pageCount >= 6)
+        try PDFValidation.writeArtifact(data, name: "article-grade-stress.pdf")
+
+        let textResult = try PDFValidation.pdftotext(url: url)
+        try #require(textResult.exitCode == 0, "pdftotext failed:\n\(textResult.output)")
+        try PDFValidation.writeTextArtifact(textResult.output, name: "article-stress/text.txt")
+        #expect(textResult.output.contains("Portable Article Stress Corpus"))
+        #expect(textResult.output.contains("Table of Contents"))
+        #expect(textResult.output.contains("Local chart placeholder"))
+
+        let tsvResult = try PDFValidation.pdftotextTSV(url: url)
+        try #require(tsvResult.exitCode == 0, "pdftotext -tsv failed:\n\(tsvResult.output)")
+        try PDFValidation.writeTextArtifact(tsvResult.output, name: "article-stress/poppler.tsv")
+        let popplerLayout = try PopplerTextLayout(tsv: tsvResult.output)
+        let popplerIssues = popplerLayout.visualLayoutIssues()
+
+        #expect(popplerLayout.pages.count == pageCount)
+        #expect(popplerLayout.words.count > 500)
+        #expect(
+            popplerIssues.isEmpty,
+            "Article stress fixture Poppler layout issues:\n\(popplerIssues.joined(separator: "\n"))",
+        )
+
+        let structuredText = try PDFValidation.mutoolStructuredText(url: url)
+        try #require(structuredText.exitCode == 0, "mutool structured text failed:\n\(structuredText.output)")
+        try PDFValidation.writeTextArtifact(structuredText.output, name: "article-stress/mupdf-stext.xml")
+        let mupdfLayout = try MuPDFStructuredText(xml: structuredText.output)
+        let mupdfIssues = mupdfLayout.characterQuadIssues()
+
+        #expect(mupdfLayout.pages.count == pageCount)
+        #expect(mupdfLayout.glyphs.count(where: { !$0.isWhitespace }) > 2500)
+        #expect(
+            mupdfIssues.isEmpty,
+            "Article stress fixture MuPDF layout issues:\n\(mupdfIssues.joined(separator: "\n"))",
+        )
+
+        let poppler = try PDFValidation.pdftoppmPNMs(url: url, pageCount: pageCount)
+        let mupdf = try PDFValidation.mutoolPNMs(url: url, pageCount: pageCount)
+        try #require(poppler.result.exitCode == 0, "pdftoppm PNM failed:\n\(poppler.result.output)")
+        try #require(mupdf.result.exitCode == 0, "mutool PNM failed:\n\(mupdf.result.output)")
+        try PDFValidation.writeTextArtifact(poppler.result.output, name: "article-stress/poppler-render.log")
+        try PDFValidation.writeTextArtifact(mupdf.result.output, name: "article-stress/mupdf-render.log")
+
+        var rasterIssues: [String] = []
+        for page in 1 ... pageCount {
+            let popplerImage = try PNMImage(data: Data(contentsOf: poppler.pnmURLs[page - 1]))
+            let mupdfImage = try PNMImage(data: Data(contentsOf: mupdf.pnmURLs[page - 1]))
+            try PDFValidation.copyArtifact(
+                from: poppler.pnmURLs[page - 1],
+                name: "article-stress-pages/poppler/page-\(page).ppm",
+            )
+            try PDFValidation.copyArtifact(
+                from: mupdf.pnmURLs[page - 1],
+                name: "article-stress-pages/mupdf/page-\(page).pnm",
+            )
+            rasterIssues += rasterComparisonIssues(poppler: popplerImage, mupdf: mupdfImage).map {
+                "page \(page): \($0)"
+            }
+        }
+
+        #expect(
+            rasterIssues.isEmpty,
+            "Article stress fixture raster output diverged:\n\(rasterIssues.joined(separator: "\n"))",
+        )
+    }
+
     @Test("Visual layout validator rejects overlapping words")
     func visualLayoutValidatorRejectsOverlappingWords() throws {
         let layout = try PopplerTextLayout(tsv: """
@@ -139,6 +211,36 @@ struct PDFVisualLayoutValidationTests {
         """)
 
         #expect(layout.visualLayoutIssues().isEmpty)
+    }
+
+    @Test("Visual layout validator allows table columns on the same row")
+    func visualLayoutValidatorAllowsTableColumnsOnSameRow() throws {
+        let layout = try PopplerTextLayout(tsv: """
+        level\tpage_num\tpar_num\tblock_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext
+        1\t1\t0\t0\t0\t0\t0.000000\t0.000000\t220.000000\t220.000000\t-1\t###PAGE###
+        4\t1\t0\t1\t0\t0\t20.000000\t60.000000\t40.000000\t10.000000\t-1\t###LINE###
+        5\t1\t0\t1\t0\t0\t20.00\t60.00\t40.00\t10.00\t100\tLeft
+        4\t1\t0\t1\t1\t0\t90.000000\t60.000000\t50.000000\t10.000000\t-1\t###LINE###
+        5\t1\t0\t1\t1\t0\t90.00\t60.00\t50.00\t10.00\t100\tRight
+        """)
+
+        #expect(layout.visualLayoutIssues().isEmpty)
+    }
+
+    @Test("Visual layout validator rejects collisions hidden behind table columns")
+    func visualLayoutValidatorRejectsCollisionsHiddenBehindTableColumns() throws {
+        let layout = try PopplerTextLayout(tsv: """
+        level\tpage_num\tpar_num\tblock_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext
+        1\t1\t0\t0\t0\t0\t0.000000\t0.000000\t220.000000\t220.000000\t-1\t###PAGE###
+        4\t1\t0\t1\t0\t0\t20.000000\t60.000000\t40.000000\t20.000000\t-1\t###LINE###
+        5\t1\t0\t1\t0\t0\t20.00\t60.00\t40.00\t20.00\t100\tTop
+        4\t1\t0\t1\t1\t0\t90.000000\t65.000000\t50.000000\t10.000000\t-1\t###LINE###
+        5\t1\t0\t1\t1\t0\t90.00\t65.00\t50.00\t10.00\t100\tSide
+        4\t1\t0\t1\t2\t0\t22.000000\t70.000000\t40.000000\t10.000000\t-1\t###LINE###
+        5\t1\t0\t1\t2\t0\t22.00\t70.00\t40.00\t10.00\t100\tBottom
+        """)
+
+        #expect(layout.visualLayoutIssues().contains { $0.contains("collides vertically") })
     }
 
     @Test("MuPDF character quad validator rejects overlapping glyphs")
@@ -280,6 +382,32 @@ struct PDFVisualLayoutValidationTests {
         return data
     }
 
+    private func articleStressFixturePDF() throws -> Data {
+        let assetsBaseURL = try TestImageAssets.directoryWithChartPNG()
+        let data = try MarkdownPDFRenderer(
+            options: PDFOptions(
+                pageSize: PDFOptions.PageSize(width: 260, height: 320),
+                margins: PDFOptions.Margins(top: 24, right: 22, bottom: 24, left: 22),
+                baseFontSize: 10,
+                title: "Portable Article Stress Corpus",
+                tableOfContents: .enabled,
+            ),
+        ).render(
+            markdown: fixture(named: "article-grade-stress.md"),
+            assetsBaseURL: assetsBaseURL,
+        )
+        try PDFValidation.writeTextArtifact(Self.artifactManifest, name: "README.txt")
+        return data
+    }
+
+    private func fixture(named name: String) throws -> String {
+        let testFile = URL(fileURLWithPath: #filePath)
+        let fixtureURL = testFile
+            .deletingLastPathComponent()
+            .appendingPathComponent("Fixtures/\(name)")
+        return try String(contentsOf: fixtureURL, encoding: .utf8)
+    }
+
     private static let artifactManifest = """
     MarkdownPDF PDF witness artifacts
 
@@ -309,6 +437,15 @@ struct PDFVisualLayoutValidationTests {
 
     visual-layout-pages/mupdf/
     MuPDF page rasters used for raster ink bounds comparison.
+
+    article-grade-stress.pdf
+    Heavier public article fixture used by the article-grade corpus tests.
+
+    article-stress/
+    Text, geometry, structured text, and render logs for the article fixture.
+
+    article-stress-pages/
+    Poppler and MuPDF page rasters for the article fixture.
     """
 
     private func rasterComparisonIssues(poppler: PNMImage, mupdf: PNMImage) -> [String] {
@@ -483,12 +620,22 @@ private struct PopplerTextLayout {
                 return left.top < right.top
             }
 
-            for (top, bottom) in zip(sortedLines, sortedLines.dropFirst()) {
-                if bottom.top < top.bottom - tolerance {
-                    issues.append("\(boxDescription(top)) collides vertically with \(boxDescription(bottom))")
+            for topIndex in sortedLines.indices {
+                let top = sortedLines[topIndex]
+                for bottom in sortedLines.dropFirst(topIndex + 1) {
+                    if bottom.top >= top.bottom - tolerance {
+                        break
+                    }
+                    if boxesOverlapHorizontally(top, bottom) {
+                        issues.append("\(boxDescription(top)) collides vertically with \(boxDescription(bottom))")
+                    }
                 }
             }
         }
+    }
+
+    private func boxesOverlapHorizontally(_ left: Box, _ right: Box) -> Bool {
+        min(left.right, right.right) > max(left.left, right.left) + tolerance
     }
 
     private func groupedWordsByLine() -> [[Box]] {

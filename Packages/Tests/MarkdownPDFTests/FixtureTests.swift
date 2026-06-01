@@ -72,13 +72,13 @@ struct FixtureTests {
     @Test("Renders article-grade fixtures with valid PDF structure")
     func rendersArticleGradeFixtures() throws {
         for fixtureName in articleGradeFixtureNames {
-            let data = try MarkdownPDFRenderer().render(markdown: fixture(named: fixtureName))
+            let data = try renderArticleFixture(named: fixtureName)
             let inspector = PDFInspector(data)
 
             #expect(inspector.text.hasPrefix("%PDF-1.4"))
             #expect(inspector.text.contains("/BaseFont /Helvetica"))
             #expect(!inspector.text.contains("/FontFile"))
-            #expect(inspector.pageCount >= 1)
+            #expect(inspector.pageCount >= expectedMinimumPageCount(for: fixtureName))
             #expect(inspector.hasValidXrefOffsets())
             #expect(inspector.streamLengthsMatch())
             #expect(
@@ -110,6 +110,30 @@ struct FixtureTests {
             #expect((dimensions?.width ?? 0) > 0)
             #expect((dimensions?.height ?? 0) > 0)
         }
+    }
+
+    @Test("Article stress fixture covers ToC, images, fallback, raw HTML, and Mermaid")
+    func articleStressFixtureCoversPortableArticleFeatures() throws {
+        let data = try renderArticleFixture(named: "article-grade-stress.md")
+        let inspector = PDFInspector(data)
+        let textResult = try PDFValidation.pdftotext(data: data, name: "article-grade-stress-features")
+        try #require(textResult.exitCode == 0, "pdftotext failed for article-grade stress fixture:\n\(textResult.output)")
+        let extractedText = textResult.output
+
+        #expect(inspector.pageCount >= 6)
+        #expect(inspector.linkAnnotationCount >= 2)
+        #expect(inspector.text.contains("/Names << /Dests"))
+        #expect(inspector.text.contains("/Subtype /Image"))
+        #expect(inspector.text.contains("/Width 96"))
+        #expect(inspector.text.contains("/Height 48"))
+        #expect(inspector.text.contains("/FlateDecode"))
+        #expect(extractedText.contains("Table of Contents"))
+        #expect(extractedText.contains("[Remote image: Remote measurement plot]"))
+        #expect(extractedText.contains("Raw HTML fallback"))
+        #expect(extractedText.contains("Markdown source"))
+        #expect(extractedText.contains("Open tool witnesses"))
+        #expect(!extractedText.contains("Unsupported Mermaid diagram"))
+        #expect(!extractedText.contains("flowchart TD"))
     }
 
     @Test("Scientific article fixture covers links, image fallback, and Mermaid")
@@ -154,12 +178,42 @@ struct FixtureTests {
         return try String(contentsOf: fixtureURL, encoding: .utf8)
     }
 
+    private func renderArticleFixture(named fixtureName: String) throws -> Data {
+        try MarkdownPDFRenderer(options: articleFixtureOptions(for: fixtureName)).render(
+            markdown: fixture(named: fixtureName),
+            assetsBaseURL: articleFixtureAssetsBaseURL(for: fixtureName),
+        )
+    }
+
+    private func articleFixtureOptions(for fixtureName: String) -> PDFOptions {
+        if fixtureName == "article-grade-stress.md" {
+            return PDFOptions(
+                pageSize: PDFOptions.PageSize(width: 260, height: 320),
+                margins: PDFOptions.Margins(top: 24, right: 22, bottom: 24, left: 22),
+                baseFontSize: 10,
+                title: "Portable Article Stress Corpus",
+                tableOfContents: .enabled,
+            )
+        }
+
+        return PDFOptions()
+    }
+
+    private func articleFixtureAssetsBaseURL(for fixtureName: String) throws -> URL? {
+        if fixtureName == "article-grade-stress.md" {
+            return try TestImageAssets.directoryWithChartPNG()
+        }
+
+        return nil
+    }
+
     private var publicFixtureNames: [String] {
         ["democv.md"] + articleGradeFixtureNames
     }
 
     private var articleGradeFixtureNames: [String] {
         [
+            "article-grade-stress.md",
             "scientific-article.md",
             "technical-report.md",
         ]
@@ -167,12 +221,23 @@ struct FixtureTests {
 
     private func expectedTextFragment(for fixtureName: String) -> String {
         switch fixtureName {
+        case "article-grade-stress.md":
+            "Portable Article Stress Corpus"
         case "scientific-article.md":
             "Reproducible Layout Measurements"
         case "technical-report.md":
             "Portable PDF Validation Technical Report"
         default:
             fixtureName
+        }
+    }
+
+    private func expectedMinimumPageCount(for fixtureName: String) -> Int {
+        switch fixtureName {
+        case "article-grade-stress.md":
+            6
+        default:
+            1
         }
     }
 }
