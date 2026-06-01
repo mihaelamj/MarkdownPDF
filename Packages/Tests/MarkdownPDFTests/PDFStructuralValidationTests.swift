@@ -195,7 +195,7 @@ struct PDFStructuralValidationTests {
             mediaBox: PDFOptions.PageSize(width: 300, height: 300),
             resources: PDFPageResources(
                 imageXObjects: [
-                    PDFPageResources.Entry(name: "Im1", objectRef: imageRef),
+                    PDFXObjectResource(name: "Im1", objectRef: imageRef, kind: .image),
                 ],
             ).pdfDictionary,
             contents: contentRef,

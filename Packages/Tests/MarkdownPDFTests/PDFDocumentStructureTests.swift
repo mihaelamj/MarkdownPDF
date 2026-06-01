@@ -77,10 +77,10 @@ struct PDFDocumentStructureTests {
                 PDFPageResources.Entry(name: "F2", objectRef: PDFSyntax.Reference(objectNumber: 3)),
             ],
             imageXObjects: [
-                PDFPageResources.Entry(name: "Im1", objectRef: PDFSyntax.Reference(objectNumber: 4)),
+                PDFXObjectResource(name: "Im1", objectRef: PDFSyntax.Reference(objectNumber: 4), kind: .image),
             ],
             formXObjects: [
-                PDFPageResources.Entry(name: "Fm1", objectRef: PDFSyntax.Reference(objectNumber: 5)),
+                PDFXObjectResource(name: "Fm1", objectRef: PDFSyntax.Reference(objectNumber: 5), kind: .form),
             ],
             extGStates: [
                 PDFPageResources.Entry(name: "GS1", objectRef: PDFSyntax.Reference(objectNumber: 6)),
@@ -105,6 +105,73 @@ struct PDFDocumentStructureTests {
         )
 
         #expect(resources.pdfDictionary.serialized() == "<< /Font << /F1 3 0 R >> >>")
+    }
+
+    @Test("Serializes image XObject dictionary from typed model")
+    func serializesImageXObjectDictionaryFromTypedModel() {
+        let image = PDFImageXObject(
+            resourceName: "Im1",
+            width: 24,
+            height: 12,
+            colorSpace: PDFSyntax.Name("DeviceRGB"),
+            bitsPerComponent: 8,
+            filter: PDFSyntax.Name("DCTDecode"),
+            data: Data([0xFF, 0xD8, 0xFF, 0xD9]),
+        )
+
+        #expect(image.resourceName == "Im1")
+        #expect(
+            image.pdfDictionary.serialized()
+                == "<< /Type /XObject /Subtype /Image /Width 24 /Height 12 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode >>",
+        )
+        #expect(image.pdfStream.serialized.contains(Data("/Length 4".utf8)))
+    }
+
+    @Test("Preserves PNG decode parameters in typed image XObject")
+    func preservesPNGDecodeParametersInTypedImageXObject() {
+        let image = PDFImageXObject(
+            resourceName: "Im2",
+            width: 10,
+            height: 20,
+            colorSpace: PDFSyntax.Name("DeviceGray"),
+            bitsPerComponent: 8,
+            filter: PDFSyntax.Name("FlateDecode"),
+            decodeParms: PDFSyntax.Dictionary([
+                .init("Predictor", .int(15)),
+                .init("Colors", .int(1)),
+                .init("BitsPerComponent", .int(8)),
+                .init("Columns", .int(10)),
+            ]),
+            data: Data([0x00]),
+        )
+
+        #expect(
+            image.pdfDictionary.serialized()
+                ==
+                "<< /Type /XObject /Subtype /Image /Width 10 /Height 20 /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode /DecodeParms << /Predictor 15 /Colors 1 /BitsPerComponent 8 /Columns 10 >> >>",
+        )
+    }
+
+    @Test("XObject resource keeps kind for image and future form objects")
+    func xObjectResourceKeepsKindForImageAndFutureFormObjects() {
+        let imageResource = PDFXObjectResource(
+            name: "Im1",
+            objectRef: PDFSyntax.Reference(objectNumber: 4),
+            kind: .image,
+        )
+        let formResource = PDFXObjectResource(
+            name: "Fm1",
+            objectRef: PDFSyntax.Reference(objectNumber: 5),
+            kind: .form,
+        )
+        let resources = PDFPageResources(
+            imageXObjects: [imageResource],
+            formXObjects: [formResource],
+        )
+
+        #expect(imageResource.kind == .image)
+        #expect(formResource.kind == .form)
+        #expect(resources.pdfDictionary.serialized() == "<< /XObject << /Im1 4 0 R /Fm1 5 0 R >> >>")
     }
 
     @Test("Serializes PDF base font object without descriptor or embedded font file")
