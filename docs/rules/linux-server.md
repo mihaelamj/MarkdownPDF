@@ -304,7 +304,18 @@ linux-build:
   runs-on: ubuntu-latest
   container: swift:6.0-jammy
   steps:
-    - uses: actions/checkout@v4
+    - name: Checkout repository
+      env:
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+      run: |
+        git init .
+        git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+        if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+          git fetch --depth=1 origin "refs/pull/$PR_NUMBER/merge"
+        else
+          git fetch --depth=1 origin "$GITHUB_SHA"
+        fi
+        git checkout --detach FETCH_HEAD
     - run: swift build -c release --product <your-linux-product>
 ```
 

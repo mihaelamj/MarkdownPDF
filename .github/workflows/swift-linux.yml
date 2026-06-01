@@ -14,9 +14,23 @@ jobs:
     runs-on: ubuntu-latest
     container: swift:6.1
     steps:
-      - uses: actions/checkout@v4
-      - name: Build and test
+      - name: Install runner tools
         run: |
           apt-get update
-          apt-get install -y poppler-utils qpdf
+          apt-get install -y git poppler-utils qpdf
+      - name: Checkout repository
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git init .
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            git fetch --depth=1 origin "refs/pull/$PR_NUMBER/merge"
+          else
+            git fetch --depth=1 origin "$GITHUB_SHA"
+          fi
+          git checkout --detach FETCH_HEAD
+      - name: Build and test
+        run: |
           cd Packages && swift build && swift test

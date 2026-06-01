@@ -13,7 +13,19 @@ jobs:
     name: Style and namespacing
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git init .
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            git fetch --depth=1 origin "refs/pull/$PR_NUMBER/merge"
+          else
+            git fetch --depth=1 origin "$GITHUB_SHA"
+          fi
+          git checkout --detach FETCH_HEAD
       - name: Style gate
         run: bash scripts/check-style.sh
       - name: Namespacing gate
