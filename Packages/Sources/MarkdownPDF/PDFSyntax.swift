@@ -168,6 +168,7 @@ enum PDFSyntax {
         case array(Array)
         case dictionary(Dictionary)
         case reference(Reference)
+        case null
 
         var serialized: String {
             switch self {
@@ -187,6 +188,8 @@ enum PDFSyntax {
                 dictionary.serialized()
             case let .reference(reference):
                 reference.serialized
+            case .null:
+                "null"
             }
         }
 
@@ -295,14 +298,20 @@ enum PDFSyntax {
     struct Trailer {
         var size: Int
         var root: Reference
+        var info: Reference?
 
         var serialized: String {
-            """
-            trailer
-            \(Dictionary([
+            var entries: [Dictionary.Entry] = [
                 .init("Size", .int(size)),
                 .init("Root", .reference(root)),
-            ]).serialized())
+            ]
+            if let info {
+                entries.append(.init("Info", .reference(info)))
+            }
+
+            return """
+            trailer
+            \(Dictionary(entries).serialized())
             """
         }
     }
@@ -310,10 +319,14 @@ enum PDFSyntax {
     struct FileEnvelope {
         var objects: [IndirectObject]
         var root: Reference
+        var info: Reference?
 
         var serialized: Data {
             let objectReferences = Set(objects.map(\.reference))
             precondition(objectReferences.contains(root), "PDF root reference must point to an emitted object")
+            if let info {
+                precondition(objectReferences.contains(info), "PDF info reference must point to an emitted object")
+            }
 
             var output = Data()
             output.appendString("%PDF-1.4\n%\u{00E2}\u{00E3}\u{00CF}\u{00D3}\n")
@@ -327,7 +340,7 @@ enum PDFSyntax {
             let xrefStart = output.count
             let xref = XrefTable(objectOffsets: objectOffsets)
             output.appendString(xref.serialized)
-            output.appendString(Trailer(size: xref.entries.count, root: root).serialized)
+            output.appendString(Trailer(size: xref.entries.count, root: root, info: info).serialized)
             output.appendString("\nstartxref\n\(xrefStart)\n%%EOF")
             return output
         }

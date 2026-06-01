@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Parser and renderer tests for tables, images, inline styles, and PDF structure.
 - `MarkdownPDFLinux` and `MarkdownPDFMac` renderer entry products.
 - MuPDF character-quad and cross-renderer raster validation for generated PDFs.
+- Deterministic PDF metadata, named heading destinations, outline objects, and
+  internal heading links.
 
 ### Changed
 
