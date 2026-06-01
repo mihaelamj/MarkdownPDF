@@ -1,9 +1,9 @@
 # Formidabble
 
-`[https://github.com/mihaelamj/Formidabble]`
+`[https://example.com/Formidabble]`
 
 ```html
-https://github.com/mihaelamj/Formidabble
+https://example.com/Formidabble
 ```
 
 
