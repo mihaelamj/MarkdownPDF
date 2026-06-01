@@ -6,6 +6,7 @@ public struct PDFOptions: Equatable, Sendable {
     public var baseFontSize: Double
     public var fontSet: FontSet
     public var title: String?
+    public var tableOfContents: TableOfContents
 
     public init(
         pageSize: PageSize = .a4,
@@ -13,12 +14,14 @@ public struct PDFOptions: Equatable, Sendable {
         baseFontSize: Double = 11,
         fontSet: FontSet = .pdfBase,
         title: String? = nil,
+        tableOfContents: TableOfContents = .disabled,
     ) {
         self.pageSize = pageSize
         self.margins = margins
         self.baseFontSize = baseFontSize
         self.fontSet = fontSet
         self.title = title
+        self.tableOfContents = tableOfContents
     }
 
     public struct PageSize: Equatable, Sendable {
@@ -99,5 +102,25 @@ public struct PDFOptions: Equatable, Sendable {
             monospaced: "Courier",
             subtype: "Type1",
         )
+    }
+
+    /// Controls whether the portable renderer inserts a generated table of contents.
+    public struct TableOfContents: Equatable, Sendable {
+        public var isEnabled: Bool
+        public var title: String
+        public var maximumDepth: Int
+
+        public init(
+            isEnabled: Bool,
+            title: String = "Table of Contents",
+            maximumDepth: Int = 6,
+        ) {
+            self.isEnabled = isEnabled
+            self.title = title
+            self.maximumDepth = max(1, min(6, maximumDepth))
+        }
+
+        public static let disabled = TableOfContents(isEnabled: false)
+        public static let enabled = TableOfContents(isEnabled: true)
     }
 }

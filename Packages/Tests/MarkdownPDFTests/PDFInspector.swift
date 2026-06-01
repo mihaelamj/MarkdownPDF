@@ -57,6 +57,35 @@ struct PDFInspector {
         return namedDestinations(in: names).map(\.name)
     }
 
+    var namedDestinationPages: [String: Int] {
+        guard let catalog = catalogObject(),
+              let names = dictionary(after: "/Names", in: catalog.content)
+        else {
+            return [:]
+        }
+
+        let pageIndexes = Dictionary(
+            uniqueKeysWithValues: pageObjectNumbers.enumerated().map { index, objectNumber in
+                (objectNumber, index + 1)
+            },
+        )
+        return Dictionary(
+            uniqueKeysWithValues: namedDestinations(in: names).map { destination in
+                (destination.name, pageIndexes[destination.page] ?? -1)
+            },
+        )
+    }
+
+    var internalLinkDestinationNames: [String] {
+        indirectObjects.flatMap { object -> [String] in
+            guard object.content.contains("/Subtype /Link") else {
+                return []
+            }
+
+            return regexMatches(#"/Dest \(([^)]*)\)"#, in: object.content).compactMap(\.first)
+        }
+    }
+
     var hasDocumentMetadata: Bool {
         guard let objects = indirectObjectDictionary(),
               let trailer = trailerDictionary(),
@@ -77,6 +106,18 @@ struct PDFInspector {
 
     var indirectObjectCount: Int {
         occurrences(of: " 0 obj\n")
+    }
+
+    var pageObjectNumbers: [Int] {
+        guard let objects = indirectObjectDictionary(),
+              let catalog = catalogObject(),
+              let pagesRef = reference(after: "/Pages", in: catalog.content),
+              let pages = objects[pagesRef]
+        else {
+            return []
+        }
+
+        return references(inArrayAfter: "/Kids", in: pages.content)
     }
 
     var streams: [Stream] {

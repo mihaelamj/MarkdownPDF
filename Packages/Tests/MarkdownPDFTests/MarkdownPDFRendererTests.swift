@@ -250,6 +250,46 @@ struct MarkdownPDFRendererTests {
         )
     }
 
+    @Test("Generates table of contents with final page numbers and internal links")
+    func generatesTableOfContentsWithFinalPageNumbersAndInternalLinks() throws {
+        let data = try MarkdownPDFRenderer(
+            options: PDFOptions(
+                pageSize: PDFOptions.PageSize(width: 260, height: 320),
+                margins: PDFOptions.Margins(top: 24, right: 22, bottom: 24, left: 22),
+                baseFontSize: 10,
+                tableOfContents: .enabled,
+            ),
+        ).render(markdown: generatedTableOfContentsMarkdown())
+        let inspector = PDFInspector(data)
+        let pages = inspector.namedDestinationPages
+        let methodsPage = try #require(pages["methods"])
+        let resultsPage = try #require(pages["results"])
+        let tocStream = try #require(inspector.streams.first { $0.body.contains("(Table of Contents)") }?.body)
+        let textResult = try PDFValidation.pdftotext(data: data, name: "generated-toc")
+        let qpdf = try PDFValidation.qpdfCheck(data: data, name: "generated-toc")
+        let pdfinfo = try PDFValidation.pdfinfo(data: data, name: "generated-toc")
+        let info = PDFValidation.parsedInfo(from: pdfinfo)
+
+        #expect(methodsPage > 1)
+        #expect(resultsPage >= methodsPage)
+        #expect(tocStream.contains("(Methods)"))
+        #expect(tocStream.contains("(Results)"))
+        #expect(tocStream.contains("(\(methodsPage))"))
+        #expect(tocStream.contains("(\(resultsPage))"))
+        #expect(inspector.internalLinkDestinationNames.contains("methods"))
+        #expect(inspector.internalLinkDestinationNames.contains("results"))
+        #expect(inspector.linkAnnotationCount >= inspector.namedDestinationNames.count)
+        #expect(qpdf.exitCode == 0, "qpdf --check failed for generated ToC PDF:\n\(qpdf.output)")
+        #expect(pdfinfo.exitCode == 0, "pdfinfo failed for generated ToC PDF:\n\(pdfinfo.output)")
+        #expect(info["Pages"] == "\(inspector.pageCount)")
+        #expect(textResult.exitCode == 0, "pdftotext failed for generated ToC PDF:\n\(textResult.output)")
+        #expect(textResult.output.contains("Table of Contents"))
+        #expect(
+            inspector.canonicalStructureIssues().isEmpty,
+            "Canonical PDF structure failed:\n\(inspector.canonicalStructureReport())",
+        )
+    }
+
     @Test("Renders supported Mermaid flowcharts through PDF drawing operators")
     func rendersSupportedMermaidFlowchartsThroughPDFDrawingOperators() throws {
         let data = try MarkdownPDFRenderer().render(markdown: """
@@ -472,6 +512,35 @@ struct MarkdownPDFRendererTests {
             0x49, 0x45, 0x4E, 0x44,
             0xAE, 0x42, 0x60, 0x82,
         ])
+    }
+
+    private func generatedTableOfContentsMarkdown() -> String {
+        let denseParagraphs = Array(
+            repeating: """
+            Portable PDF generation needs deterministic page structure, stable
+            heading anchors, extractable text, and independent tool witnesses for
+            every page that layout creates.
+            """,
+            count: 8,
+        ).joined(separator: "\n\n")
+
+        return """
+        # Portable Report
+
+        \(denseParagraphs)
+
+        ## Methods
+
+        \(denseParagraphs)
+
+        ## Results
+
+        \(denseParagraphs)
+
+        ## Appendix
+
+        \(denseParagraphs)
+        """
     }
 
     private func contentStreams(in text: String) -> [String] {

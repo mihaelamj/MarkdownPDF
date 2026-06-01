@@ -28,6 +28,7 @@ The generic renderer currently covers:
 - Ordered lists, unordered lists, fenced code blocks, and GitHub-flavored tables.
 - Local JPEG and PNG images resolved relative to the input document.
 - PDF document title metadata, heading outlines, and internal heading links.
+- Opt-in generated table of contents with final page numbers and internal links.
 - Standard PDF base fonts by default, without embedding font files.
 
 The compatibility target is CommonMark plus GitHub Flavored Markdown tables and
@@ -75,6 +76,16 @@ let options = PDFOptions(
 )
 
 let markdown = "# Letter Page\n\nCustom page settings."
+let data = try MarkdownPDFRenderer(options: options).render(markdown: markdown)
+```
+
+Generate a visible table of contents:
+
+```swift
+import MarkdownPDF
+
+let options = PDFOptions(tableOfContents: .enabled)
+let markdown = "# Report\n\n## Methods\n\nBody."
 let data = try MarkdownPDFRenderer(options: options).render(markdown: markdown)
 ```
 
