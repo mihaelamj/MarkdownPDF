@@ -351,6 +351,43 @@ struct MarkdownPDFRendererTests {
         #expect(!textResult.output.contains("graph LR"))
     }
 
+    @Test("Falls back visibly when Mermaid edge labels collide with nodes")
+    func fallsBackVisiblyWhenMermaidEdgeLabelsCollideWithNodes() throws {
+        let data = try MarkdownPDFRenderer().render(markdown: """
+        ```mermaid
+        graph LR
+            A["Markdown"] -->|this label is intentionally too long to fit in the edge gap| B["PDF"]
+        ```
+        """)
+        let textResult = try PDFValidation.pdftotext(data: data, name: "mermaid-edge-label-collision")
+
+        #expect(textResult.exitCode == 0, "pdftotext failed for Mermaid edge label fallback:\n\(textResult.output)")
+        #expect(textResult.output.contains("Unsupported Mermaid diagram"))
+        #expect(textResult.output.contains("collides with a diagram node"))
+        #expect(textResult.output.contains("this label is intentionally too long"))
+        #expect(textResult.output.contains("graph LR"))
+    }
+
+    @Test("Falls back visibly when Mermaid edge labels collide with intermediate nodes")
+    func fallsBackVisiblyWhenMermaidEdgeLabelsCollideWithIntermediateNodes() throws {
+        let data = try MarkdownPDFRenderer().render(markdown: """
+        ```mermaid
+        flowchart TD
+            Start["Start"] -->|crosses the middle node| End["End"]
+            Start --> Middle["Middle"]
+            Middle --> End
+        ```
+        """)
+        let textResult = try PDFValidation.pdftotext(data: data, name: "mermaid-edge-label-intermediate-collision")
+        let normalizedOutput = textResult.output.replacingOccurrences(of: "\n", with: " ")
+
+        #expect(textResult.exitCode == 0, "pdftotext failed for Mermaid intermediate label fallback:\n\(textResult.output)")
+        #expect(textResult.output.contains("Unsupported Mermaid diagram"))
+        #expect(normalizedOutput.contains("collides with a diagram node"))
+        #expect(textResult.output.contains("crosses the middle node"))
+        #expect(textResult.output.contains("flowchart TD"))
+    }
+
     @Test("Keeps unknown fragment links as URI annotations")
     func keepsUnknownFragmentLinksAsURIAnnotations() throws {
         let data = try MarkdownPDFRenderer().render(markdown: "[Missing](#Missing%20Section)")
