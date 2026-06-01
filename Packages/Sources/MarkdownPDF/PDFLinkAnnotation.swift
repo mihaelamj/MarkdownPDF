@@ -3,7 +3,7 @@ import Foundation
 struct PDFLinkAnnotation {
     enum Target: Equatable {
         case uri(String)
-        case destination(String)
+        case destination(name: String, fallbackURI: String)
     }
 
     var x: Double
@@ -23,7 +23,11 @@ struct PDFLinkAnnotation {
         self.y = y
         self.width = width
         self.height = height
-        target = destination.internalDestinationName.map(Target.destination) ?? .uri(destination.pdfURI)
+        if let name = destination.internalDestinationName {
+            target = .destination(name: name, fallbackURI: destination)
+        } else {
+            target = .uri(destination.pdfURI)
+        }
     }
 }
 
