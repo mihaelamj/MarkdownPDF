@@ -264,6 +264,58 @@ struct MarkdownPDFRendererTests {
         #expect(text.contains("/DCTDecode"))
     }
 
+    @Test("Embeds local PNG images")
+    func embedsPNGImages() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("MarkdownPDFTests-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let imageURL = directory.appendingPathComponent("image.png")
+        try minimalPNG().write(to: imageURL)
+
+        let data = try MarkdownPDFRenderer().render(
+            markdown: "![pixel](image.png)",
+            assetsBaseURL: directory,
+        )
+        let text = String(decoding: data, as: UTF8.self)
+
+        #expect(text.contains("/Subtype /Image"))
+        #expect(text.contains("/FlateDecode"))
+        #expect(text.contains("/DecodeParms << /Predictor 15 /Colors 3 /BitsPerComponent 8 /Columns 1 >>"))
+
+        let qpdf = try PDFValidation.qpdfCheck(data: data, name: "png-image")
+        #expect(qpdf.exitCode == 0, "qpdf --check failed for PNG image PDF:\n\(qpdf.output)")
+
+        let render = try PDFValidation.pdftoppmPNG(data: data, name: "png-image")
+        let pngData = try? Data(contentsOf: render.pngURL)
+        let dimensions = PDFValidation.pngDimensions(in: pngData)
+        #expect(render.result.exitCode == 0, "pdftoppm failed for PNG image PDF:\n\(render.result.output)")
+        #expect((dimensions?.width ?? 0) > 0)
+        #expect((dimensions?.height ?? 0) > 0)
+    }
+
+    @Test("Reuses local image XObjects by source")
+    func reusesLocalImageXObjectsBySource() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("MarkdownPDFTests-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let imageURL = directory.appendingPathComponent("image.png")
+        try minimalPNG().write(to: imageURL)
+
+        let data = try MarkdownPDFRenderer().render(
+            markdown: """
+            ![first](image.png)
+
+            ![second](image.png)
+            """,
+            assetsBaseURL: directory,
+        )
+        let text = String(decoding: data, as: UTF8.self)
+
+        #expect(text.components(separatedBy: "/Subtype /Image").count - 1 == 1)
+        #expect(text.components(separatedBy: "/Im1 Do").count - 1 == 2)
+        #expect(!text.contains("/Im2"))
+    }
+
     private func minimalJPEG() -> Data {
         Data([
             0xFF, 0xD8,
@@ -272,6 +324,27 @@ struct MarkdownPDFRendererTests {
             0xFF, 0xDA, 0x00, 0x0C, 0x03, 0x01, 0x00, 0x02, 0x11, 0x03, 0x11, 0x00, 0x3F, 0x00,
             0x00,
             0xFF, 0xD9,
+        ])
+    }
+
+    private func minimalPNG() -> Data {
+        Data([
+            0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+            0x00, 0x00, 0x00, 0x0D,
+            0x49, 0x48, 0x44, 0x52,
+            0x00, 0x00, 0x00, 0x01,
+            0x00, 0x00, 0x00, 0x01,
+            0x08, 0x02, 0x00, 0x00, 0x00,
+            0x90, 0x77, 0x53, 0xDE,
+            0x00, 0x00, 0x00, 0x0F,
+            0x49, 0x44, 0x41, 0x54,
+            0x78, 0x01, 0x01, 0x04, 0x00, 0xFB, 0xFF,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x04, 0x00, 0x01,
+            0x65, 0x49, 0xC3, 0x60,
+            0x00, 0x00, 0x00, 0x00,
+            0x49, 0x45, 0x4E, 0x44,
+            0xAE, 0x42, 0x60, 0x82,
         ])
     }
 

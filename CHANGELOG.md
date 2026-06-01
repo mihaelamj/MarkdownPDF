@@ -22,3 +22,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   structures.
 - Track page resource usage and resource dictionaries through typed Swift
   structures.
+- Model image XObjects and reusable image resource references through typed
+  Swift structures.
