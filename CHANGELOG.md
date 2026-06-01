@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   visible fallback for unsupported Mermaid syntax.
 - Portable embedded-font and ToUnicode implementation plan for future Type 0
   and CIDFontType2 work.
+- Internal Type 0, CIDFontType2, FontFile2, and ToUnicode object models for the
+  portable embedded-font profile.
 
 ### Changed
 
