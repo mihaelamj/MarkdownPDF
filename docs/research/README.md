@@ -13,8 +13,9 @@ Swift source and tests.
 3. Use `existing-pdf-writer-alignment.md` to connect source research to the
    current implementation plan.
 4. Use `pdf-type-modeling-policy.md` before adding new PDF model types.
-5. Use `pdf-validation-tooling.md` and `pdf-visual-layout-validation.md` before
-   changing tests or CI validation.
+5. Use `pdf-validation-tooling.md`, `pdf-visual-layout-validation.md`, and
+   `../rules/pdf-witness-gate.md` before changing tests, CI validation, or any
+   PDF layout feature.
 6. Use `portable-mermaid-flowcharts.md` before changing portable Mermaid
    rendering.
 7. Use the source studies when planning new writer features.

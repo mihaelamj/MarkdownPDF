@@ -151,27 +151,38 @@ flowchart TD
 
 ## Validation
 
-The test suite validates generated PDFs in four layers:
+The test suite validates generated PDFs in five layers:
 
 - Swift structural inspection checks object references, xref offsets, stream
   lengths, page resources, annotations, fonts, images, and canonical page
   structure.
 - `qpdf --check` validates syntax, xref, trailer, and stream-level structure.
-- Poppler tools inspect real reader behavior through `pdfinfo`, `pdftotext`, and
-  `pdftoppm`.
-- MuPDF `mutool` independently extracts character quads and renders page rasters.
+- Poppler tools inspect reader behavior through `pdfinfo`, `pdftotext`,
+  `pdftotext -tsv`, and `pdftoppm`.
+- MuPDF `mutool` independently extracts character quads and renders page
+  rasters.
+- Poppler and MuPDF raster output is compared across every generated page in the
+  visual stress fixture.
 
 Layout-affecting renderer changes must keep the visual geometry tests passing.
-Those tests render representative Markdown, extract Poppler word and line boxes
-with `pdftotext -tsv`, extract MuPDF character quads with `mutool draw -F stext`,
-and compare Poppler and MuPDF raster ink bounds. They fail on
-non-positive boxes, text outside page bounds, same-line word overlap,
-same-word glyph overlap, vertical line collisions, blank renders, or
-divergent ink bounds.
+Those tests render representative multi-page Markdown with dense prose, inline
+styles, lists, tables, links, fenced code fallback, Mermaid diagrams, and page
+breaks. They extract Poppler word and line boxes with `pdftotext -tsv`, extract
+MuPDF character quads with `mutool draw -F stext`, and compare Poppler and MuPDF
+raster ink bounds for every page. They fail on non-positive boxes, text outside
+page bounds, same-line word overlap, same-word glyph overlap, vertical line
+collisions, blank renders, or divergent ink bounds.
+
+Witness differences are handled in the test layer unless the generated PDF bytes
+truly need to differ by platform. Linux Poppler page-origin normalization and
+macOS CI Base35 font installation are examples of witness environment fixes, not
+production renderer forks.
 
 See [docs/research/pdf-validation-tooling.md](docs/research/pdf-validation-tooling.md)
 and [docs/research/pdf-visual-layout-validation.md](docs/research/pdf-visual-layout-validation.md)
-for the validation rationale.
+for the validation rationale. See
+[docs/rules/pdf-witness-gate.md](docs/rules/pdf-witness-gate.md) for the policy
+future PDF features must satisfy.
 
 ## Build and Test
 
