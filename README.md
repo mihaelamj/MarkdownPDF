@@ -129,7 +129,7 @@ flowchart TD
     P1["Phase 1<br/>#29 Tool validation<br/>#25 Structural validation<br/>Done"]
     P2["Phase 2<br/>#22 PDF syntax<br/>#30 Object registry, xref, trailer<br/>Done"]
     P3["Phase 3<br/>#18 Catalog, page tree, page dictionaries<br/>Done"]
-    P4["Phase 4<br/>#19 Page resources Done<br/>#20 Font objects Done<br/>#23 Image XObjects PR #41"]
+    P4["Phase 4<br/>#19 Page resources Done<br/>#20 Font objects Done<br/>#23 Image XObjects PR #41 green"]
     P5["Phase 5<br/>#21 Typed content streams"]
     P6["Phase 6<br/>#26 Metadata, outlines, destinations"]
     P7["Phase 7<br/>#37 Mermaid diagrams"]
