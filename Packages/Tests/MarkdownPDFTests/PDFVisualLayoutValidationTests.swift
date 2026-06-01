@@ -270,6 +270,8 @@ struct PDFVisualLayoutValidationTests {
         #expect(inspector.text.contains("/Subtype /CIDFontType2"))
         #expect(inspector.text.contains("/FontFile2"))
         #expect(inspector.text.contains("/ToUnicode"))
+        #expect(inspector.text.contains("/CIDToGIDMap "))
+        #expect(!inspector.text.contains("/CIDToGIDMap /Identity"))
         try PDFValidation.writeTextArtifact(Self.artifactManifest, name: "README.txt")
         try PDFValidation.writeArtifact(data, name: "embedded-cid-text.pdf")
 
