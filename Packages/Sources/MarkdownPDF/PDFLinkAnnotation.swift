@@ -1,9 +1,50 @@
 import Foundation
 
 struct PDFLinkAnnotation {
+    enum Target: Equatable {
+        case uri(String)
+        case destination(String)
+    }
+
     var x: Double
     var y: Double
     var width: Double
     var height: Double
-    var destination: String
+    var target: Target
+
+    init(
+        x: Double,
+        y: Double,
+        width: Double,
+        height: Double,
+        destination: String,
+    ) {
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        target = destination.internalDestinationName.map(Target.destination) ?? .uri(destination.pdfURI)
+    }
+}
+
+private extension String {
+    var internalDestinationName: String? {
+        guard hasPrefix("#"), count > 1 else {
+            return nil
+        }
+
+        return String(dropFirst())
+    }
+
+    var pdfURI: String {
+        if contains("://") || hasPrefix("mailto:") || hasPrefix("/") || hasPrefix(".") {
+            return self
+        }
+
+        if contains("@"), !contains("/") {
+            return "mailto:\(self)"
+        }
+
+        return self
+    }
 }
