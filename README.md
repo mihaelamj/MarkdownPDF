@@ -188,11 +188,47 @@ truly need to differ by platform. Linux Poppler page-origin normalization and
 macOS CI Base35 font installation are examples of witness environment fixes, not
 production renderer forks.
 
+Set `MARKDOWNPDF_ARTIFACT_DIR` while running tests to preserve witness outputs.
+The visual layout tests write the representative PDF, extracted text, `pdfinfo`
+output, Poppler TSV, MuPDF structured text, and Poppler/MuPDF page rasters under
+that directory, with a `README.txt` manifest naming each witness. GitHub CI
+uploads those files as `markdownpdf-witness-linux` and
+`markdownpdf-witness-macos` artifacts for pull request review.
+
 See [docs/research/pdf-validation-tooling.md](docs/research/pdf-validation-tooling.md)
 and [docs/research/pdf-visual-layout-validation.md](docs/research/pdf-visual-layout-validation.md)
 for the validation rationale. See
 [docs/rules/pdf-witness-gate.md](docs/rules/pdf-witness-gate.md) for the policy
 future PDF features must satisfy.
+
+## Portable fidelity roadmap
+
+Epic [#48](https://github.com/mihaelamj/MarkdownPDF/issues/48) tracks the next
+portable hardening round after the canonical PDF structure epic. It focuses on
+reviewable witness artifacts, realistic fixtures, text encoding boundaries,
+oversized block behavior, tables, diagrams, charts, and future font planning
+without adding Apple-only dependencies.
+
+```mermaid
+flowchart TD
+    F0["Phase 0<br/>#49 Witness artifacts In review"]
+    F1["Phase 1<br/>#50 Article fixtures Ready"]
+    F2["Phase 2<br/>#51 Text encoding Ready"]
+    F3["Phase 3<br/>#52 Oversized blocks Ready"]
+    F4["Phase 4<br/>#53 Tables Ready"]
+    F5["Phase 5<br/>#54 Diagrams and charts Ready"]
+    F6["Phase 6<br/>#55 Fonts and ToUnicode plan Ready"]
+
+    F0 --> F1 --> F2 --> F3 --> F4 --> F5 --> F6
+
+    classDef done fill:#e8f5e9,stroke:#2e7d32,color:#111;
+    classDef active fill:#e3f2fd,stroke:#1565c0,color:#111;
+    classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
+    classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
+    classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
+    class F0 review;
+    class F1,F2,F3,F4,F5,F6 todo;
+```
 
 ## Build and Test
 
