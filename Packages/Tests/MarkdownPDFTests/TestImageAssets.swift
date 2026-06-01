@@ -1,9 +1,13 @@
 import Foundation
 
 enum TestImageAssets {
-    static func directoryWithChartPNG(named name: String = "local-chart.png") throws -> URL {
+    static func directoryWithChartPNG(
+        named name: String = "local-chart.png",
+        width: Int = 96,
+        height: Int = 48,
+    ) throws -> URL {
         let directory = try PDFValidation.temporaryDirectory()
-        try chartPNG(width: 96, height: 48).write(to: directory.appendingPathComponent(name))
+        try chartPNG(width: width, height: height).write(to: directory.appendingPathComponent(name))
         return directory
     }
 
