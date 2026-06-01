@@ -1,7 +1,7 @@
 # Complex script shaping and bidi roadmap
 
-Status: in review for #86 through PR #94 on branch
-`feat/86-shaped-cluster-emission` on 2026-06-01. #85 is done through PR #93.
+Status: done on 2026-06-01. #86 is done through PR #94, and #85 is done
+through PR #93.
 
 Scope: this note defines the next epic after the Latin-first embedded-font
 foundation. It is portable macOS and Linux research. It is not a macOS-only
@@ -155,7 +155,7 @@ flowchart TD
     S3["Phase 3<br/>#83 Line-break opportunities<br/>Done"]
     S4["Phase 4<br/>#84 Bidi ordering<br/>Done"]
     S5["Phase 5<br/>#85 Pure Swift shaping increments<br/>Done"]
-    S6["Phase 6<br/>#86 PDF emission and ToUnicode clusters<br/>In review"]
+    S6["Phase 6<br/>#86 PDF emission and ToUnicode clusters<br/>Done"]
 
     S0 --> S1 --> S2 --> S3 --> S4 --> S5 --> S6
 
@@ -164,8 +164,7 @@ flowchart TD
     classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
     classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
-    class S0,S1,S2,S3,S4,S5 done;
-    class S6 review;
+    class S0,S1,S2,S3,S4,S5,S6 done;
 ```
 
 ## Witness policy
