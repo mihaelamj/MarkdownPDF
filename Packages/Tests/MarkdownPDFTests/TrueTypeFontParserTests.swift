@@ -313,6 +313,8 @@ struct TrueTypeFontParserTests {
 enum SyntheticTrueTypeFont {
     enum GlyphProfile {
         case basic
+        case compositeWitness
+        case largeBMPWitness
         case latinWitness
     }
 
@@ -477,8 +479,8 @@ enum SyntheticTrueTypeFont {
         appendUInt16(0, to: &data)
         appendUInt16(0, to: &data)
         appendUInt16(0, to: &data)
-        appendUInt16(0, to: &data)
-        appendUInt16(0, to: &data)
+        appendUInt16(glyphSet.containsCompositeGlyphs ? 2 : 0, to: &data)
+        appendUInt16(glyphSet.containsCompositeGlyphs ? 1 : 0, to: &data)
         return data
     }
 
@@ -503,10 +505,34 @@ enum SyntheticTrueTypeFont {
     }
 
     private static func glyphData(for glyph: GlyphRecord) -> Data {
+        if !glyph.components.isEmpty {
+            return compositeGlyph(componentGlyphIDs: glyph.components)
+        }
         guard let xMin = glyph.xMin, let xMax = glyph.xMax else {
             return Data()
         }
         return simpleRectangleGlyph(xMin: xMin, yMin: 0, xMax: xMax, yMax: 700)
+    }
+
+    private static func compositeGlyph(componentGlyphIDs: [UInt16]) -> Data {
+        var data = Data()
+        appendInt16(-1, to: &data)
+        appendInt16(40, to: &data)
+        appendInt16(0, to: &data)
+        appendInt16(720, to: &data)
+        appendInt16(700, to: &data)
+
+        for (index, componentGlyphID) in componentGlyphIDs.enumerated() {
+            var flags: UInt16 = 0x0001 | 0x0002
+            if index + 1 < componentGlyphIDs.count {
+                flags |= 0x0020
+            }
+            appendUInt16(flags, to: &data)
+            appendUInt16(componentGlyphID, to: &data)
+            appendInt16(Int16(index * 180), to: &data)
+            appendInt16(0, to: &data)
+        }
+        return data
     }
 
     private static func simpleRectangleGlyph(xMin: Int16, yMin: Int16, xMax: Int16, yMax: Int16) -> Data {
@@ -582,7 +608,7 @@ enum SyntheticTrueTypeFont {
                     ),
                 )
             } else {
-                data.append(format4LatinWitnessCMapSubtable(malformedLength: malformedLength))
+                data.append(format4GlyphSetCMapSubtable(malformedLength: malformedLength, glyphSet: glyphSet))
             }
         case 12:
             if glyphSet.profile == .basic {
@@ -594,9 +620,10 @@ enum SyntheticTrueTypeFont {
                     ),
                 )
             } else {
-                data.append(format12LatinWitnessCMapSubtable(
+                data.append(format12GlyphSetCMapSubtable(
                     malformedLength: malformedLength,
                     invalidGroupCount: invalidGroupCount,
+                    glyphSet: glyphSet,
                 ))
             }
         default:
@@ -606,6 +633,44 @@ enum SyntheticTrueTypeFont {
             data.append(subtable)
         }
 
+        return data
+    }
+
+    private static func format4GlyphSetCMapSubtable(malformedLength: Bool, glyphSet: GlyphSet) -> Data {
+        if glyphSet.profile == .latinWitness {
+            return format4LatinWitnessCMapSubtable(malformedLength: malformedLength)
+        }
+
+        let entries = glyphSet.glyphs.enumerated()
+            .map { index, glyph in (code: UInt16(glyph.scalar.value), glyphID: UInt16(index + 1)) }
+            .sorted { lhs, rhs in lhs.code < rhs.code }
+        let segmentCount = entries.count + 1
+        let length = 16 + segmentCount * 8
+        let search = cmapSearchValues(segmentCount: segmentCount)
+        var data = Data()
+        appendUInt16(4, to: &data)
+        appendUInt16(malformedLength ? 24 : UInt16(length), to: &data)
+        appendUInt16(0, to: &data)
+        appendUInt16(UInt16(segmentCount * 2), to: &data)
+        appendUInt16(search.searchRange, to: &data)
+        appendUInt16(search.entrySelector, to: &data)
+        appendUInt16(search.rangeShift, to: &data)
+        for entry in entries {
+            appendUInt16(entry.code, to: &data)
+        }
+        appendUInt16(0xFFFF, to: &data)
+        appendUInt16(0, to: &data)
+        for entry in entries {
+            appendUInt16(entry.code, to: &data)
+        }
+        appendUInt16(0xFFFF, to: &data)
+        for entry in entries {
+            appendUInt16(UInt16(truncatingIfNeeded: Int(entry.glyphID) - Int(entry.code)), to: &data)
+        }
+        appendUInt16(1, to: &data)
+        for _ in 0 ..< segmentCount {
+            appendUInt16(0, to: &data)
+        }
         return data
     }
 
@@ -679,6 +744,35 @@ enum SyntheticTrueTypeFont {
         appendUInt32(0x0041, to: &data)
         appendUInt32(0x0042, to: &data)
         appendUInt32(startGlyphID, to: &data)
+        return data
+    }
+
+    private static func format12GlyphSetCMapSubtable(
+        malformedLength: Bool,
+        invalidGroupCount: Bool,
+        glyphSet: GlyphSet,
+    ) -> Data {
+        if glyphSet.profile == .latinWitness {
+            return format12LatinWitnessCMapSubtable(
+                malformedLength: malformedLength,
+                invalidGroupCount: invalidGroupCount,
+            )
+        }
+
+        let entries = glyphSet.glyphs.enumerated()
+            .map { index, glyph in (code: glyph.scalar.value, glyphID: UInt32(index + 1)) }
+            .sorted { lhs, rhs in lhs.code < rhs.code }
+        var data = Data()
+        appendUInt16(12, to: &data)
+        appendUInt16(0, to: &data)
+        appendUInt32(malformedLength ? 0 : UInt32(16 + entries.count * 12), to: &data)
+        appendUInt32(0, to: &data)
+        appendUInt32(invalidGroupCount ? 0 : UInt32(entries.count), to: &data)
+        for entry in entries {
+            appendUInt32(entry.code, to: &data)
+            appendUInt32(entry.code, to: &data)
+            appendUInt32(entry.glyphID, to: &data)
+        }
         return data
     }
 
@@ -794,6 +888,21 @@ enum SyntheticTrueTypeFont {
                     GlyphRecord(scalar: "A", advanceWidth: 600, xMin: 40, xMax: 560),
                     GlyphRecord(scalar: "B", advanceWidth: 600, xMin: 70, xMax: 540),
                 ]
+            case .compositeWitness:
+                [
+                    GlyphRecord(scalar: "A", advanceWidth: 600, xMin: 40, xMax: 560),
+                    GlyphRecord(scalar: "B", advanceWidth: 620, xMin: 70, xMax: 540),
+                    GlyphRecord(scalar: "C", advanceWidth: 740, xMin: 40, xMax: 720, components: [1, 2]),
+                ]
+            case .largeBMPWitness:
+                (0 ..< 8200).map { index in
+                    GlyphRecord(
+                        scalar: UnicodeScalar(UInt32(0x4000 + index)) ?? "A",
+                        advanceWidth: 500,
+                        xMin: nil,
+                        xMax: nil,
+                    )
+                }
             case .latinWitness:
                 [GlyphRecord(scalar: " ", advanceWidth: 280, xMin: nil, xMax: nil)]
                     + (UInt8(ascii: "A") ... UInt8(ascii: "Z")).map { byte in
@@ -817,11 +926,15 @@ enum SyntheticTrueTypeFont {
             max(500, glyphs.map(\.advanceWidth).max() ?? 0)
         }
 
+        var containsCompositeGlyphs: Bool {
+            glyphs.contains { !$0.components.isEmpty }
+        }
+
         var numberOfHMetrics: UInt16 {
             switch profile {
             case .basic:
                 2
-            case .latinWitness:
+            case .compositeWitness, .largeBMPWitness, .latinWitness:
                 numGlyphs
             }
         }
@@ -851,6 +964,26 @@ enum SyntheticTrueTypeFont {
         var advanceWidth: UInt16
         var xMin: Int16?
         var xMax: Int16?
+        var components: [UInt16] = []
+    }
+
+    private static func cmapSearchValues(segmentCount: Int) -> (
+        searchRange: UInt16,
+        entrySelector: UInt16,
+        rangeShift: UInt16
+    ) {
+        var maximumPower = 1
+        var selector = 0
+        while maximumPower * 2 <= segmentCount {
+            maximumPower *= 2
+            selector += 1
+        }
+        let searchRange = maximumPower * 2
+        return (
+            searchRange: UInt16(searchRange),
+            entrySelector: UInt16(selector),
+            rangeShift: UInt16(segmentCount * 2 - searchRange),
+        )
     }
 
     private static func appendNameRecord(

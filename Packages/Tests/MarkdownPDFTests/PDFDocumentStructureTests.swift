@@ -504,7 +504,7 @@ struct PDFDocumentStructureTests {
 
     @Test("Writer serializes embedded CID font object graph for mapped text")
     func writerSerializesEmbeddedCIDFontObjectGraphForMappedText() throws {
-        let fontData = SyntheticTrueTypeFont.data()
+        let fontData = SyntheticTrueTypeFont.data(includeGlyphOutlines: true)
         let metadata = try TrueTypeFontParser().parse(fontData)
         let mapping = try TrueTypeGlyphMapper(data: fontData, metadata: metadata).map(text: "ABBA", fontSize: 14)
         let canvas = PDFPageCanvas()
@@ -540,9 +540,39 @@ struct PDFDocumentStructureTests {
         #expect(!text.contains("/F1 14 Tf"))
     }
 
+    @Test("Writer serializes subset FontFile2 length and CIDToGIDMap stream")
+    func writerSerializesSubsetFontFileLengthAndCIDToGIDMapStream() throws {
+        let fontData = SyntheticTrueTypeFont.data(glyphProfile: .latinWitness, includeGlyphOutlines: true)
+        let metadata = try TrueTypeFontParser().parse(fontData)
+        let mapping = try TrueTypeGlyphMapper(data: fontData, metadata: metadata).map(text: "WAVE", fontSize: 14)
+        let subset = try TrueTypeFontSubsetter(data: fontData, metadata: metadata).subset(glyphs: mapping.glyphs)
+        let canvas = PDFPageCanvas()
+
+        try canvas.drawCIDText(
+            mapping: mapping,
+            fontResource: PDFEmbeddedFontResource(resourceName: "EF1", fontProgram: fontData, metadata: metadata),
+            fontSize: 14,
+            x: 40,
+            y: 120,
+        )
+        let data = try PDFDocumentWriter(
+            pageSize: PDFOptions.PageSize(width: 300, height: 200),
+            fontSet: .pdfBase,
+            pages: [canvas],
+            images: [],
+            title: nil,
+        ).data()
+        let text = String(decoding: data, as: UTF8.self)
+
+        #expect(text.contains("/Length1 \(subset.fontProgram.count)"))
+        #expect(text.contains("/CIDToGIDMap "))
+        #expect(!text.contains("/CIDToGIDMap /Identity"))
+        #expect(text.contains("/W [2 [600] 6 [600] 23 [600] 24 [900]]"))
+    }
+
     @Test("Writer rejects conflicting CID widths before serializing PDF")
     func writerRejectsConflictingCIDWidthsBeforeSerializingPDF() throws {
-        let fontData = SyntheticTrueTypeFont.data()
+        let fontData = SyntheticTrueTypeFont.data(includeGlyphOutlines: true)
         let metadata = try TrueTypeFontParser().parse(fontData)
         let canvas = PDFPageCanvas()
         let mapping = TrueTypeGlyphMapper.TextMapping(
