@@ -136,6 +136,34 @@ struct FixtureTests {
         #expect(!extractedText.contains("flowchart TD"))
     }
 
+    @Test("Hard Markdown fixture covers dense portable Markdown features")
+    func hardMarkdownFixtureCoversDensePortableMarkdownFeatures() throws {
+        let data = try renderArticleFixture(named: "hard-markdown-corpus.md")
+        let inspector = PDFInspector(data)
+        let textResult = try PDFValidation.pdftotext(data: data, name: "hard-markdown-corpus-features")
+        try #require(textResult.exitCode == 0, "pdftotext failed for hard Markdown fixture:\n\(textResult.output)")
+        let extractedText = textResult.output
+        let normalizedText = normalizedExtractedText(extractedText)
+
+        #expect(inspector.pageCount >= 8)
+        #expect(inspector.linkAnnotationCount >= 4)
+        #expect(inspector.text.contains("/Names << /Dests"))
+        #expect(inspector.text.contains("/Subtype /Image"))
+        #expect(inspector.text.contains("/Width 96"))
+        #expect(inspector.text.contains("/Height 48"))
+        #expect(inspector.text.contains("/FlateDecode"))
+        #expect(extractedText.contains("Table of Contents"))
+        #expect(normalizedText.contains("Portable Hard Markdown Corpus"))
+        #expect(normalizedText.contains("Raw HTML fallback for the hard corpus"))
+        #expect(extractedText.contains("[Remote image: Remote hard corpus figure]"))
+        #expect(normalizedText.contains("Hard input"))
+        #expect(normalizedText.contains("Open tools"))
+        #expect(extractedText.contains("Unsupported Mermaid diagram"))
+        #expect(extractedText.contains("Unsupported hard corpus chart"))
+        #expect(normalizedText.contains("Hard Fixture Exit Marker"))
+        #expect(!extractedText.contains("Source[Hard input]"))
+    }
+
     @Test("Scientific article fixture covers links, image fallback, and Mermaid")
     func scientificArticleFixtureCoversLinksImageFallbackAndMermaid() throws {
         let data = try MarkdownPDFRenderer().render(markdown: fixture(named: "scientific-article.md"))
@@ -186,12 +214,12 @@ struct FixtureTests {
     }
 
     private func articleFixtureOptions(for fixtureName: String) -> PDFOptions {
-        if fixtureName == "article-grade-stress.md" {
+        if ["article-grade-stress.md", "hard-markdown-corpus.md"].contains(fixtureName) {
             return PDFOptions(
                 pageSize: PDFOptions.PageSize(width: 260, height: 320),
                 margins: PDFOptions.Margins(top: 24, right: 22, bottom: 24, left: 22),
                 baseFontSize: 10,
-                title: "Portable Article Stress Corpus",
+                title: expectedTextFragment(for: fixtureName),
                 tableOfContents: .enabled,
             )
         }
@@ -200,7 +228,7 @@ struct FixtureTests {
     }
 
     private func articleFixtureAssetsBaseURL(for fixtureName: String) throws -> URL? {
-        if fixtureName == "article-grade-stress.md" {
+        if ["article-grade-stress.md", "hard-markdown-corpus.md"].contains(fixtureName) {
             return try TestImageAssets.directoryWithChartPNG()
         }
 
@@ -214,6 +242,7 @@ struct FixtureTests {
     private var articleGradeFixtureNames: [String] {
         [
             "article-grade-stress.md",
+            "hard-markdown-corpus.md",
             "scientific-article.md",
             "technical-report.md",
         ]
@@ -223,6 +252,8 @@ struct FixtureTests {
         switch fixtureName {
         case "article-grade-stress.md":
             "Portable Article Stress Corpus"
+        case "hard-markdown-corpus.md":
+            "Portable Hard Markdown Corpus"
         case "scientific-article.md":
             "Reproducible Layout Measurements"
         case "technical-report.md":
@@ -234,10 +265,14 @@ struct FixtureTests {
 
     private func expectedMinimumPageCount(for fixtureName: String) -> Int {
         switch fixtureName {
-        case "article-grade-stress.md":
+        case "article-grade-stress.md", "hard-markdown-corpus.md":
             6
         default:
             1
         }
+    }
+
+    private func normalizedExtractedText(_ text: String) -> String {
+        text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
     }
 }
