@@ -140,6 +140,25 @@ enum PDFValidation {
         return (result, outputPrefix.appendingPathExtension("ppm"))
     }
 
+    static func pdftoppmPNMs(
+        url: URL,
+        pageCount: Int,
+        resolution: Int = 96,
+    ) throws -> (result: Result, pnmURLs: [URL]) {
+        let directory = try temporaryDirectory()
+        let outputPrefix = directory.appendingPathComponent("page")
+        let result = try Tool.run(
+            "pdftoppm",
+            arguments: [
+                "-r",
+                "\(resolution)",
+                url.path,
+                outputPrefix.path,
+            ],
+        )
+        return (result, numberedPageURLs(directory: directory, extension: "ppm", pageCount: pageCount))
+    }
+
     static func mutoolPNM(
         data: some DataProtocol,
         name: String,
@@ -173,6 +192,30 @@ enum PDFValidation {
             ],
         )
         return (result, outputURL)
+    }
+
+    static func mutoolPNMs(
+        url: URL,
+        pageCount: Int,
+        resolution: Int = 96,
+    ) throws -> (result: Result, pnmURLs: [URL]) {
+        let directory = try temporaryDirectory()
+        let outputPath = directory.appendingPathComponent("page-%d.pnm")
+        let result = try Tool.run(
+            "mutool",
+            arguments: [
+                "draw",
+                "-q",
+                "-F",
+                "pnm",
+                "-r",
+                "\(resolution)",
+                "-o",
+                outputPath.path,
+                url.path,
+            ],
+        )
+        return (result, numberedPageURLs(directory: directory, extension: "pnm", pageCount: pageCount))
     }
 
     static func pdftoppmPNG(data: some DataProtocol, name: String) throws -> (result: Result, pngURL: URL) {
@@ -216,6 +259,16 @@ enum PDFValidation {
     private static func bigEndianInt(_ bytes: ArraySlice<UInt8>) -> Int {
         bytes.reduce(0) { value, byte in
             (value << 8) | Int(byte)
+        }
+    }
+
+    private static func numberedPageURLs(directory: URL, extension pathExtension: String, pageCount: Int) -> [URL] {
+        guard pageCount > 0 else {
+            return []
+        }
+
+        return (1 ... pageCount).map { page in
+            directory.appendingPathComponent("page-\(page)").appendingPathExtension(pathExtension)
         }
     }
 }

@@ -73,15 +73,15 @@ struct PDFVisualLayoutValidationTests {
 
         #expect(pageCount >= 4)
 
+        let poppler = try PDFValidation.pdftoppmPNMs(url: url, pageCount: pageCount)
+        let mupdf = try PDFValidation.mutoolPNMs(url: url, pageCount: pageCount)
+        try #require(poppler.result.exitCode == 0, "pdftoppm PNM failed:\n\(poppler.result.output)")
+        try #require(mupdf.result.exitCode == 0, "mutool PNM failed:\n\(mupdf.result.output)")
+
         var issues: [String] = []
         for page in 1 ... pageCount {
-            let poppler = try PDFValidation.pdftoppmPNM(url: url, page: page)
-            let mupdf = try PDFValidation.mutoolPNM(url: url, page: page)
-            try #require(poppler.result.exitCode == 0, "pdftoppm PNM failed for page \(page):\n\(poppler.result.output)")
-            try #require(mupdf.result.exitCode == 0, "mutool PNM failed for page \(page):\n\(mupdf.result.output)")
-
-            let popplerImage = try PNMImage(data: Data(contentsOf: poppler.pnmURL))
-            let mupdfImage = try PNMImage(data: Data(contentsOf: mupdf.pnmURL))
+            let popplerImage = try PNMImage(data: Data(contentsOf: poppler.pnmURLs[page - 1]))
+            let mupdfImage = try PNMImage(data: Data(contentsOf: mupdf.pnmURLs[page - 1]))
             issues += rasterComparisonIssues(poppler: popplerImage, mupdf: mupdfImage).map {
                 "page \(page): \($0)"
             }
