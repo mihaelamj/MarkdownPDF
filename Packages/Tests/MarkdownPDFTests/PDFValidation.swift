@@ -313,10 +313,28 @@ enum PDFValidation {
             return []
         }
 
+        let paddedWidth = "\(pageCount)".count
         return (1 ... pageCount).map { page in
-            directory.appendingPathComponent("page-\(page)").appendingPathExtension(pathExtension)
+            let unpadded = directory
+                .appendingPathComponent("page-\(page)")
+                .appendingPathExtension(pathExtension)
+            if FileManager.default.fileExists(atPath: unpadded.path) {
+                return unpadded
+            }
+
+            let paddedPage = String(format: "%0*d", locale: serializationLocale, paddedWidth, page)
+            let padded = directory
+                .appendingPathComponent("page-\(paddedPage)")
+                .appendingPathExtension(pathExtension)
+            if FileManager.default.fileExists(atPath: padded.path) {
+                return padded
+            }
+
+            return unpadded
         }
     }
+
+    private static let serializationLocale = Locale(identifier: "en_US_POSIX")
 }
 
 private enum ArtifactWriter {
