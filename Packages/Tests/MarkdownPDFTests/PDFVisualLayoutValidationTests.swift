@@ -187,6 +187,82 @@ struct PDFVisualLayoutValidationTests {
         )
     }
 
+    @Test("Hard Markdown fixture passes visual witness stack")
+    func hardMarkdownFixturePassesVisualWitnessStack() throws {
+        let data = try hardMarkdownFixturePDF()
+        let url = try PDFValidation.temporaryPDF(name: "hard-markdown-corpus", data: data)
+        let pageCount = PDFInspector(data).pageCount
+
+        #expect(pageCount >= 8)
+        try PDFValidation.writeArtifact(data, name: "hard-markdown-corpus.pdf")
+
+        let qpdf = try PDFValidation.qpdfCheck(url: url)
+        try #require(qpdf.exitCode == 0, "qpdf --check failed:\n\(qpdf.output)")
+
+        let textResult = try PDFValidation.pdftotext(url: url)
+        try #require(textResult.exitCode == 0, "pdftotext failed:\n\(textResult.output)")
+        try PDFValidation.writeTextArtifact(textResult.output, name: "hard-markdown-corpus/text.txt")
+        let normalizedText = normalizedExtractedText(textResult.output)
+        #expect(normalizedText.contains("Portable Hard Markdown Corpus"))
+        #expect(normalizedText.contains("Raw HTML fallback for the hard corpus"))
+        #expect(normalizedText.contains("Hard Fixture Exit Marker"))
+
+        let tsvResult = try PDFValidation.pdftotextTSV(url: url)
+        try #require(tsvResult.exitCode == 0, "pdftotext -tsv failed:\n\(tsvResult.output)")
+        try PDFValidation.writeTextArtifact(tsvResult.output, name: "hard-markdown-corpus/poppler.tsv")
+        let popplerLayout = try PopplerTextLayout(tsv: tsvResult.output)
+        let popplerIssues = popplerLayout.visualLayoutIssues()
+
+        #expect(popplerLayout.pages.count == pageCount)
+        #expect(popplerLayout.words.count > 850)
+        #expect(
+            popplerIssues.isEmpty,
+            "Hard Markdown fixture Poppler layout issues:\n\(popplerIssues.joined(separator: "\n"))",
+        )
+
+        let structuredText = try PDFValidation.mutoolStructuredText(url: url)
+        try #require(structuredText.exitCode == 0, "mutool structured text failed:\n\(structuredText.output)")
+        try PDFValidation.writeTextArtifact(structuredText.output, name: "hard-markdown-corpus/mupdf-stext.xml")
+        let mupdfLayout = try MuPDFStructuredText(xml: structuredText.output)
+        let mupdfIssues = mupdfLayout.characterQuadIssues()
+
+        #expect(mupdfLayout.pages.count == pageCount)
+        #expect(mupdfLayout.glyphs.count(where: { !$0.isWhitespace }) > 4500)
+        #expect(
+            mupdfIssues.isEmpty,
+            "Hard Markdown fixture MuPDF layout issues:\n\(mupdfIssues.joined(separator: "\n"))",
+        )
+
+        let poppler = try PDFValidation.pdftoppmPNMs(url: url, pageCount: pageCount)
+        let mupdf = try PDFValidation.mutoolPNMs(url: url, pageCount: pageCount)
+        try #require(poppler.result.exitCode == 0, "pdftoppm PNM failed:\n\(poppler.result.output)")
+        try #require(mupdf.result.exitCode == 0, "mutool PNM failed:\n\(mupdf.result.output)")
+        try PDFValidation.writeTextArtifact(poppler.result.output, name: "hard-markdown-corpus/poppler-render.log")
+        try PDFValidation.writeTextArtifact(mupdf.result.output, name: "hard-markdown-corpus/mupdf-render.log")
+
+        var rasterIssues: [String] = []
+        for page in 1 ... pageCount {
+            let popplerImage = try PNMImage(data: Data(contentsOf: poppler.pnmURLs[page - 1]))
+            let mupdfImage = try PNMImage(data: Data(contentsOf: mupdf.pnmURLs[page - 1]))
+            try PDFValidation.copyArtifact(
+                from: poppler.pnmURLs[page - 1],
+                name: "hard-markdown-corpus-pages/poppler/page-\(page).ppm",
+            )
+            try PDFValidation.copyArtifact(
+                from: mupdf.pnmURLs[page - 1],
+                name: "hard-markdown-corpus-pages/mupdf/page-\(page).pnm",
+            )
+            rasterIssues += rasterComparisonIssues(poppler: popplerImage, mupdf: mupdfImage).map {
+                "page \(page): \($0)"
+            }
+        }
+
+        #expect(
+            rasterIssues.isEmpty,
+            "Hard Markdown fixture raster output diverged:\n\(rasterIssues.joined(separator: "\n"))",
+        )
+    }
+
     @Test("Portable text encoding profile passes visual witness stack")
     func portableTextEncodingProfilePassesVisualWitnessStack() throws {
         let markdown = """
@@ -967,6 +1043,24 @@ struct PDFVisualLayoutValidationTests {
         return data
     }
 
+    private func hardMarkdownFixturePDF() throws -> Data {
+        let assetsBaseURL = try TestImageAssets.directoryWithChartPNG()
+        let data = try MarkdownPDFRenderer(
+            options: PDFOptions(
+                pageSize: PDFOptions.PageSize(width: 260, height: 320),
+                margins: PDFOptions.Margins(top: 24, right: 22, bottom: 24, left: 22),
+                baseFontSize: 10,
+                title: "Portable Hard Markdown Corpus",
+                tableOfContents: .enabled,
+            ),
+        ).render(
+            markdown: fixture(named: "hard-markdown-corpus.md"),
+            assetsBaseURL: assetsBaseURL,
+        )
+        try PDFValidation.writeTextArtifact(Self.artifactManifest, name: "README.txt")
+        return data
+    }
+
     private func embeddedCIDTextPDF() throws -> Data {
         let fontData = SyntheticTrueTypeFont.data(glyphProfile: .latinWitness, includeGlyphOutlines: true)
         let metadata = try TrueTypeFontParser().parse(fontData)
@@ -1100,6 +1194,15 @@ struct PDFVisualLayoutValidationTests {
 
     article-stress-pages/
     Poppler and MuPDF page rasters for the article fixture.
+
+    hard-markdown-corpus.pdf
+    Hard public Markdown fixture with duplicate headings, links, nested quotes, tables, images, raw HTML, code, and Mermaid.
+
+    hard-markdown-corpus/
+    Text, geometry, structured text, and render logs for the hard Markdown fixture.
+
+    hard-markdown-corpus-pages/
+    Poppler and MuPDF page rasters for the hard Markdown fixture.
 
     text-encoding-profile.pdf
     One-page PDF proving the portable text encoding replacement profile.

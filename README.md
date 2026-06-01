@@ -366,6 +366,11 @@ swiftlint --config .swiftlint.yml
   scalars, including Latin-1 letters, Windows-1252 punctuation, emoji, complex
   scripts, combining marks, and bidirectional text, render as `?` unless the
   caller enables an embedded TrueType font profile that covers those scalars.
+- Issue [#95](https://github.com/mihaelamj/MarkdownPDF/issues/95) is the active
+  hard fixture corpus pass. It extends public fixtures with duplicate headings,
+  generated ToC pressure, internal and external links, nested quotes, lists,
+  wide tables, reused local images, remote image fallback, raw HTML fallback,
+  code blocks, Mermaid drawing, and unsupported Mermaid fallback.
 - Apple system font names remain available through
   `PDFOptions.FontSet.appleSystem`, but the public repo does not embed font
   files.
@@ -385,6 +390,20 @@ swiftlint --config .swiftlint.yml
   through `PDFOptions.FontSet.appleSystem`.
 - Linux generation support through Foundation and byte-level PDF serialization.
 - Small, testable public API.
+
+## Current Hardening
+
+```mermaid
+flowchart TD
+    H0["#95<br/>Hard Markdown fixture corpus<br/>Review"]
+
+    classDef done fill:#e8f5e9,stroke:#2e7d32,color:#111;
+    classDef active fill:#e3f2fd,stroke:#1565c0,color:#111;
+    classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
+    classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
+    classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
+    class H0 review;
+```
 
 ## License
 
