@@ -1,0 +1,82 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <Authors>MarcinZiabek</Authors>
+        <Company>CodeFlint</Company>
+        <PackageId>QuestPDF</PackageId>
+        <Version>2026.5.0</Version>
+        <PackageDescription>QuestPDF is a modern library for PDF document generation. Its fluent C# API lets you design complex layouts with clean, readable code. Create invoices, reports, and documents using a flexible, component-based approach.</PackageDescription>
+        <PackageReleaseNotes>$([System.IO.File]::ReadAllText("$(MSBuildProjectDirectory)/Resources/ReleaseNotes.txt"))</PackageReleaseNotes>
+        <LangVersion>13</LangVersion>
+        <Deterministic>true</Deterministic>
+        <EnablePackageValidation>true</EnablePackageValidation>
+        <PackageIcon>Logo.png</PackageIcon>
+        <PackageIconUrl>https://www.questpdf.com/logo.webp</PackageIconUrl>
+        <PackageProjectUrl>https://www.questpdf.com/</PackageProjectUrl>
+        <PackageLicenseFile>PackageLicense.md</PackageLicenseFile>
+        <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <RepositoryUrl>https://github.com/QuestPDF/library.git</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+        <Copyright>Marcin Ziąbek, QuestPDF contributors</Copyright>
+        <PackageTags>pdf generation creation export merge edit html</PackageTags>
+        <Nullable>enable</Nullable>
+        <TargetFrameworks>net10.0;net8.0;net6.0;netstandard2.0</TargetFrameworks>
+        <IncludeSymbols>true</IncludeSymbols>
+        <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+        <GenerateDocumentationFile>True</GenerateDocumentationFile>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(BUILD_PACKAGE)' == 'true'">
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+        <SignAssembly>true</SignAssembly>
+        <AssemblyOriginatorKeyFile>NugetStrongNameSigningKeyForQuestPDF.snk</AssemblyOriginatorKeyFile>
+    </PropertyGroup>
+    
+    <ItemGroup Condition="'$(BUILD_PACKAGE)' == ''">
+        <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
+        <InternalsVisibleTo Include="QuestPDF.UnitTests" />
+        <InternalsVisibleTo Include="QuestPDF.LayoutTests" />
+        <InternalsVisibleTo Include="QuestPDF.VisualTests" />
+        <InternalsVisibleTo Include="QuestPDF.ConformanceTests" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="Resources\**\*.*">
+            <Pack>true</Pack>
+            <PackagePath>%(RecursiveDir)\%(Filename)%(Extension)</PackagePath>
+        </None>
+        
+        <None Include="LatoFont\*.*">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+            <Pack>true</Pack>
+            <PackagePath>LatoFont</PackagePath>
+        </None>
+        
+        <None Include="Runtimes\**\*.*">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+            <Pack>true</Pack>
+            <TargetPath>runtimes\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+            <PackagePath>runtimes\%(RecursiveDir)%(Filename)%(Extension)</PackagePath>
+        </None>
+
+        <None Include="Build\**\*.*">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+            <Pack>true</Pack>
+            <PackagePath>build\%(RecursiveDir)%(Filename)%(Extension);buildTransitive\%(RecursiveDir)%(Filename)%(Extension)</PackagePath>
+        </None>
+        
+        <None Include="Resources\Description.md" Pack="true" PackagePath="README.md" />
+
+        <EmbeddedResource Include="Resources/MimeTypes.csv" />
+        <EmbeddedResource Include="Resources/LatinWords.txt" />
+    </ItemGroup>
+    
+    <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+      <PackageReference Include="System.Numerics.Vectors" Version="4.6.1" />
+    </ItemGroup>
+</Project>
