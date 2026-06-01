@@ -16,9 +16,10 @@ struct PDFDocumentWriter {
             pages.contains { $0.resourceUsage.usesFont(font) }
         }
         let fontResources = Dictionary(uniqueKeysWithValues: usedFonts.map { font in
-            (
+            let fontObject = PDFFontObject(font: font, fontSet: fontSet)
+            return (
                 font,
-                PDFPageResources.Entry(name: font.rawValue, objectRef: builder.addFont(font, fontSet: fontSet))
+                PDFPageResources.Entry(name: fontObject.resourceName, objectRef: builder.addFont(fontObject)),
             )
         })
 
@@ -98,49 +99,11 @@ struct PDFDocumentWriter {
             addData(Data(dictionary.serialized(style: style).utf8))
         }
 
-        mutating func addFont(
-            _ font: StandardFont,
-            fontSet: PDFOptions.FontSet,
-        ) -> PDFSyntax.Reference {
-            let baseName = font.baseName(in: fontSet)
-            if font.subtype(in: fontSet) == "Type1" {
-                return addDictionary(PDFSyntax.Dictionary([
-                    .init("Type", .pdfName("Font")),
-                    .init("Subtype", .pdfName("Type1")),
-                    .init("BaseFont", .pdfName(baseName)),
-                    .init("Encoding", .pdfName("WinAnsiEncoding")),
-                ]))
+        mutating func addFont(_ fontObject: PDFFontObject) -> PDFSyntax.Reference {
+            let descriptorRef = fontObject.fontDescriptor.map { descriptor in
+                addDictionary(descriptor.pdfDictionary)
             }
-
-            let descriptorRef = addDictionary(PDFSyntax.Dictionary([
-                .init("Type", .pdfName("FontDescriptor")),
-                .init("FontName", .pdfName(baseName)),
-                .init("Flags", .int(32)),
-                .init(
-                    "FontBBox",
-                    .pdfArray([
-                        .int(-200),
-                        .int(-250),
-                        .int(1200),
-                        .int(1000),
-                    ]),
-                ),
-                .init("ItalicAngle", .int(font.italicAngle)),
-                .init("Ascent", .int(900)),
-                .init("Descent", .int(-220)),
-                .init("CapHeight", .int(700)),
-                .init("StemV", .int(80)),
-            ]))
-            return addDictionary(PDFSyntax.Dictionary([
-                .init("Type", .pdfName("Font")),
-                .init("Subtype", .pdfName("TrueType")),
-                .init("BaseFont", .pdfName(baseName)),
-                .init("Encoding", .pdfName("WinAnsiEncoding")),
-                .init("FirstChar", .int(32)),
-                .init("LastChar", .int(126)),
-                .init("Widths", .pdfArray(font.widthsForPDF(in: fontSet).map { .int($0) })),
-                .init("FontDescriptor", .reference(descriptorRef)),
-            ]))
+            return addDictionary(fontObject.pdfDictionary(fontDescriptor: descriptorRef))
         }
 
         mutating func addStream(dictionary: PDFSyntax.Dictionary, data: Data) -> PDFSyntax.Reference {
