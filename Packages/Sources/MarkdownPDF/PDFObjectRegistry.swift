@@ -23,11 +23,18 @@ struct PDFObjectRegistry {
         objects[index(for: reference)].body = body
     }
 
-    func serializedFile(root: PDFSyntax.Reference) -> Data {
+    func serializedFile(
+        root: PDFSyntax.Reference,
+        info: PDFSyntax.Reference? = nil,
+    ) -> Data {
         _ = index(for: root)
+        if let info {
+            _ = index(for: info)
+        }
         return PDFSyntax.FileEnvelope(
             objects: objects.map(\.indirectObject),
             root: root,
+            info: info,
         ).serialized
     }
 

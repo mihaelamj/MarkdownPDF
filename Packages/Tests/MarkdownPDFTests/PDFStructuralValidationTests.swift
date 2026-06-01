@@ -154,6 +154,32 @@ struct PDFStructuralValidationTests {
         #expect(issues.contains { $0.contains("references missing content object 99") })
     }
 
+    @Test("Rejects link annotations that point at unknown named destinations")
+    func rejectsLinkAnnotationsThatPointAtUnknownNamedDestinations() throws {
+        let data = try MarkdownPDFRenderer().render(markdown: """
+        # Target
+
+        [Jump](#target)
+        """)
+        let damaged = replaceFirst("(target) [", with: "(missng) [", in: data)
+        let issues = PDFInspector(damaged).canonicalStructureIssues()
+
+        #expect(issues.contains { $0.contains("unknown destination target") })
+    }
+
+    @Test("Rejects link annotations when catalog names are missing")
+    func rejectsLinkAnnotationsWhenCatalogNamesAreMissing() throws {
+        let data = try MarkdownPDFRenderer().render(markdown: """
+        # Target
+
+        [Jump](#target)
+        """)
+        let damaged = replaceAll("/Names", with: "/Xames", in: data)
+        let issues = PDFInspector(damaged).canonicalStructureIssues()
+
+        #expect(issues.contains { $0.contains("destination target but catalog /Names is missing") })
+    }
+
     private func replaceFirst(_ needle: String, with replacement: String, in data: Data) -> Data {
         let text = String(decoding: data, as: UTF8.self)
         guard let range = text.range(of: needle) else {
@@ -176,6 +202,10 @@ struct PDFStructuralValidationTests {
         }
 
         return Data(text.replacingCharacters(in: range, with: replacement).utf8)
+    }
+
+    private func replaceAll(_ needle: String, with replacement: String, in data: Data) -> Data {
+        Data(String(decoding: data, as: UTF8.self).replacingOccurrences(of: needle, with: replacement).utf8)
     }
 
     private func xObjectFixturePDF() -> Data {

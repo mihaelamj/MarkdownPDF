@@ -18,16 +18,16 @@ struct PDFSyntaxTests {
         #expect(PDFSyntax.LiteralString("č").serialized == "(?)")
     }
 
-    @Test("Serializes dictionaries, arrays, and references")
+    @Test("Serializes dictionaries, arrays, references, and nulls")
     func serializesDictionariesArraysAndReferences() {
         let reference = PDFSyntax.Reference(objectNumber: 7)
         let dictionary = PDFSyntax.Dictionary([
             .init("Type", .pdfName("Example")),
-            .init("Kids", .pdfArray([.reference(reference)])),
+            .init("Kids", .pdfArray([.reference(reference), .null])),
             .init("Title", .pdfString("A (B)")),
         ])
 
-        #expect(dictionary.serialized() == "<< /Type /Example /Kids [7 0 R] /Title (A \\(B\\)) >>")
+        #expect(dictionary.serialized() == "<< /Type /Example /Kids [7 0 R null] /Title (A \\(B\\)) >>")
     }
 
     @Test("Serializes PDF numbers")
