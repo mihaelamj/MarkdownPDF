@@ -131,16 +131,38 @@ struct BidiParagraphOrderingTests {
 
     @Test("Rejects explicit bidi formatting controls")
     func rejectsExplicitBidiFormattingControls() throws {
-        do {
-            _ = try BidiParagraphOrdering().order("abc\u{202E}def")
-            Issue.record("Expected unsupported bidi control error")
-        } catch let error as BidiParagraphOrdering.ValidationError {
-            guard case let .unsupportedBidiControl(scalar, scalarOffset) = error else {
-                Issue.record("Unexpected bidi error")
-                return
+        let controls: [UInt32] = [
+            0x061C,
+            0x200E,
+            0x200F,
+            0x202A,
+            0x202B,
+            0x202C,
+            0x202D,
+            0x202E,
+            0x2066,
+            0x2067,
+            0x2068,
+            0x2069,
+        ]
+
+        for value in controls {
+            guard let control = UnicodeScalar(value) else {
+                Issue.record("Invalid bidi control fixture")
+                continue
             }
-            #expect(scalar.value == 0x202E)
-            #expect(scalarOffset == 3)
+
+            do {
+                _ = try BidiParagraphOrdering().order("abc\(String(control))def")
+                Issue.record("Expected unsupported bidi control error")
+            } catch let error as BidiParagraphOrdering.ValidationError {
+                guard case let .unsupportedBidiControl(scalar, scalarOffset) = error else {
+                    Issue.record("Unexpected bidi error")
+                    return
+                }
+                #expect(scalar.value == value)
+                #expect(scalarOffset == 3)
+            }
         }
     }
 }
