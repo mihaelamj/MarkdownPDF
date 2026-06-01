@@ -411,8 +411,8 @@ swiftlint --config .swiftlint.yml
 ```mermaid
 flowchart TD
     H0["#95<br/>Hard Markdown fixture corpus<br/>Done"]
-    H1["#97<br/>A4 and external fixtures<br/>Review"]
-    H2["#99<br/>Source-code formatting<br/>Next"]
+    H1["#97/#98<br/>A4 and external fixtures<br/>Done"]
+    H2["#99<br/>Source-code formatting<br/>Active"]
     H3["#100<br/>Named page sizes<br/>Next"]
 
     H0 --> H1
@@ -425,8 +425,8 @@ flowchart TD
     classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
     class H0 done;
-    class H1 review;
-    class H2 next;
+    class H1 done;
+    class H2 active;
     class H3 next;
 ```
 
