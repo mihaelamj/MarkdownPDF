@@ -242,7 +242,7 @@ support.
 
 ```mermaid
 flowchart TD
-    E0["Phase 0<br/>#64 Type 0 object model<br/>In progress"]
+    E0["Phase 0<br/>#64 Type 0 object model<br/>Review"]
     E1["Phase 1<br/>#65 TrueType parser gates<br/>Planned"]
     E2["Phase 2<br/>#66 Glyph mapping and widths<br/>Planned"]
     E3["Phase 3<br/>#67 ToUnicode CMaps<br/>Planned"]
@@ -258,7 +258,7 @@ flowchart TD
     classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
     classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
-    class E0 active;
+    class E0 review;
     class E1,E2,E3,E4,E5,E6,E7 todo;
 ```
 
