@@ -47,7 +47,8 @@ enum PDFSyntax {
         var serialized: String {
             var output = "("
             for scalar in rawValue.unicodeScalars {
-                switch scalar.value {
+                let byte = PDFTextEncoding.encodedByte(for: scalar)
+                switch byte {
                 case 0x08:
                     output += "\\b"
                 case 0x09:
@@ -65,9 +66,7 @@ enum PDFSyntax {
                 case 0x5C:
                     output += "\\\\"
                 case 32 ... 126:
-                    output.append(Character(scalar))
-                case 160 ... 255:
-                    output += String(format: "\\%03o", locale: PDFSyntax.serializationLocale, scalar.value)
+                    output += String(decoding: [byte], as: UTF8.self)
                 default:
                     output += "?"
                 }

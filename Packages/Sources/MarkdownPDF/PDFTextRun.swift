@@ -18,7 +18,7 @@ struct PDFTextRun {
         strikethrough: Bool = false,
         linkDestination: String? = nil,
     ) {
-        self.text = text
+        self.text = PDFTextEncoding.portableText(for: text)
         self.font = font
         self.size = size
         self.color = color

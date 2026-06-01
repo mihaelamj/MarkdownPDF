@@ -77,6 +77,12 @@ The repo does not embed or redistribute font files. Standard PDF base fonts are
 portable across PDF viewers, which keeps the early renderer predictable while
 supporting proportional text layout.
 
+The default portable text profile is printable ASCII. Unsupported Unicode
+scalars are replaced with `?` before text is measured and serialized, so rendered
+text, extracted text, and geometry witnesses observe the same replacement glyphs.
+Complex scripts, bidirectional text, shaping, Type0 fonts, and `/ToUnicode` maps
+belong to a later embedded-font profile.
+
 Apple system font names remain available through
 `PDFOptions.FontSet.appleSystem`:
 

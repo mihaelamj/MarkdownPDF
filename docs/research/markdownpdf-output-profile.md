@@ -208,6 +208,24 @@ Long tokens are split by measured font width before they exceed the line width.
 This protects headings, ToC entries, URLs, and identifiers from colliding with
 page bounds or neighboring text.
 
+## Text encoding
+
+The portable base-font profile emits PDF literal strings and font dictionaries
+with `/WinAnsiEncoding`, but the supported visible text repertoire is intentionally
+smaller: printable ASCII U+0020 through U+007E, plus escaped PDF literal string
+controls for backspace, tab, line feed, form feed, and carriage return.
+
+Every unsupported Unicode scalar is replaced with `?` before text is measured and
+serialized. This includes Latin-1 letters, Windows-1252 punctuation, emoji,
+combining marks, CJK, complex scripts, and bidirectional text. Replacement is per
+Unicode scalar, not per user-perceived grapheme cluster.
+
+The profile does not emit `/ToUnicode` CMaps. Poppler and MuPDF text extraction
+are expected to expose the replacement characters, not recover the original
+unsupported input. qpdf validates syntax and stream structure but does not act as
+a text extraction witness. macOS and Linux use the same replacement profile. iOS
+support is not claimed.
+
 ## Fonts
 
 The default font profile uses standard PDF base font names and does not embed
