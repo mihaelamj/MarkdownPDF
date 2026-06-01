@@ -32,3 +32,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Build page content streams from typed PDF operator structures.
 - Measure table column widths from header and body content, preserve alignment,
   and repeat table headers across page breaks.
+- Validate Mermaid edge-label placement during planning and fall back visibly
+  when labels would collide with diagram nodes.

@@ -62,6 +62,21 @@ struct MermaidDiagramTests {
         #expect(reason.contains("expected `flowchart TD` or `graph TD`"))
     }
 
+    @Test("Reports Mermaid chart syntax as unsupported")
+    func reportsMermaidChartSyntaxAsUnsupported() {
+        let result = MermaidDiagram.parse("""
+        pie title Unsupported chart
+            "Alpha" : 3
+        """)
+
+        guard case let .unsupported(reason) = result else {
+            Issue.record("Expected unsupported Mermaid chart syntax")
+            return
+        }
+
+        #expect(reason.contains("expected `flowchart TD` or `graph TD`"))
+    }
+
     @Test("Rejects conflicting explicit node labels")
     func rejectsConflictingExplicitNodeLabels() {
         let result = MermaidDiagram.parse("""

@@ -415,6 +415,16 @@ Supported Mermaid output is ordinary PDF page content: paths, rectangles,
 strokes, arrow lines, and text. It does not emit SVG, images, form XObjects, or
 platform-specific drawing commands.
 
+Mermaid edge labels are measured during planning. A supported diagram only draws
+when each label box stays inside the diagram content area and does not intersect
+any planned node box. If an edge label cannot be placed safely, the whole
+Mermaid block falls back visibly rather than rendering overlapping text.
+
+General chart syntax, including Mermaid pie charts, remains outside the portable
+diagram subset. Chart blocks fall back visibly as unsupported Mermaid. Future
+chart support must be implemented as typed PDF drawing operations in Swift and
+must use the same witness stack before it becomes part of the profile.
+
 ## Metadata
 
 When `PDFOptions.title` is non-empty, the writer emits:
