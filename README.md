@@ -120,6 +120,9 @@ Epic [#27](https://github.com/mihaelamj/MarkdownPDF/issues/27) tracks the
 ordered path from the current byte writer to a fully typed canonical PDF
 document structure.
 
+Portable Mermaid diagrams and generated ToC are explicit phases because they
+affect pagination and must work on Linux without Node or Apple-only rendering.
+
 ```mermaid
 flowchart TD
     P0["Phase 0<br/>#28 Minimal canonical PDF<br/>Done"]
@@ -129,16 +132,18 @@ flowchart TD
     P4["Phase 4<br/>#19 Page resources<br/>#20 Font objects<br/>#23 Image XObjects"]
     P5["Phase 5<br/>#21 Typed content streams"]
     P6["Phase 6<br/>#26 Metadata, outlines, destinations"]
-    P7["Phase 7<br/>#24 Output profile documentation"]
+    P7["Phase 7<br/>#37 Mermaid diagrams"]
+    P8["Phase 8<br/>#36 Generated ToC"]
+    P9["Phase 9<br/>#24 Output profile documentation"]
 
-    P0 --> P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7
+    P0 --> P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9
 
     classDef done fill:#e8f5e9,stroke:#2e7d32,color:#111;
     classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
     class P0,P1,P2 done;
     class P3 next;
-    class P4,P5,P6,P7 todo;
+    class P4,P5,P6,P7,P8,P9 todo;
 ```
 
 ## Validation
