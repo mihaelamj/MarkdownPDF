@@ -29,6 +29,8 @@ jobs:
       - name: Format, lint, build, test
         run: |
           brew install mupdf poppler qpdf swiftformat swiftlint
+          brew install --cask font-urw-base35
+          fc-cache -f "$HOME/Library/Fonts" || true
           swiftformat . --config .swiftformat --lint
           swiftlint --config .swiftlint.yml --strict
           cd Packages && swift build && swift test

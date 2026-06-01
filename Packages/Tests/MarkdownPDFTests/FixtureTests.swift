@@ -112,8 +112,8 @@ struct FixtureTests {
         }
     }
 
-    @Test("Scientific article fixture covers links and image fallback")
-    func scientificArticleFixtureCoversLinksAndImageFallback() throws {
+    @Test("Scientific article fixture covers links, image fallback, and Mermaid")
+    func scientificArticleFixtureCoversLinksImageFallbackAndMermaid() throws {
         let data = try MarkdownPDFRenderer().render(markdown: fixture(named: "scientific-article.md"))
         let inspector = PDFInspector(data)
         let streamText = inspector.streams.map(\.body).joined(separator: "\n")
@@ -122,7 +122,11 @@ struct FixtureTests {
         #expect(inspector.text.contains("/URI (https://example.com/research/layout-measurements)"))
         #expect(streamText.contains("([Remote )"))
         #expect(streamText.contains("(image: )"))
-        #expect(streamText.contains("(flowchart TD)"))
+        #expect(streamText.contains("(Markdown )"))
+        #expect(streamText.contains("(source)"))
+        #expect(streamText.contains("(PDF )"))
+        #expect(streamText.contains("(bytes)"))
+        #expect(!streamText.contains("(flowchart TD)"))
     }
 
     #if canImport(MarkdownPDFMac)

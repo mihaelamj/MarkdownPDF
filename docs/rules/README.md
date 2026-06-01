@@ -28,6 +28,8 @@ project's when you adopt these.
 - [testing.md](testing.md) - Swift Testing, `@Test` / `#expect`, test isolation.
 - [testing-discipline.md](testing-discipline.md) - run the suite on every code
   change; write tests where none exist.
+- [pdf-witness-gate.md](pdf-witness-gate.md) - PDF structural, text, geometry,
+  and raster witnesses required for generated PDF changes.
 - [verification.md](verification.md) - no completion claim without fresh command
   output.
 - [systematic-debugging.md](systematic-debugging.md) - reproduce, isolate,
