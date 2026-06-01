@@ -277,7 +277,7 @@ flowchart TD
     E4["Phase 4<br/>#68 CID text writer witnesses<br/>Done"]
     E5["Phase 5<br/>#69 TrueType subsetting<br/>Done"]
     E6["Phase 6<br/>#70 Public API and CI font policy<br/>Done"]
-    E7["Phase 7<br/>#71 Complex-script follow-up epic<br/>In progress"]
+    E7["Phase 7<br/>#71 Complex-script follow-up epic<br/>Review and CI"]
 
     E0 --> E1 --> E2 --> E3 --> E4 --> E5 --> E6 --> E7
 
@@ -287,7 +287,7 @@ flowchart TD
     classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
     class E0,E1,E2,E3,E4,E5,E6 done;
-    class E7 active;
+    class E7 review;
 ```
 
 ## Complex script shaping roadmap
