@@ -20,21 +20,28 @@ plan for future implementation issues, not current product behavior.
 
 ## Current baseline
 
-The current portable profile uses standard PDF base fonts by default and writes
-simple text strings through page content streams. Unsupported Unicode scalars
-are replaced with `?`. The writer intentionally does not emit `/FontFile`,
+The default portable profile uses standard PDF base fonts and writes simple text
+strings through page content streams. Unsupported Unicode scalars are replaced
+with `?`. The default path intentionally does not emit `/FontFile`,
 `/FontFile2`, `/FontFile3`, `/ToUnicode`, Type 0 fonts, CID fonts, or CMap
-streams in the default path.
+streams.
 
-Existing code already contains future hooks:
+The opt-in embedded-font profile now accepts caller-provided TrueType data
+through `PDFOptions.EmbeddedFonts`. Each supplied role is parsed, validated,
+mapped, subsetted, and emitted as a Type 0 parent font with a CIDFontType2
+descendant, FontFile2 stream, ToUnicode CMap, and CIDToGIDMap when compact CIDs
+need it. Roles left nil keep using the matching base font role.
 
-- `PDFFontObject` can serialize `DescendantFonts` and `ToUnicode` references.
-- `PDFFontDescriptor` can serialize `FontFile`, `FontFile2`, and `FontFile3`
+Existing code contains these reusable hooks and implementation points:
+
+- `PDFFontObject` serializes `DescendantFonts` and `ToUnicode` references.
+- `PDFFontDescriptor` serializes `FontFile`, `FontFile2`, and `FontFile3`
   references.
-- `PDFContentStream` and `PDFPageCanvas` already centralize text drawing
-  operations.
+- `PDFContentStream` and `PDFPageCanvas` centralize text drawing operations.
+- `PDFEmbeddedFontCatalog` resolves public role mappings to parser metadata and
+  glyph mappers without scanning platform font directories.
 - `PDFValidation`, Poppler geometry, MuPDF character quads, and raster
-  comparison can witness text extraction and layout quality.
+  comparison witness text extraction and layout quality.
 
 The current `FontSet.appleSystem` names are unembedded TrueType font names. That
 is a naming option, not an embedded-font implementation, and it must not be used
@@ -84,20 +91,16 @@ This first profile should not claim:
 
 ## Font input policy
 
-The core portable renderer should not scan system font directories. It should
-accept font data that the caller supplies explicitly. A future public API can be
-shaped around a value like this:
+The core portable renderer should not scan system font directories. It accepts
+font data that the caller supplies explicitly:
 
 ```swift
-struct EmbeddedFontSource {
-    var data: Data
-    var familyRole: FontRole
-    var licensePolicy: FontLicensePolicy
-}
+let fontData = try Data(contentsOf: URL(fileURLWithPath: "OpenFont.ttf"))
+let source = PDFOptions.EmbeddedFontSource(data: fontData)
+let options = PDFOptions(embeddedFonts: .allRoles(source))
 ```
 
-The exact public API can change during implementation, but these constraints
-should hold:
+These constraints hold:
 
 - Default output remains PDF base fonts with no embedded font files.
 - Embedded fonts are opt in.
@@ -108,9 +111,29 @@ should hold:
 - The core records whether embedding is installable, editable, preview-print,
   or restricted when that metadata exists.
 - Fonts that permit embedding but set the no-subsetting bit must use full-font
-  embedding or be rejected by any subset-only feature.
+  embedding or be rejected by any subset-only feature. The current public
+  profile is subset-only, so those fonts are rejected.
 - A macOS product may later add font discovery, but discovery is outside the
   shared renderer and does not imply Linux or iOS behavior.
+
+## CI-safe font fixture policy
+
+The public repository must not store real font binaries. Tests use two fixture
+classes:
+
+- Generated Swift TrueType fixtures for deterministic parser, mapper, subset,
+  writer, and public API tests. These are source-level byte builders, not
+  committed font files.
+- CI-installed or environment-provided open fonts for external-font smoke
+  tests. GitHub CI installs DejaVu Sans and passes its path through
+  `MARKDOWNPDF_OPEN_FONT_PATH`. Unsupported local environments may skip only
+  those external-font tests, with the skip reason naming the missing font path.
+
+The current #70 public API witness uses the generated TrueType fixture so macOS
+and Linux run the same deterministic test without committing a font binary. A
+separate external-font smoke test uses the CI-installed DejaVu Sans path to
+prove the public API also accepts a real open TrueType font without making that
+font a repository dependency.
 
 ## Required PDF objects
 
@@ -322,7 +345,9 @@ These issues can be opened directly from this plan.
 7. Add public API and CI font fixture policy.
    - Keep embedded fonts opt in.
    - Document caller font licensing responsibility.
-   - Configure CI to use open installed fonts without committing font files.
+   - Use generated Swift TrueType fixtures for deterministic CI coverage.
+   - Configure external-font smoke tests to use installed DejaVu Sans or an
+     explicit environment-provided path without committing font files.
 
 8. Defer complex-script shaping and bidi to a separate epic.
    - Require a pure Swift shaping plan or an explicitly optional platform

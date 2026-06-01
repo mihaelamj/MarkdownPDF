@@ -30,6 +30,8 @@ The generic renderer currently covers:
 - PDF document title metadata, heading outlines, and internal heading links.
 - Opt-in generated table of contents with final page numbers and internal links.
 - Standard PDF base fonts by default, without embedding font files.
+- Opt-in embedded TrueType font data through `PDFOptions.EmbeddedFonts`, using
+  Type 0 / CIDFontType2 fonts, ToUnicode maps, and subsetted FontFile2 streams.
 
 The compatibility target is CommonMark plus GitHub Flavored Markdown tables and
 images. The generated PDF profile is intentionally small, typed, and documented
@@ -88,6 +90,27 @@ let options = PDFOptions(tableOfContents: .enabled)
 let markdown = "# Report\n\n## Methods\n\nBody."
 let data = try MarkdownPDFRenderer(options: options).render(markdown: markdown)
 ```
+
+Embed caller-provided TrueType font data:
+
+```swift
+import Foundation
+import MarkdownPDF
+
+let fontData = try Data(contentsOf: URL(fileURLWithPath: "OpenFont.ttf"))
+let source = PDFOptions.EmbeddedFontSource(data: fontData)
+let options = PDFOptions(
+    embeddedFonts: .allRoles(source),
+)
+
+let markdown = "# Embedded\n\nThe font file is embedded as a subset."
+let data = try MarkdownPDFRenderer(options: options).render(markdown: markdown)
+```
+
+Embedded fonts are opt in. The caller is responsible for the font license. The
+portable renderer rejects fonts whose OS/2 embedding bits do not allow the
+subset profile. macOS font discovery is not part of the shared core, and this
+does not claim iOS support.
 
 Use the Linux-facing product:
 
@@ -195,6 +218,11 @@ that directory, with a `README.txt` manifest naming each witness. GitHub CI
 uploads those files as `markdownpdf-witness-linux` and
 `markdownpdf-witness-macos` artifacts for pull request review.
 
+Embedded-font tests use generated Swift TrueType fixtures for deterministic
+coverage and CI-installed DejaVu Sans for an external open-font smoke test. The
+font path is supplied through `MARKDOWNPDF_OPEN_FONT_PATH`; the public
+repository does not commit font binaries.
+
 See [docs/research/pdf-validation-tooling.md](docs/research/pdf-validation-tooling.md)
 and [docs/research/pdf-visual-layout-validation.md](docs/research/pdf-visual-layout-validation.md)
 for the validation rationale. See
@@ -247,8 +275,8 @@ flowchart TD
     E2["Phase 2<br/>#66 Glyph mapping and widths<br/>Done"]
     E3["Phase 3<br/>#67 ToUnicode CMaps<br/>Done"]
     E4["Phase 4<br/>#68 CID text writer witnesses<br/>Done"]
-    E5["Phase 5<br/>#69 TrueType subsetting<br/>Review and CI"]
-    E6["Phase 6<br/>#70 Public API and CI font policy<br/>Planned"]
+    E5["Phase 5<br/>#69 TrueType subsetting<br/>Done"]
+    E6["Phase 6<br/>#70 Public API and CI font policy<br/>Review and CI"]
     E7["Phase 7<br/>#71 Complex-script follow-up epic<br/>Planned"]
 
     E0 --> E1 --> E2 --> E3 --> E4 --> E5 --> E6 --> E7
@@ -258,9 +286,9 @@ flowchart TD
     classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
     classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
-    class E0,E1,E2,E3,E4 done;
-    class E5 review;
-    class E6,E7 todo;
+    class E0,E1,E2,E3,E4,E5 done;
+    class E6 review;
+    class E7 todo;
 ```
 
 ## Build and Test
@@ -306,8 +334,8 @@ swiftlint --config .swiftlint.yml
 - iOS support is not implemented or tested.
 - The default portable text profile emits printable ASCII. Unsupported Unicode
   scalars, including Latin-1 letters, Windows-1252 punctuation, emoji, complex
-  scripts, combining marks, and bidirectional text, render as `?` until a
-  separate embedded-font and `/ToUnicode` profile exists.
+  scripts, combining marks, and bidirectional text, render as `?` unless the
+  caller enables an embedded TrueType font profile that covers those scalars.
 - Apple system font names remain available through
   `PDFOptions.FontSet.appleSystem`, but the public repo does not embed font
   files.

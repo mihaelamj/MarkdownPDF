@@ -32,7 +32,8 @@ struct PDFSyntaxTests {
         let run = PDFTextRun(text: text, font: .helvetica, size: 10)
         let replacementRun = PDFTextRun(text: "Caf? ? ?", font: .helvetica, size: 10)
 
-        #expect(run.text == "Caf? ? ?")
+        #expect(run.text == text)
+        #expect(run.portableText == "Caf? ? ?")
         #expect(run.width(fontSet: .pdfBase) == replacementRun.width(fontSet: .pdfBase))
     }
 

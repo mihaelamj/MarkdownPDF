@@ -32,7 +32,9 @@ jobs:
         run: |
           brew install mupdf poppler qpdf swiftformat swiftlint
           brew install --cask font-urw-base35
+          brew install --cask font-dejavu
           fc-cache -f "$HOME/Library/Fonts" || true
+          export MARKDOWNPDF_OPEN_FONT_PATH="$HOME/Library/Fonts/DejaVuSans.ttf"
           swiftformat . --config .swiftformat --lint
           swiftlint --config .swiftlint.yml --strict
           cd Packages && swift build && swift test
