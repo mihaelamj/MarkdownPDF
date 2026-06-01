@@ -276,8 +276,8 @@ flowchart TD
     E3["Phase 3<br/>#67 ToUnicode CMaps<br/>Done"]
     E4["Phase 4<br/>#68 CID text writer witnesses<br/>Done"]
     E5["Phase 5<br/>#69 TrueType subsetting<br/>Done"]
-    E6["Phase 6<br/>#70 Public API and CI font policy<br/>Review and CI"]
-    E7["Phase 7<br/>#71 Complex-script follow-up epic<br/>Planned"]
+    E6["Phase 6<br/>#70 Public API and CI font policy<br/>Done"]
+    E7["Phase 7<br/>#71 Complex-script follow-up epic<br/>Review and CI"]
 
     E0 --> E1 --> E2 --> E3 --> E4 --> E5 --> E6 --> E7
 
@@ -286,9 +286,36 @@ flowchart TD
     classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
     classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
-    class E0,E1,E2,E3,E4,E5 done;
-    class E6 review;
-    class E7 todo;
+    class E0,E1,E2,E3,E4,E5,E6 done;
+    class E7 review;
+```
+
+## Complex script shaping roadmap
+
+Epic [#79](https://github.com/mihaelamj/MarkdownPDF/issues/79) tracks the
+follow-up work for Unicode line breaking, bidirectional text, shaped glyph
+clusters, and multi-scalar ToUnicode mappings. This roadmap is still portable
+macOS and Linux work: the shared renderer remains Swift-only, does not depend on
+Apple-only APIs or C shaping libraries, and does not claim iOS support.
+
+```mermaid
+flowchart TD
+    S0["Phase 0<br/>#80 Standards and boundary<br/>Planned"]
+    S1["Phase 1<br/>#81 Fixtures and witnesses<br/>Planned"]
+    S2["Phase 2<br/>#82 Shaped cluster model<br/>Planned"]
+    S3["Phase 3<br/>#83 Line-break opportunities<br/>Planned"]
+    S4["Phase 4<br/>#84 Bidi ordering<br/>Planned"]
+    S5["Phase 5<br/>#85 Pure Swift shaping increments<br/>Planned"]
+    S6["Phase 6<br/>#86 PDF emission and ToUnicode clusters<br/>Planned"]
+
+    S0 --> S1 --> S2 --> S3 --> S4 --> S5 --> S6
+
+    classDef done fill:#e8f5e9,stroke:#2e7d32,color:#111;
+    classDef active fill:#e3f2fd,stroke:#1565c0,color:#111;
+    classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
+    classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
+    classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
+    class S0,S1,S2,S3,S4,S5,S6 todo;
 ```
 
 ## Build and Test
@@ -326,6 +353,9 @@ swiftlint --config .swiftlint.yml
   target output profile.
 - [docs/research/portable-embedded-fonts-tounicode-plan.md](docs/research/portable-embedded-fonts-tounicode-plan.md):
   portable embedded-font and ToUnicode implementation plan.
+- [docs/research/complex-script-shaping-bidi-roadmap.md](docs/research/complex-script-shaping-bidi-roadmap.md):
+  follow-up roadmap for Unicode line breaking, bidi ordering, shaping, and
+  ToUnicode cluster witnesses.
 
 ## Platform Boundaries
 
