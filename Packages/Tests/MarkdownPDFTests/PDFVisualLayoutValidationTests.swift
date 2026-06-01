@@ -68,6 +68,19 @@ struct PDFVisualLayoutValidationTests {
         #expect(layout.visualLayoutIssues().contains { $0.contains("overlaps") })
     }
 
+    @Test("Visual layout validator normalizes offset Poppler page rows")
+    func visualLayoutValidatorNormalizesOffsetPopplerPageRows() throws {
+        let layout = try PopplerTextLayout(tsv: """
+        level\tpage_num\tpar_num\tblock_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext
+        1\t2\t0\t0\t0\t0\t205.970000\t253.270000\t260.000000\t320.000000\t-1\t###PAGE###
+        4\t2\t0\t0\t0\t0\t95.280000\t41.481600\t69.440800\t8.140000\t-1\t###LINE###
+        5\t2\t0\t0\t0\t0\t95.28\t41.48\t40.59\t8.14\t100\tMarkdown
+        5\t2\t0\t0\t0\t1\t138.31\t41.48\t26.41\t8.14\t100\tsource
+        """)
+
+        #expect(layout.visualLayoutIssues().isEmpty)
+    }
+
     @Test("MuPDF character quad validator rejects overlapping glyphs")
     func muPDFCharacterQuadValidatorRejectsOverlappingGlyphs() throws {
         let layout = try MuPDFStructuredText(xml: """
@@ -256,10 +269,19 @@ private struct PopplerTextLayout {
                 continue
             }
 
-            if word.left < page.left - tolerance
-                || word.top < page.top - tolerance
-                || word.right > page.right + tolerance
-                || word.bottom > page.bottom + tolerance
+            // Linux Poppler can report non-zero page-row origins on later
+            // pages even when the PDF MediaBox starts at 0,0. Generated
+            // MarkdownPDF pages use zero-origin MediaBoxes, so use the page
+            // size row as the bounds and ignore its reported origin.
+            let pageLeft = 0.0
+            let pageTop = 0.0
+            let pageRight = page.width
+            let pageBottom = page.height
+
+            if word.left < pageLeft - tolerance
+                || word.top < pageTop - tolerance
+                || word.right > pageRight + tolerance
+                || word.bottom > pageBottom + tolerance
             {
                 issues.append("\(boxDescription(word)) is outside page bounds")
             }
