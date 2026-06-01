@@ -20,8 +20,11 @@ Swift source and tests.
    rendering.
 7. Use `portable-embedded-fonts-tounicode-plan.md` before changing embedded
    fonts, Type 0 fonts, CID fonts, or ToUnicode output.
-8. Use the source studies when planning new writer features.
-9. Use macOS-specific research only for macOS targets. It is not a Linux or iOS
+8. Use `complex-script-shaping-bidi-roadmap.md` before changing Unicode line
+   breaking, bidi behavior, shaping, glyph clusters, or multi-scalar ToUnicode
+   mappings.
+9. Use the source studies when planning new writer features.
+10. Use macOS-specific research only for macOS targets. It is not a Linux or iOS
    implementation plan.
 
 ## Boundaries
@@ -43,6 +46,7 @@ Swift source and tests.
 | `pdf-type-modeling-policy.md` | Policy for adding internal typed PDF model structures. |
 | `portable-mermaid-flowcharts.md` | Portable Mermaid flowchart subset, unsupported fallback behavior, and validation expectations. |
 | `portable-embedded-fonts-tounicode-plan.md` | Portable embedded-font and ToUnicode implementation plan and current policy, including Type 0, CIDFontType2, public font input, CI font fixture handling, and staged issues. |
+| `complex-script-shaping-bidi-roadmap.md` | Follow-up epic roadmap for Unicode line breaking, bidi ordering, shaped text clusters, pure Swift shaping increments, and ToUnicode cluster witnesses. |
 | `existing-pdf-writer-alignment.md` | Alignment notes between existing writer behavior and research findings. |
 | `pdf-validation-tooling.md` | Open source validation tools and the current CI validation strategy. |
 | `pdf-visual-layout-validation.md` | Visual layout validation strategy using text and render extraction tools. |

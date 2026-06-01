@@ -89,6 +89,9 @@ This first profile should not claim:
 - PDF/A or PDF/UA conformance.
 - iOS support.
 
+Complex-script shaping and bidi follow-up work is tracked by #79 and
+`complex-script-shaping-bidi-roadmap.md`.
+
 ## Font input policy
 
 The core portable renderer should not scan system font directories. It accepts
