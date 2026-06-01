@@ -1342,26 +1342,11 @@ private struct Layout {
 
     private func tokenize(_ runs: [PDFTextRun]) -> [PDFTextRun] {
         var tokens: [PDFTextRun] = []
+        let lineBreaker = LineBreakOpportunityDetector()
 
         for run in runs {
-            var buffer = ""
-            for character in run.text {
-                if character == "\n" {
-                    if !buffer.isEmpty {
-                        tokens.append(run.withText(buffer))
-                        buffer = ""
-                    }
-                    tokens.append(run.withText("\n"))
-                } else if character == " " || character == "\t" {
-                    buffer.append(" ")
-                    tokens.append(run.withText(buffer))
-                    buffer = ""
-                } else {
-                    buffer.append(character)
-                }
-            }
-            if !buffer.isEmpty {
-                tokens.append(run.withText(buffer))
+            for segment in lineBreaker.segments(in: run.text) where !segment.isEmpty {
+                tokens.append(run.withText(segment))
             }
         }
 
