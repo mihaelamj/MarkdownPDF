@@ -7,8 +7,7 @@
 MarkdownPDF is a Pure Swift Markdown to PDF renderer. It parses Markdown, lays
 the document out, and serializes PDF bytes directly in Swift.
 
-Related project: [TileDown](https://tiledown.com/) is the Swift static site
-generator for Markdown-canonical sites and typed content tiles.
+Project website: [tiledown.com](https://tiledown.com/).
 
 The core renderer is built for macOS and Linux. It does not use PDFKit,
 CoreGraphics, WebKit, wkhtmltopdf, Chromium, LaTeX, browser renderers,
