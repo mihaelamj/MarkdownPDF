@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and CIDFontType2 work.
 - Internal Type 0, CIDFontType2, FontFile2, and ToUnicode object models for the
   portable embedded-font profile.
+- Pure Swift TrueType metadata parser with table bounds, checksums, cmap
+  discovery, horizontal metrics, names, and OS/2 embedding policy gates.
 
 ### Changed
 
