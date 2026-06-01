@@ -1,6 +1,6 @@
 # Complex script shaping and bidi roadmap
 
-Status: seeded by #71 on 2026-06-01.
+Status: in review for #80 through PR #88 on 2026-06-01.
 
 Scope: this note defines the next epic after the Latin-first embedded-font
 foundation. It is portable macOS and Linux research. It is not a macOS-only
@@ -41,6 +41,39 @@ dependency and is outside the shared renderer boundary:
 
 https://harfbuzz.github.io/shaping-concepts.html
 
+## Boundary matrix
+
+| Area | Portable source of truth | Renderer responsibility | Out of scope for the shared renderer |
+|---|---|---|---|
+| Line breaking | Unicode UAX #14 line-break classes and pair rules. | Find legal break opportunities in logical text and feed them to the existing line selection algorithm. | Locale dictionary breaking, typographic justification, and platform text engines. |
+| Bidirectional text | Unicode UAX #9 paragraph levels, embedding controls, isolates, and neutral resolution. | Keep logical source text, compute a visual run order for drawing, and prove extraction expectations with Poppler and MuPDF. | Claims that visual order or extracted order is correct before fixtures cover mixed RTL/LTR text. |
+| Glyph substitution | OpenType GSUB tables for the scripts and features a future issue names explicitly. | Map source clusters to glyph ids without losing the source scalar sequence needed for ToUnicode. | Full universal shaping in one issue, HarfBuzz as a linked dependency, and Apple-only shaping inside the core. |
+| Glyph positioning | OpenType GPOS advances, offsets, marks, and cursive attachment for the supported increment. | Preserve advances and offsets in the shaped text model before emitting PDF text operators. | Kerning or mark positioning claims without geometry witnesses. |
+| Shaping concepts | HarfBuzz shaping model, clusters, buffer properties, script/language/direction inputs, and feature flags. | Reuse the concepts as design vocabulary and test expectations. | Importing, linking, shelling out to, or vendoring HarfBuzz. |
+| macOS adapter research | CoreText can be investigated only as a product adapter outside the portable core. | Keep any macOS-only discovery behind a separate adapter plan and mark it macOS-only. | Treating macOS results as Linux behavior or as iOS support. |
+
+The portable contract is standards-driven, not platform-driven. A future macOS
+adapter may help compare measurements or prototype shaping behavior, but the
+shared renderer can only claim behavior implemented in Swift and verified on
+macOS and Linux.
+
+## Issue #80 boundary
+
+#80 is documentation and tracker work only. It does not add renderer code,
+fixtures, parser tables, or public API. It defines the line where future issues
+must begin:
+
+- #81 must turn the fixture groups below into explicit expected text, geometry,
+  raster, and failure-policy witnesses.
+- #82 must introduce a shaped cluster model before any renderer path changes.
+- #83 must implement portable line-break opportunities separately from bidi and
+  shaping.
+- #84 must implement bidi ordering separately from OpenType shaping.
+- #85 must prototype a narrow pure Swift shaping increment before broad script
+  claims.
+- #86 must emit PDF only after the model, fixtures, line breaking, bidi, and
+  first shaping increment are proved.
+
 ## Portable versus platform-specific
 
 Portable core work must be pure Swift and Linux-buildable. It can use Unicode
@@ -68,6 +101,21 @@ The first fixture policy should cover:
 Fixtures should keep font handling repository-safe. Do not commit font binaries.
 Use generated Swift fixtures where possible and CI-installed or
 environment-provided open fonts for smoke tests.
+
+## First script and feature gates
+
+The first profile must be explicit about the scripts and features it supports.
+These groups define the minimum fixture planning set, not a support claim:
+
+| Group | Feature pressure | Required witness before support can be claimed |
+|---|---|---|
+| Latin combining marks | Multiple scalars may produce one positioned cluster. | Source-faithful extraction and no overlapping character quads. |
+| Latin ligatures | Multiple scalars may map to one glyph. | ToUnicode maps the ligature glyph back to the original scalar sequence. |
+| Arabic | Contextual joining, direction, cursive attachment, marks, and mixed numbers. | Bidi paragraph order, shaped glyph ids, extraction, and raster geometry all pass on macOS and Linux. |
+| Hebrew | RTL runs mixed with LTR words, punctuation, and numbers. | Visual order and source extraction expectations are named and witnessed. |
+| Indic script | Reordering, conjuncts, matras, and combining behavior. | Cluster model proves many-to-one and one-to-many mappings before drawing. |
+| Thai or Khmer | No-space line-break opportunities. | UAX #14 break opportunities are tested before line selection changes. |
+| Unsupported controls or fonts | Inputs outside the supported profile. | Typed errors or explicit visible fallback, never silent broken text. |
 
 ## Text model requirement
 
@@ -99,7 +147,7 @@ and shaped clusters.
 
 ```mermaid
 flowchart TD
-    S0["Phase 0<br/>#80 Standards and boundary<br/>Planned"]
+    S0["Phase 0<br/>#80 Standards and boundary<br/>Review and CI"]
     S1["Phase 1<br/>#81 Fixtures and witnesses<br/>Planned"]
     S2["Phase 2<br/>#82 Shaped cluster model<br/>Planned"]
     S3["Phase 3<br/>#83 Line-break opportunities<br/>Planned"]
@@ -114,7 +162,8 @@ flowchart TD
     classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
     classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
-    class S0,S1,S2,S3,S4,S5,S6 todo;
+    class S0 review;
+    class S1,S2,S3,S4,S5,S6 todo;
 ```
 
 ## Witness policy
