@@ -1,76 +1,64 @@
 # MarkdownPDF portable PDF output profile
 
-Date: 2026-05-31
+Date: 2026-06-01
 
-This note chooses the initial deterministic PDF output profile for MarkdownPDF's
-portable Swift writer. It turns the canonical PDF structure research into
-writer and test expectations.
+This document records the generated PDF profile that MarkdownPDF currently
+emits from the portable Swift renderer. It is an implementation profile, not a
+research target. If source and this document disagree, source and tests win and
+this document must be updated in the same change.
 
-## Scope
+## Platform boundary
 
-This profile applies to the portable renderer that must run on Linux and macOS.
-It is not macOS-only and not iOS-only. It does not use PDFKit, CoreGraphics,
-CoreText, WebKit, browser drivers, LaTeX, C renderers, or external PDF
+This profile applies to the `MarkdownPDF` and `MarkdownPDFLinux` products. The
+`MarkdownPDFMac` product currently delegates to the same portable renderer.
+
+The profile is portable across macOS and Linux. It is not a macOS-only profile
+and it does not use PDFKit, CoreGraphics, CoreText, WebKit, browser renderers,
+LaTeX, JavaScript, Python, shell renderers, C Markdown libraries, or C PDF
 libraries.
 
-The profile describes PDF bytes, not a layout algorithm. Layout features can
-change without changing this profile as long as they emit the same structural
-PDF shape.
+iOS support is not claimed. A macOS result does not imply iOS support until an
+iOS target exists and is tested.
 
-## Baseline decision
+## Compatibility target
 
-MarkdownPDF's first portable profile is:
+The Markdown compatibility target is CommonMark plus GitHub Flavored Markdown
+tables and images.
+
+The PDF compatibility target is a conservative PDF 1.4 file:
 
 - Complete non-incremental PDF file.
 - PDF 1.4 header.
 - Classic xref table.
-- Trailer dictionary with `/Size` and `/Root`.
-- Catalog plus flat page tree.
+- Trailer dictionary with `/Size`, `/Root`, and optional `/Info`.
+- Catalog plus a flat page tree.
 - Page dictionaries with direct resource dictionaries.
-- Content streams with exact `/Length`.
+- One content stream per page.
+- Exact stream `/Length` values.
 - Standard PDF base fonts by default.
-- Image XObjects for supported images.
-- Link annotations for URI links.
-- No object streams, xref streams, encryption, signatures, linearization, tagged
-  PDF, PDF/A, or PDF/UA in the baseline.
+- Optional image XObjects for supported standalone local JPEG and PNG images.
+- Link annotations for URI links and internal destination links.
+- Named destinations, outlines, metadata, and generated ToC when input and
+  options require them.
 
-This is intentionally conservative. It matches the current writer shape and is
-widely supported by readers.
+The profile does not claim PDF/A, PDF/UA, tagged PDF, linearized PDF,
+incremental updates, encryption, digital signatures, object streams, xref
+streams, JavaScript actions, embedded fonts, SVG import, or arbitrary Mermaid
+language support.
 
-## Object order
+## File envelope
 
-The initial writer should use deterministic object numbering and object order:
-
-1. Catalog object.
-2. Pages root object.
-3. Font objects.
-4. Image XObjects.
-5. Page content streams.
-6. Annotation objects.
-7. Page objects.
-8. Future optional document-level objects, only when enabled.
-
-The current `PDFDocumentWriter` reserves catalog and pages references first, then
-fills them after page and resource objects are known. That is acceptable and
-should remain the model until a typed object writer replaces the current builder.
-
-All in-use objects use generation 0. Object numbers should not depend on hash
-iteration order, filesystem order, random IDs, timestamps, or platform-specific
-state.
-
-## Header and file ending
-
-The file starts with:
+Every generated file starts with:
 
 ```text
 %PDF-1.4
-% binary-marker-comment
+%....
 ```
 
-The second line may contain arbitrary bytes above ASCII 127 to signal that the
-file should be treated as binary.
+The second line contains bytes above ASCII 127 so PDF readers treat the file as
+binary.
 
-The file ends with:
+Every generated file ends with a classic xref section and trailer:
 
 ```text
 xref
@@ -78,150 +66,199 @@ xref
 0000000000 65535 f
 ...
 trailer
-<< /Size N /Root 1 0 R >>
+<< /Size N /Root 1 0 R ... >>
 startxref
 byte-offset-of-xref
 %%EOF
 ```
 
-`startxref` must be the byte offset of the `xref` keyword. Tests should validate
-that every in-use xref entry points to the matching object header.
+`startxref` is the byte offset of the `xref` keyword. All in-use objects use
+generation 0. The canonical free xref entry is object 0, generation 65535.
 
-## Catalog and pages
+The writer emits deterministic object numbers. Object order must not depend on
+hash iteration order, filesystem order, random IDs, timestamps, locale, or
+platform-specific state.
 
-The catalog baseline is:
+## Object order
+
+The current writer reserves object 1 for the catalog and object 2 for the pages
+root, then fills those objects after the rest of the document is known. The
+serialized file still appears in object-number order.
+
+The current order is:
+
+1. Catalog object, reserved first and filled last.
+2. Pages root object, reserved second and filled after page refs are known.
+3. Font allocation in `StandardFont.allCases` order. Base Type1 fonts allocate
+   one font object. Non-Type1 opt-in font sets allocate a descriptor object
+   immediately before the corresponding font object.
+4. Image XObjects used by page resources, in renderer image-registration order.
+5. Page content stream and link annotation objects for each page.
+6. Page dictionary object for each page.
+7. Outline root and outline item objects when headings exist.
+8. Metadata `/Info` dictionary and XMP metadata stream when `PDFOptions.title`
+   is non-empty.
+
+The minimal one-page text PDF has five in-use objects:
+
+1. Catalog.
+2. Pages root.
+3. One font object.
+4. One content stream.
+5. One page dictionary.
+
+The trailer `/Size` is one greater than the highest object number because object
+0 is the free xref entry.
+
+## Catalog
+
+The minimal catalog is:
 
 ```text
 << /Type /Catalog /Pages 2 0 R >>
 ```
 
-Optional catalog entries are added only when the corresponding feature is
-implemented and tested. Examples are `/Outlines`, `/Names`, `/Metadata`,
-`/MarkInfo`, `/StructTreeRoot`, and `/ViewerPreferences`.
+Optional entries are emitted only when the corresponding feature is active:
 
-The pages root baseline is a flat tree:
+- `/Outlines` and `/PageMode /UseOutlines` when headings produce outline items.
+- `/Names << /Dests ... >>` when headings produce named destinations.
+- `/Metadata` when `PDFOptions.title` produces an XMP metadata stream.
+- `/ViewerPreferences << /DisplayDocTitle true >>` when title metadata exists.
+
+The catalog does not emit `/MarkInfo`, `/StructTreeRoot`, `/OpenAction`,
+JavaScript, output intents, PDF/A conformance declarations, or PDF/UA
+structures.
+
+## Page tree and pages
+
+The page tree is flat:
 
 ```text
-<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>
+<< /Type /Pages /Kids [page-ref ...] /Count page-count >>
 ```
 
-The writer can move to a deeper page tree later if document size makes that
-worthwhile. The first profile should keep the tree flat because it is easier to
-inspect and test.
-
-Each page dictionary includes:
+Each page dictionary contains:
 
 ```text
 << /Type /Page
-/Parent 2 0 R
+/Parent pages-ref 0 R
 /MediaBox [0 0 width height]
 /Resources << ... >>
 /Contents content-ref 0 R
 >>
 ```
 
-`/Annots` is present only when the page has annotations. Heading destinations are
-recorded during layout and used by the document-level name tree and outline
-objects; they do not change page dictionaries by themselves.
+`/Annots` is present only when a page has link annotations. Empty annotation
+arrays are omitted.
+
+Heading destinations are recorded during layout and then used by document-level
+named destinations and outline objects. They do not add keys to page
+dictionaries by themselves.
 
 ## Resources
 
-Resource dictionaries are explicit. The writer must know which fonts, images,
-graphics states, and future form XObjects a page uses before writing the page
-dictionary.
+Resource dictionaries are generated from typed page resource usage, not by
+scanning stream strings after the fact.
 
-The baseline resource dictionary includes `/Font` and optional `/XObject`:
+The current page resource dictionary supports:
 
-```text
-<<
-/Font << /F1 font-ref 0 R /F2 font-ref 0 R >>
-/XObject << /I1 image-ref 0 R >>
->>
-```
+- `/Font` for text resources.
+- `/XObject` for local image resources.
+
+Unsupported resource categories are omitted until implemented. This includes
+`/ExtGState`, `/ColorSpace`, `/Pattern`, `/Shading`, `/Properties`, form
+XObjects, and embedded file resources.
 
 Resource names are deterministic:
 
-- Standard fonts keep the existing `F1`, `F2`, `F3`, `F4` names.
-- Images use deterministic names assigned by the renderer.
-- Future embedded fonts continue the `F` sequence or use a deterministic
-  registry chosen by the typed writer.
-- Future graphics states use a deterministic `GS` sequence.
+| Resource | Names |
+|---|---|
+| Regular text font | `/F1` |
+| Bold text font | `/F2` |
+| Italic text font | `/F3` |
+| Monospaced text font | `/F4` |
+| Images | `/Im1`, `/Im2`, and so on in first-use order |
 
-Resources should be tracked while draw commands are emitted. The writer should
-not infer resource usage by scanning content stream strings.
+Each page declares only resources used by that page.
 
 ## Content streams
 
-Every page has one content stream in the first profile. A later typed writer may
-split page content into multiple streams, but doing so must preserve the page
-dictionary `/Contents` invariant.
+Every page has one uncompressed content stream. The stream dictionary contains
+an exact `/Length`; tests compare declared and actual byte counts.
 
-Every stream dictionary includes an exact `/Length` value. Uncompressed page
-content is acceptable for the baseline because it keeps tests simple. Compression
-can be enabled later if tests validate `/Filter`, `/Length`, and decoded content
-where needed.
+Content streams use typed PDF operators for text, paths, rectangles, lines,
+images, colors, graphics state save/restore, and XObject drawing.
 
-Content streams use PDF operators directly. Layout code should move toward typed
-draw commands and a typed content-stream builder, but the profile does not
-require that refactor before the current structural tests pass.
+The renderer currently emits visible content for:
 
-Portable Mermaid flowcharts are rendered as ordinary page content operators:
-rectangles, strokes, lines, and text. They do not introduce external image
-objects, form XObjects, JavaScript, embedded fonts, or platform-specific drawing
-APIs in the first profile. Unsupported Mermaid syntax is emitted through the
-documented visible code-block fallback rather than delegated to Node, browser
-renderers, shell renderers, Apple APIs, or external PDF libraries.
+- Headings.
+- Paragraphs.
+- Block quotes.
+- Ordered and unordered lists.
+- Fenced code blocks.
+- Tables as visual cell borders and text, not tagged table structure.
+- Thematic breaks.
+- Raw HTML as visible monospaced text, not interpreted HTML.
+- Inline emphasis, strong text, strike-through, inline code, links, images as
+  inline labels, and line breaks.
+- Supported portable Mermaid flowcharts.
+- Visible generated table of contents when enabled.
+
+Long tokens are split by measured font width before they exceed the line width.
+This protects headings, ToC entries, URLs, and identifiers from colliding with
+page bounds or neighboring text.
 
 ## Fonts
 
-The default profile uses standard PDF base fonts and does not embed font files.
-The default public font set should remain based on Helvetica, Helvetica-Bold,
-Helvetica-Oblique, and Courier.
+The default font profile uses standard PDF base font names and does not embed
+font files:
 
-The `appleSystem` font set is an opt-in naming surface. It must not make the
-portable writer depend on Apple frameworks. It also must not be treated as
-article-grade embedded font support.
+- Helvetica.
+- Helvetica-Bold.
+- Helvetica-Oblique.
+- Courier.
 
-The first embedded-font profile, when implemented, should target:
+Base-font output must not contain `/FontFile`, `/FontFile2`, or `/FontFile3`.
 
-- Type0 composite font.
-- CIDFontType2 descendant.
-- `/Identity-H` encoding.
-- FontDescriptor.
-- `/FontFile2` TrueType subset stream.
-- `/W` widths.
-- `/CIDToGIDMap` as `/Identity` or an explicit stream.
-- `/ToUnicode` CMap stream.
+`PDFOptions.FontSet.appleSystem` is an opt-in font-name surface. It emits simple
+unembedded TrueType font dictionaries with deterministic widths and font
+descriptors, but it does not load Apple frameworks and it does not embed font
+bytes. Reader output can depend on font substitution when those names are not
+installed.
 
-That future work must include structural tests for the full font object graph.
-It must not commit font files to the public repository unless the font license is
-reviewed and the repo policy changes.
+The current profile does not implement:
+
+- Embedded font files.
+- Font subsetting.
+- Type0 composite fonts.
+- CIDFontType2 descendants.
+- `/ToUnicode` CMaps.
+- Complex-script shaping.
+- Bidirectional text.
+- Color fonts.
+
+Future embedded-font work must introduce a separate tested profile and must not
+commit font files to the public repository without an explicit policy change.
 
 ## Images
 
-Image support remains XObject-based:
+Standalone local images are represented as image XObjects. Image resources are
+reused when the same source path appears more than once.
 
-```text
-<< /Type /XObject
-/Subtype /Image
-/Width w
-/Height h
-/ColorSpace ...
-/BitsPerComponent ...
-/Filter ...
->>
-stream
-image bytes
-endstream
-```
+Supported image inputs:
 
-JPEG uses `DCTDecode`. Supported PNG input uses compressed image data with the
-matching predictor parameters. New image formats must preserve direct PDF byte
-generation in Swift and must build on Linux.
+- JPEG, emitted with `/Filter /DCTDecode`.
+- PNG without unsupported alpha/interlace modes, emitted with `/Filter
+  /FlateDecode` and matching `/DecodeParms`.
+
+Remote images are not fetched. Standalone remote images render as visible
+placeholder text. Inline images render as visible labels.
+
+Unsupported or invalid image data throws `MarkdownPDFError`.
 
 ## Links and navigation
 
-URI links are emitted as page annotations:
+External Markdown links become URI link annotations:
 
 ```text
 << /Type /Annot
@@ -232,82 +269,168 @@ URI links are emitted as page annotations:
 >>
 ```
 
-Heading destinations, internal destination links, and outlines are emitted from
-the typed layout and writer model. Heading anchors use deterministic slugs based
-on visible heading text, with numeric suffixes for duplicates.
+Internal Markdown fragment links whose destination starts with `#` are
+normalized to heading destination names. If a matching destination exists, the
+annotation emits `/Dest (name)`. If no matching destination exists, the original
+fragment remains a URI action so the link is visible rather than silently
+discarded.
 
-Named destinations live in the catalog name tree:
+Heading anchors use deterministic ASCII slugs derived from visible heading text.
+Duplicate headings get numeric suffixes such as `intro-2`.
+
+Named destinations are emitted under the catalog `/Names` dictionary:
 
 ```text
 /Names << /Dests << /Names [(details) [page-ref 0 R /XYZ x y null]] >> >>
 ```
 
-Internal Markdown links whose destination starts with `#` become link
-annotations with `/Dest (name)`. External links remain URI actions.
+Named destinations are sorted by destination name for deterministic output.
 
-The outline dictionary hangs from the catalog through `/Outlines`; outline items
-use direct destination arrays and linked `/First`, `/Last`, `/Prev`, and `/Next`
-relationships. The current outline tree follows Markdown heading levels.
+Outlines are emitted when headings exist. The outline root hangs from the
+catalog through `/Outlines`; outline items use `/Title`, `/Parent`, `/Dest`, and
+the sibling or child links required by their tree position. The outline tree
+follows Markdown heading levels.
 
-Visible ToC entries are not baseline features yet. The remaining intended order
-is:
+## Generated table of contents
 
-1. Table of contents generated from settled layout results.
-2. ToC link annotations that point at the existing named heading destinations.
+Generated ToC is opt in:
 
-ToC is a layout feature before it is a PDF feature. The writer should not invent
-page numbers from parser order.
+```swift
+let options = PDFOptions(tableOfContents: .enabled)
+```
+
+The ToC is a layout feature built from final heading destinations:
+
+- If the document starts with an H1, the ToC is inserted after that heading.
+- Otherwise the ToC is inserted before the first block.
+- Entries are derived from headings in source order.
+- `maximumDepth` filters heading levels from 1 through 6.
+- Entry titles use visible heading text.
+- Entry page numbers are final rendered page numbers.
+- Entry links point at existing heading named destinations.
+
+The renderer first lays out the document without a ToC to collect heading
+destinations. It then lays out with ToC entries and repeats until the ToC page
+numbers match final heading pages. The convergence guard is six passes. If page
+numbers do not converge, rendering throws
+`MarkdownPDFError.tableOfContentsDidNotConverge`.
+
+The ToC does not create its own heading destination or outline item.
+
+## Mermaid diagrams
+
+Portable Mermaid support is intentionally a subset.
+
+Supported:
+
+- `flowchart` and `graph` diagrams.
+- `TD`, `TB`, `BT`, `LR`, and `RL` directions.
+- One statement per line.
+- Node declarations with plain or quoted labels.
+- Directed edges with optional labels.
+
+Unsupported Mermaid syntax renders as a visible code-block fallback beginning
+with `Unsupported Mermaid diagram:`. The renderer does not call Node, browsers,
+shell renderers, Apple APIs, or external conversion tools.
+
+Supported Mermaid output is ordinary PDF page content: paths, rectangles,
+strokes, arrow lines, and text. It does not emit SVG, images, form XObjects, or
+platform-specific drawing commands.
 
 ## Metadata
 
-The writer emits deterministic metadata when `PDFOptions.title` is present:
+When `PDFOptions.title` is non-empty, the writer emits:
 
-- `/Info` is referenced from the trailer.
-- XMP `/Metadata` is referenced from the catalog.
-- `/Producer` is deterministic.
+- Trailer `/Info` reference.
+- `/Title` and `/Producer` in the info dictionary.
+- XMP `/Metadata` stream referenced by the catalog.
+- `/ViewerPreferences << /DisplayDocTitle true >>`.
 
-The baseline profile still does not emit `/ID`. It should be generated
-deterministically only if the validation target allows that, or generated from
-stable file content when nondeterminism is acceptable.
+`/Producer` is deterministic and currently `MarkdownPDF`.
 
-PDF/A and PDF/UA are separate profiles. They require additional constraints and
-must not be claimed by the baseline.
+The current profile does not emit document `/ID` values. It also does not claim
+PDF/A metadata, output intents, or conformance declarations.
 
 ## Validation requirements
 
-Tests for this profile should assert:
+Generated PDFs are considered acceptable only after independent witnesses check
+them. Compilation and string inspection are not enough.
 
-- Header starts with `%PDF-1.4`.
-- The file contains a classic xref table.
-- The free xref entry is object 0 generation 65535.
-- In-use xref offsets point to object headers.
-- Trailer `/Size` matches xref count.
-- Trailer `/Root` points to a catalog.
-- `startxref` points to `xref`.
-- The pages tree `/Count` matches leaf page count.
-- Every page has `/Parent`, `/MediaBox`, `/Resources`, and `/Contents`.
-- Every stream `/Length` matches emitted bytes.
-- Page resource names cover every used font and image name.
-- Base-font output does not contain `/FontFile`, `/FontFile2`, or `/FontFile3`.
-- Link annotation count and URI actions match rendered links.
+The normal witness stack is:
 
-Future tests for embedded fonts, outlines, metadata, tagged PDF, and PDF/A should
-extend this list rather than weakening it.
+1. Swift structural inspection through `PDFInspector`.
+2. `qpdf --check`.
+3. Poppler `pdfinfo`, `pdftotext`, `pdftotext -tsv`, and `pdftoppm`.
+4. MuPDF `mutool draw -F stext` and `mutool draw -F pnm`.
+5. All-page raster comparison between Poppler and MuPDF output.
+
+The witness stack must fail on:
+
+- Bad header or EOF marker.
+- Broken xref offsets.
+- Wrong trailer `/Size`.
+- Missing catalog or page tree objects.
+- Page tree `/Count` mismatches.
+- Missing page `/Parent`, `/MediaBox`, `/Resources`, or `/Contents`.
+- Stream `/Length` mismatches.
+- Undeclared font or XObject usage.
+- Missing resource objects.
+- Link annotations without URI actions or valid destinations.
+- Named destinations pointing at missing pages.
+- Outline items pointing at invalid pages.
+- Non-positive text boxes.
+- Text outside page bounds.
+- Same-line word overlap.
+- Same-word glyph overlap.
+- Vertical line collisions.
+- Blank raster output.
+- Divergent Poppler and MuPDF ink bounds.
+
+Layout-affecting changes must use representative fixtures with multiple pages,
+dense prose, inline styles, lists, tables, links, code blocks, Mermaid diagrams,
+generated ToC, long tokens, and page breaks.
+
+## CI tools
+
+Linux CI installs:
+
+- `qpdf`.
+- `poppler-utils`.
+- `mupdf-tools`.
+
+macOS CI installs:
+
+- `qpdf`.
+- `poppler`.
+- `mupdf`.
+- `font-urw-base35`.
+
+macOS CI refreshes fontconfig after installing Base35 fonts so Poppler raster
+checks can paint standard PDF base fonts.
+
+Known witness differences belong in the test layer unless generated bytes truly
+need to differ by platform. Current production rendering has no Linux-specific
+PDF byte branch.
 
 ## Deferred profile decisions
 
-The following remain explicit future profiles or feature decisions:
+The following remain future profiles or unsupported features:
 
-- PDF 1.5 or later xref streams and object streams.
+- PDF 1.5 or later object streams and xref streams.
 - Incremental update writing.
-- Linearized PDF.
-- Encryption and permissions.
+- Linearization.
+- Encryption and permission dictionaries.
 - Digital signatures.
-- Tagged PDF and PDF/UA.
-- PDF/A metadata, output intents, and conformance declarations.
-- Embedded CFF fonts and color fonts.
-- Complex-script shaping and bidirectional text layout.
-- SVG and graph vector import.
+- Tagged PDF, PDF/UA, and structure trees.
+- PDF/A output intents, metadata, and conformance declarations.
+- Embedded fonts and font subsetting.
+- `/ToUnicode` maps.
+- Complex-script shaping and bidirectional text.
+- SVG import.
+- General chart or graph rendering beyond the documented Mermaid subset.
+- Form XObjects.
+- Color management beyond device color spaces used by current content.
+- Remote image fetching.
 
-Deferring these keeps the portable writer small enough to test thoroughly on both
-Linux and macOS.
+Deferring these keeps the portable writer small enough to validate on macOS and
+Linux with the current witness stack.

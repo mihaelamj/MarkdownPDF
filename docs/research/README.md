@@ -37,7 +37,7 @@ Swift source and tests.
 | File | Purpose |
 |---|---|
 | `canonical-pdf-document-structure.md` | Canonical PDF object structure, xref, trailer, pages, resources, streams, outlines, and validation expectations. |
-| `markdownpdf-output-profile.md` | The portable output profile MarkdownPDF aims to emit and document. |
+| `markdownpdf-output-profile.md` | The current portable output profile MarkdownPDF emits and validates. |
 | `pdf-type-modeling-policy.md` | Policy for adding internal typed PDF model structures. |
 | `portable-mermaid-flowcharts.md` | Portable Mermaid flowchart subset, unsupported fallback behavior, and validation expectations. |
 | `existing-pdf-writer-alignment.md` | Alignment notes between existing writer behavior and research findings. |
