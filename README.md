@@ -1,11 +1,5 @@
 # MarkdownPDF
 
-**Project website: [tiledown.com](https://tiledown.com/)**
-
-**Follow updates on [@diyamantina](https://x.com/diyamantina).**
-
-![MarkdownPDF site preview](https://tiledown.com/assets/site-preview-dark.svg)
-
 [![Style and namespacing](https://github.com/mihaelamj/MarkdownPDF/actions/workflows/style.yml/badge.svg)](https://github.com/mihaelamj/MarkdownPDF/actions/workflows/style.yml)
 [![Swift macOS](https://github.com/mihaelamj/MarkdownPDF/actions/workflows/swift-macos.yml/badge.svg)](https://github.com/mihaelamj/MarkdownPDF/actions/workflows/swift-macos.yml)
 [![Swift Linux](https://github.com/mihaelamj/MarkdownPDF/actions/workflows/swift-linux.yml/badge.svg)](https://github.com/mihaelamj/MarkdownPDF/actions/workflows/swift-linux.yml)
