@@ -1,31 +1,110 @@
 # MarkdownPDF
 
-MarkdownPDF is a Pure Swift Markdown to PDF renderer. It parses Markdown, lays it
-out, and writes PDF bytes directly in Swift. It does not use PDFKit,
-CoreGraphics, WebKit, wkhtmltopdf, Chromium, LaTeX, or C Markdown/PDF libraries.
+MarkdownPDF is a Pure Swift Markdown to PDF renderer. It parses Markdown, lays
+the document out, and serializes PDF bytes directly in Swift.
 
-The package is designed to build on macOS and Linux. The default font set uses
-standard PDF base fonts for portable text layout without embedding font files.
-Apple system font names remain available through `PDFOptions.FontSet.appleSystem`.
+The core renderer is built for macOS and Linux. It does not use PDFKit,
+CoreGraphics, WebKit, wkhtmltopdf, Chromium, LaTeX, browser renderers,
+JavaScript, Python, shell renderers, or C Markdown/PDF libraries.
 
-## Status
+## What Works Today
 
-Early implementation. The compatibility target is CommonMark plus GitHub
-Flavored Markdown tables and images. The first renderer currently covers
-headings, paragraphs, emphasis, strong text, strike-through, inline code, links,
-local JPEG and PNG images, block quotes, ordered and unordered lists, fenced
-code blocks, thematic breaks, raw HTML as visible text, and tables.
+MarkdownPDF is early, but it already emits inspectable PDF 1.4 files with
+deterministic object order, xref offsets, trailer data, page resources, link
+annotations, text, and image XObjects.
 
-The resume and CV template is separate from the generic renderer. It lives in
-the `MarkdownPDFResume` target and emits Markdown from structured resume JSON.
-The `resumepdf` executable combines that template with the generic renderer.
+The generic renderer currently covers:
 
-The package also exposes platform entry products. `MarkdownPDFLinux` is the
-portable renderer entry point for Linux-compatible generation.
-`MarkdownPDFMac` is a macOS-only entry point reserved for a future native macOS
-backend; it currently delegates to the portable renderer.
+- Headings, paragraphs, block quotes, thematic breaks, and raw HTML as visible
+  text.
+- Emphasis, strong text, strike-through, inline code, links, and backslash
+  escapes.
+- Ordered lists, unordered lists, fenced code blocks, and GitHub-flavored tables.
+- Local JPEG and PNG images resolved relative to the input document.
+- Standard PDF base fonts by default, without embedding font files.
 
-See [docs/DESIGN.md](docs/DESIGN.md) for the architecture.
+The compatibility target is CommonMark plus GitHub Flavored Markdown tables and
+images. The generated profile is still intentionally small while the canonical
+PDF structure is being moved into typed Swift components.
+
+## Package Products
+
+| Product | Kind | Purpose |
+|---|---|---|
+| `MarkdownPDF` | Library | Portable Markdown parser, layout engine, and direct PDF byte writer. |
+| `MarkdownPDFLinux` | Library | Linux-facing entry point for the portable renderer. |
+| `MarkdownPDFMac` | Library | macOS-only entry point. It currently delegates to the portable renderer. |
+| `MarkdownPDFResume` | Library | Structured resume JSON to Markdown template. |
+| `markdownpdf` | Executable | Markdown file to PDF file command. |
+| `resumepdf` | Executable | Resume JSON file to PDF file command. |
+
+`MarkdownPDFMac` is available only when the package is built on macOS. iOS
+support is not claimed.
+
+## Quick Start
+
+Use the portable renderer directly:
+
+```swift
+import Foundation
+import MarkdownPDF
+
+let markdown = "# Hello\n\nA small PDF renderer."
+let data = try MarkdownPDFRenderer().render(markdown: markdown)
+try data.write(to: URL(fileURLWithPath: "hello.pdf"))
+```
+
+Use custom page settings:
+
+```swift
+import MarkdownPDF
+
+let options = PDFOptions(
+    pageSize: .letter,
+    margins: PDFOptions.Margins(top: 48, right: 48, bottom: 48, left: 48),
+    baseFontSize: 11,
+    fontSet: .pdfBase,
+    title: "Example",
+)
+
+let markdown = "# Letter Page\n\nCustom page settings."
+let data = try MarkdownPDFRenderer(options: options).render(markdown: markdown)
+```
+
+Use the Linux-facing product:
+
+```swift
+import MarkdownPDFLinux
+
+let markdown = "# Linux\n\nPortable PDF output."
+let data = try MarkdownPDFLinuxRenderer().render(markdown: markdown)
+```
+
+Use the macOS-facing product:
+
+```swift
+import MarkdownPDFMac
+
+let markdown = "# macOS\n\nCurrently delegates to the portable renderer."
+let data = try MarkdownPDFMacRenderer().render(markdown: markdown)
+```
+
+Run the Markdown CLI:
+
+```sh
+cd Packages
+swift run markdownpdf input.md output.pdf
+```
+
+Run the resume template CLI:
+
+```sh
+cd Packages
+swift run resumepdf input.json output.pdf
+```
+
+See [docs/RESUME_TEMPLATE.md](docs/RESUME_TEMPLATE.md) for the resume JSON
+shape and journal inputs behind it.
 
 ## Canonical PDF roadmap
 
@@ -54,50 +133,22 @@ flowchart TD
     class P4,P5,P6,P7 todo;
 ```
 
-## Use
+## Validation
 
-```swift
-import MarkdownPDF
+The test suite validates generated PDFs in three ways:
 
-let markdown = "# Hello\n\nA small PDF renderer."
-let data = try MarkdownPDFRenderer().render(markdown: markdown)
-try data.write(to: URL(fileURLWithPath: "hello.pdf"))
-```
+- Swift structural inspection checks object references, xref offsets, stream
+  lengths, page resources, annotations, fonts, images, and canonical page
+  structure.
+- `qpdf --check` validates syntax, xref, trailer, and stream-level structure.
+- Poppler tools inspect real reader behavior through `pdfinfo`, `pdftotext`, and
+  `pdftoppm`.
 
-Portable Linux-facing product:
+See [docs/research/pdf-validation-tooling.md](docs/research/pdf-validation-tooling.md)
+and [docs/research/pdf-visual-layout-validation.md](docs/research/pdf-visual-layout-validation.md)
+for the validation rationale.
 
-```swift
-import MarkdownPDFLinux
-
-let data = try MarkdownPDFLinuxRenderer().render(markdown: markdown)
-```
-
-macOS-facing product:
-
-```swift
-import MarkdownPDFMac
-
-let data = try MarkdownPDFMacRenderer().render(markdown: markdown)
-```
-
-Command line:
-
-```sh
-cd Packages
-swift run markdownpdf input.md output.pdf
-```
-
-Resume template command line:
-
-```sh
-cd Packages
-swift run resumepdf input.json output.pdf
-```
-
-See [docs/RESUME_TEMPLATE.md](docs/RESUME_TEMPLATE.md) for the template and
-journal inputs behind it.
-
-## Build
+## Build and Test
 
 ```sh
 cd Packages
@@ -105,14 +156,53 @@ swift build
 swift test
 ```
 
-## Design constraints
+The same package is expected to build on macOS and Linux. GitHub CI runs style,
+macOS Swift, and Linux Swift checks.
+
+Useful local checks from the repository root:
+
+```sh
+./scripts/check-style.sh
+swiftformat . --config .swiftformat --lint
+swiftlint --config .swiftlint.yml
+```
+
+## Documentation
+
+- [docs/DESIGN.md](docs/DESIGN.md): implementation architecture.
+- [docs/CONVENTIONS.md](docs/CONVENTIONS.md): project conventions.
+- [docs/RESUME_TEMPLATE.md](docs/RESUME_TEMPLATE.md): resume JSON and template
+  behavior.
+- [docs/research/README.md](docs/research/README.md): research map.
+- [docs/research/canonical-pdf-document-structure.md](docs/research/canonical-pdf-document-structure.md):
+  canonical PDF structure notes.
+- [docs/research/markdownpdf-output-profile.md](docs/research/markdownpdf-output-profile.md):
+  target output profile.
+
+## Platform Boundaries
+
+- Portable behavior means macOS and Linux.
+- `MarkdownPDFMac` is a macOS target hook, not a separate backend yet.
+- iOS support is not implemented or tested.
+- Apple system font names remain available through
+  `PDFOptions.FontSet.appleSystem`, but the public repo does not embed font
+  files.
+- Research source snapshots, when present, are evidence only. They are not
+  package dependencies. See
+  [docs/research/source-snapshot-policy.md](docs/research/source-snapshot-policy.md).
+
+## Design Constraints
 
 - Pure Swift source.
-- No runtime shell-out to another renderer.
-- No font embedding in the public repo.
+- Direct PDF byte generation.
+- No runtime shell-out to another renderer or validator during rendering.
+- No PDFKit, CoreGraphics, WebKit, browser renderers, LaTeX, JavaScript, Python,
+  shell renderers, or C Markdown/PDF libraries in implementation.
+- No embedded font files in the public repo.
 - Standard PDF base fonts by default, with Apple system font names available
   through `PDFOptions.FontSet.appleSystem`.
 - Linux generation support through Foundation and byte-level PDF serialization.
+- Small, testable public API.
 
 ## License
 
