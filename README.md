@@ -2,6 +2,8 @@
 
 **Project website: [tiledown.com](https://tiledown.com/)**
 
+**Follow updates on [@diyamantina](https://x.com/diyamantina).**
+
 ![MarkdownPDF site preview](https://tiledown.com/assets/site-preview-dark.svg)
 
 [![Style and namespacing](https://github.com/mihaelamj/MarkdownPDF/actions/workflows/style.yml/badge.svg)](https://github.com/mihaelamj/MarkdownPDF/actions/workflows/style.yml)
