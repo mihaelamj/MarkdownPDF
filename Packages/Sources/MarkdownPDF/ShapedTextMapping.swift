@@ -8,6 +8,7 @@ struct ShapedTextMapping: Equatable {
         case incompleteSourceCoverage(lastUpperBound: Int, sourceScalarCount: Int)
         case emptyNormalizedText(sourceRange: Range<Int>)
         case emptyToUnicodeSequence(sourceRange: Range<Int>)
+        case toUnicodeSequenceMismatch(sourceRange: Range<Int>, expected: String, actual: String)
         case emptyGlyphs(sourceRange: Range<Int>)
         case invalidGlyphAdvance(sourceRange: Range<Int>, glyphID: UInt16, advance: Double)
         case invalidGlyphOffset(sourceRange: Range<Int>, glyphID: UInt16, x: Double, y: Double)
@@ -26,6 +27,8 @@ struct ShapedTextMapping: Equatable {
                 "Shaped cluster \(sourceRange) has empty normalized text."
             case let .emptyToUnicodeSequence(sourceRange):
                 "Shaped cluster \(sourceRange) has no ToUnicode scalar sequence."
+            case let .toUnicodeSequenceMismatch(sourceRange, expected, actual):
+                "Shaped cluster \(sourceRange) maps ToUnicode text \(actual) instead of source text \(expected)."
             case let .emptyGlyphs(sourceRange):
                 "Shaped cluster \(sourceRange) emits no glyphs."
             case let .invalidGlyphAdvance(sourceRange, glyphID, advance):
@@ -45,6 +48,8 @@ struct ShapedTextMapping: Equatable {
                 "Store the normalized cluster text that was used for shaping."
             case .emptyToUnicodeSequence:
                 "Keep the source-faithful Unicode scalar sequence needed for extraction."
+            case .toUnicodeSequenceMismatch:
+                "Use the exact source scalars covered by the cluster as the ToUnicode sequence."
             case .emptyGlyphs:
                 "Keep unsupported inputs out of PDF emission until a visible fallback or typed error policy is chosen."
             case .invalidGlyphAdvance:
@@ -166,7 +171,8 @@ struct ShapedTextMapping: Equatable {
     }
 
     private static func validate(sourceText: String, clusters: [Cluster]) throws {
-        let sourceScalarCount = sourceText.unicodeScalars.count
+        let sourceScalars = Array(sourceText.unicodeScalars)
+        let sourceScalarCount = sourceScalars.count
         var previousUpperBound = 0
         for cluster in clusters {
             try validateSourceRange(cluster.sourceScalarRange, sourceScalarCount: sourceScalarCount)
@@ -177,7 +183,7 @@ struct ShapedTextMapping: Equatable {
                 )
             }
             previousUpperBound = cluster.sourceScalarRange.upperBound
-            try validatePayload(cluster)
+            try validatePayload(cluster, sourceScalars: sourceScalars)
         }
         guard previousUpperBound == sourceScalarCount else {
             throw ValidationError.incompleteSourceCoverage(
@@ -200,7 +206,7 @@ struct ShapedTextMapping: Equatable {
         }
     }
 
-    private static func validatePayload(_ cluster: Cluster) throws {
+    private static func validatePayload(_ cluster: Cluster, sourceScalars: [UnicodeScalar]) throws {
         guard !cluster.normalizedText.isEmpty else {
             throw ValidationError.emptyNormalizedText(sourceRange: cluster.sourceScalarRange)
         }
@@ -209,6 +215,14 @@ struct ShapedTextMapping: Equatable {
         }
         guard !cluster.glyphs.isEmpty else {
             throw ValidationError.emptyGlyphs(sourceRange: cluster.sourceScalarRange)
+        }
+        let expectedToUnicodeScalars = Array(sourceScalars[cluster.sourceScalarRange])
+        guard cluster.toUnicodeScalars == expectedToUnicodeScalars else {
+            throw ValidationError.toUnicodeSequenceMismatch(
+                sourceRange: cluster.sourceScalarRange,
+                expected: unicodeText(expectedToUnicodeScalars),
+                actual: unicodeText(cluster.toUnicodeScalars),
+            )
         }
         for glyph in cluster.glyphs {
             guard glyph.advance.isFinite, glyph.advance >= 0 else {
@@ -227,6 +241,10 @@ struct ShapedTextMapping: Equatable {
                 )
             }
         }
+    }
+
+    private static func unicodeText(_ scalars: [UnicodeScalar]) -> String {
+        String(String.UnicodeScalarView(scalars))
     }
 }
 

@@ -67,6 +67,26 @@ struct ShapedTextMappingTests {
         #expect(mapping.totalAdvance == 10.5)
     }
 
+    @Test("Keeps source ToUnicode separate from normalized shaping text")
+    func keepsSourceToUnicodeSeparateFromNormalizedShapingText() throws {
+        let mapping = try ShapedTextMapping(
+            sourceText: "e\u{0301}",
+            clusters: [
+                ShapedTextMapping.Cluster(
+                    sourceScalarRange: 0 ..< 2,
+                    normalizedText: "\u{00E9}",
+                    glyphs: [glyph(glyphID: 30, pdfCharacterCode: 30, advance: 6)],
+                    toUnicodeScalars: ["e", "\u{0301}"],
+                ),
+            ],
+        )
+
+        #expect(mapping.sourceScalarCount == 2)
+        #expect(mapping.clusters[0].normalizedText == "\u{00E9}")
+        #expect(mapping.clusters[0].toUnicodeText == "e\u{0301}")
+        #expect(mapping.toUnicodeText == mapping.sourceText)
+    }
+
     @Test("Builds one-to-one clusters from TrueType glyph mappings")
     func buildsOneToOneClustersFromTrueTypeGlyphMappings() throws {
         let fontData = SyntheticTrueTypeFont.data()
@@ -105,6 +125,74 @@ struct ShapedTextMappingTests {
             #expect(error.recoverySuggestion != nil)
         } catch {
             Issue.record("Expected ShapedTextMapping.ValidationError, got \(error)")
+        }
+    }
+
+    @Test("Rejects ToUnicode sequences that do not match the source range")
+    func rejectsToUnicodeSequencesThatDoNotMatchTheSourceRange() {
+        expectValidationError(
+            .toUnicodeSequenceMismatch(sourceRange: 0 ..< 2, expected: "AB", actual: "A"),
+        ) {
+            _ = try ShapedTextMapping(
+                sourceText: "AB",
+                clusters: [
+                    cluster(
+                        sourceScalarRange: 0 ..< 2,
+                        normalizedText: "AB",
+                        toUnicodeScalars: ["A"],
+                    ),
+                ],
+            )
+        }
+    }
+
+    @Test("Rejects empty normalized cluster text")
+    func rejectsEmptyNormalizedClusterText() {
+        expectValidationError(.emptyNormalizedText(sourceRange: 0 ..< 1)) {
+            _ = try ShapedTextMapping(
+                sourceText: "A",
+                clusters: [cluster(normalizedText: "")],
+            )
+        }
+    }
+
+    @Test("Rejects empty ToUnicode sequences")
+    func rejectsEmptyToUnicodeSequences() {
+        expectValidationError(.emptyToUnicodeSequence(sourceRange: 0 ..< 1)) {
+            _ = try ShapedTextMapping(
+                sourceText: "A",
+                clusters: [cluster(toUnicodeScalars: [])],
+            )
+        }
+    }
+
+    @Test("Rejects empty glyph clusters")
+    func rejectsEmptyGlyphClusters() {
+        expectValidationError(.emptyGlyphs(sourceRange: 0 ..< 1)) {
+            _ = try ShapedTextMapping(
+                sourceText: "A",
+                clusters: [cluster(glyphs: [])],
+            )
+        }
+    }
+
+    @Test("Rejects invalid glyph advances")
+    func rejectsInvalidGlyphAdvances() {
+        expectValidationError(.invalidGlyphAdvance(sourceRange: 0 ..< 1, glyphID: 1, advance: .infinity)) {
+            _ = try ShapedTextMapping(
+                sourceText: "A",
+                clusters: [cluster(glyphs: [glyph(advance: .infinity)])],
+            )
+        }
+    }
+
+    @Test("Rejects invalid glyph offsets")
+    func rejectsInvalidGlyphOffsets() {
+        expectValidationError(.invalidGlyphOffset(sourceRange: 0 ..< 1, glyphID: 1, x: .infinity, y: 0)) {
+            _ = try ShapedTextMapping(
+                sourceText: "A",
+                clusters: [cluster(glyphs: [glyph(offset: ShapedTextMapping.Offset(x: .infinity, y: 0))])],
+            )
         }
     }
 
@@ -179,6 +267,20 @@ struct ShapedTextMappingTests {
         )
     }
 
+    private func cluster(
+        sourceScalarRange: Range<Int> = 0 ..< 1,
+        normalizedText: String = "A",
+        glyphs: [ShapedTextMapping.Glyph]? = nil,
+        toUnicodeScalars: [UnicodeScalar] = ["A"],
+    ) -> ShapedTextMapping.Cluster {
+        ShapedTextMapping.Cluster(
+            sourceScalarRange: sourceScalarRange,
+            normalizedText: normalizedText,
+            glyphs: glyphs ?? [glyph()],
+            toUnicodeScalars: toUnicodeScalars,
+        )
+    }
+
     private func trueTypeGlyph(
         scalar: UnicodeScalar,
         glyphID: UInt16 = 1,
@@ -192,5 +294,21 @@ struct ShapedTextMappingTests {
             advanceWidth: 500,
             width: 6,
         )
+    }
+
+    private func expectValidationError(
+        _ expected: ShapedTextMapping.ValidationError,
+        building: () throws -> Void,
+    ) {
+        do {
+            try building()
+            Issue.record("Expected shaped text validation error \(expected)")
+        } catch let error as ShapedTextMapping.ValidationError {
+            #expect(error == expected)
+            #expect(error.errorDescription != nil)
+            #expect(error.recoverySuggestion != nil)
+        } catch {
+            Issue.record("Expected ShapedTextMapping.ValidationError, got \(error)")
+        }
     }
 }
