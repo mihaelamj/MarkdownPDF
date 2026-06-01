@@ -164,6 +164,39 @@ struct FixtureTests {
         #expect(!extractedText.contains("Source[Hard input]"))
     }
 
+    @Test("A4 manuscript fixture covers manuscript-scale portable Markdown")
+    func a4ManuscriptFixtureCoversManuscriptScalePortableMarkdown() throws {
+        let data = try renderArticleFixture(named: "a4-manuscript.md")
+        let inspector = PDFInspector(data)
+        let infoResult = try PDFValidation.pdfinfo(data: data, name: "a4-manuscript-features")
+        try #require(infoResult.exitCode == 0, "pdfinfo failed for A4 manuscript fixture:\n\(infoResult.output)")
+        let info = PDFValidation.parsedInfo(from: infoResult)
+        let textResult = try PDFValidation.pdftotext(data: data, name: "a4-manuscript-features")
+        try #require(textResult.exitCode == 0, "pdftotext failed for A4 manuscript fixture:\n\(textResult.output)")
+        let extractedText = textResult.output
+        let normalizedText = normalizedExtractedText(extractedText)
+
+        #expect(inspector.pageCount >= 5)
+        #expect(info["Page size"]?.contains("595.28 x 841.89 pts") == true)
+        #expect(inspector.linkAnnotationCount >= 3)
+        #expect(inspector.text.contains("/Names << /Dests"))
+        #expect(inspector.text.contains("/Subtype /Image"))
+        #expect(inspector.text.contains("/Width 96"))
+        #expect(inspector.text.contains("/Height 48"))
+        #expect(inspector.text.contains("/FlateDecode"))
+        #expect(extractedText.contains("Table of Contents"))
+        #expect(normalizedText.contains("Portable A4 Manuscript Fixture"))
+        #expect(normalizedText.contains("A4 local chart"))
+        #expect(extractedText.contains("[Remote image: Remote A4 figure]"))
+        #expect(normalizedText.contains("Manuscript source"))
+        #expect(normalizedText.contains("Open witnesses"))
+        #expect(extractedText.contains("Unsupported Mermaid diagram"))
+        #expect(extractedText.contains("Unsupported A4 manuscript chart"))
+        #expect(normalizedText.contains("A4 Manuscript Exit Marker"))
+        #expect(!extractedText.contains("Manuscript[Manuscript source]"))
+        #expect(!extractedText.contains("Writer[PDF writer]"))
+    }
+
     @Test("Scientific article fixture covers links, image fallback, and Mermaid")
     func scientificArticleFixtureCoversLinksImageFallbackAndMermaid() throws {
         let data = try MarkdownPDFRenderer().render(markdown: fixture(named: "scientific-article.md"))
@@ -224,11 +257,21 @@ struct FixtureTests {
             )
         }
 
+        if fixtureName == "a4-manuscript.md" {
+            return PDFOptions(
+                pageSize: .a4,
+                margins: PDFOptions.Margins(top: 56, right: 54, bottom: 56, left: 54),
+                baseFontSize: 11,
+                title: "Portable A4 Manuscript Fixture",
+                tableOfContents: .enabled,
+            )
+        }
+
         return PDFOptions()
     }
 
     private func articleFixtureAssetsBaseURL(for fixtureName: String) throws -> URL? {
-        if ["article-grade-stress.md", "hard-markdown-corpus.md"].contains(fixtureName) {
+        if ["article-grade-stress.md", "hard-markdown-corpus.md", "a4-manuscript.md"].contains(fixtureName) {
             return try TestImageAssets.directoryWithChartPNG()
         }
 
@@ -243,6 +286,7 @@ struct FixtureTests {
         [
             "article-grade-stress.md",
             "hard-markdown-corpus.md",
+            "a4-manuscript.md",
             "scientific-article.md",
             "technical-report.md",
         ]
@@ -254,6 +298,8 @@ struct FixtureTests {
             "Portable Article Stress Corpus"
         case "hard-markdown-corpus.md":
             "Portable Hard Markdown Corpus"
+        case "a4-manuscript.md":
+            "Portable A4 Manuscript Fixture"
         case "scientific-article.md":
             "Reproducible Layout Measurements"
         case "technical-report.md":
@@ -267,6 +313,8 @@ struct FixtureTests {
         switch fixtureName {
         case "article-grade-stress.md", "hard-markdown-corpus.md":
             6
+        case "a4-manuscript.md":
+            5
         default:
             1
         }
