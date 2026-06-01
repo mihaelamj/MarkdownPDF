@@ -160,13 +160,20 @@ struct PDFDocumentWriter {
 
         mutating func addEmbeddedFont(_ usage: PDFEmbeddedFontUsage) throws -> PDFPageResources.Entry {
             let resource = usage.resource
-            let fontFileRef = addData(PDFFontFile2Stream(fontProgram: resource.fontProgram).pdfStream.serialized)
+            let widths = try cidFontWidths(for: usage)
+            let subset = try TrueTypeFontSubsetter(
+                data: resource.fontProgram,
+                metadata: resource.metadata,
+            ).subset(glyphs: usage.glyphs)
+            let fontFileRef = addData(PDFFontFile2Stream(fontProgram: subset.fontProgram).pdfStream.serialized)
             let descriptorRef = addDictionary(embeddedFontDescriptor(resource, fontFile: fontFileRef).pdfDictionary)
-            let descendantRef = try addDictionary(
+            let cidToGIDMap = addCIDToGIDMap(subset.cidToGIDMap)
+            let descendantRef = addDictionary(
                 PDFCIDFontType2Object(
                     baseName: resource.baseName,
                     fontDescriptor: descriptorRef,
-                    widths: cidFontWidths(for: usage),
+                    widths: widths,
+                    cidToGIDMap: cidToGIDMap,
                 ).pdfDictionary,
             )
             let toUnicodeRef = try addData(
@@ -184,6 +191,17 @@ struct PDFDocumentWriter {
                 ).pdfDictionary,
             )
             return PDFPageResources.Entry(name: resource.resourceName, objectRef: fontRef)
+        }
+
+        mutating func addCIDToGIDMap(
+            _ cidToGIDMap: TrueTypeFontSubsetter.CIDToGIDMap,
+        ) -> PDFCIDFontType2Object.CIDToGIDMap {
+            switch cidToGIDMap {
+            case .identity:
+                .identity
+            case let .stream(data):
+                .stream(addStream(dictionary: PDFSyntax.Dictionary(), data: data))
+            }
         }
 
         mutating func addStream(dictionary: PDFSyntax.Dictionary, data: Data) -> PDFSyntax.Reference {
