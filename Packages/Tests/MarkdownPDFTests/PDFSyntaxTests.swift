@@ -14,8 +14,26 @@ struct PDFSyntaxTests {
     @Test("Escapes PDF literal strings")
     func escapesPDFLiteralStrings() {
         #expect(PDFSyntax.LiteralString(#"a(b)\"# + "\n").serialized == #"(a\(b\)\\\n)"#)
-        #expect(PDFSyntax.LiteralString("\u{00A0}").serialized == #"(\240)"#)
+        #expect(PDFSyntax.LiteralString("\u{00A0}").serialized == "(?)")
         #expect(PDFSyntax.LiteralString("č").serialized == "(?)")
+    }
+
+    @Test("Portable text encoding replaces unsupported Unicode scalars")
+    func portableTextEncodingReplacesUnsupportedUnicodeScalars() {
+        let text = "Caf\u{00E9} ni\u{00F1}o NBSP\u{00A0}done \u{201C}quoted\u{201D} \u{20AC} \u{010D} \u{03C0} \u{1F680}"
+
+        #expect(PDFTextEncoding.portableText(for: text) == "Caf? ni?o NBSP?done ?quoted? ? ? ? ?")
+        #expect(PDFSyntax.LiteralString(text).serialized == "(Caf? ni?o NBSP?done ?quoted? ? ? ? ?)")
+    }
+
+    @Test("Text runs measure the same replacement glyphs they emit")
+    func textRunsMeasureSameReplacementGlyphsTheyEmit() {
+        let text = "Caf\u{00E9} \u{03C0} \u{1F680}"
+        let run = PDFTextRun(text: text, font: .helvetica, size: 10)
+        let replacementRun = PDFTextRun(text: "Caf? ? ?", font: .helvetica, size: 10)
+
+        #expect(run.text == "Caf? ? ?")
+        #expect(run.width(fontSet: .pdfBase) == replacementRun.width(fontSet: .pdfBase))
     }
 
     @Test("Serializes dictionaries, arrays, references, and nulls")

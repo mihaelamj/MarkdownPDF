@@ -270,6 +270,10 @@ swiftlint --config .swiftlint.yml
 - Portable behavior means macOS and Linux.
 - `MarkdownPDFMac` is a macOS target hook, not a separate backend yet.
 - iOS support is not implemented or tested.
+- The default portable text profile emits printable ASCII. Unsupported Unicode
+  scalars, including Latin-1 letters, Windows-1252 punctuation, emoji, complex
+  scripts, combining marks, and bidirectional text, render as `?` until a
+  separate embedded-font and `/ToUnicode` profile exists.
 - Apple system font names remain available through
   `PDFOptions.FontSet.appleSystem`, but the public repo does not embed font
   files.
