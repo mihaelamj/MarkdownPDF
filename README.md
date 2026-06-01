@@ -247,8 +247,8 @@ flowchart TD
     E2["Phase 2<br/>#66 Glyph mapping and widths<br/>Done"]
     E3["Phase 3<br/>#67 ToUnicode CMaps<br/>Done"]
     E4["Phase 4<br/>#68 CID text writer witnesses<br/>Done"]
-    E5["Phase 5<br/>#69 TrueType subsetting<br/>Review and CI"]
-    E6["Phase 6<br/>#70 Public API and CI font policy<br/>Planned"]
+    E5["Phase 5<br/>#69 TrueType subsetting<br/>Done"]
+    E6["Phase 6<br/>#70 Public API and CI font policy<br/>In progress"]
     E7["Phase 7<br/>#71 Complex-script follow-up epic<br/>Planned"]
 
     E0 --> E1 --> E2 --> E3 --> E4 --> E5 --> E6 --> E7
@@ -258,9 +258,9 @@ flowchart TD
     classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
     classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
-    class E0,E1,E2,E3,E4 done;
-    class E5 review;
-    class E6,E7 todo;
+    class E0,E1,E2,E3,E4,E5 done;
+    class E6 active;
+    class E7 todo;
 ```
 
 ## Build and Test
