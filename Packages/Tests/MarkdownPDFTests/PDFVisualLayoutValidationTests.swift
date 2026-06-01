@@ -259,6 +259,115 @@ struct PDFVisualLayoutValidationTests {
         )
     }
 
+    @Test("Oversized blocks split or scale inside page bounds")
+    func oversizedBlocksSplitOrScaleInsidePageBounds() throws {
+        let code = (1 ... 18)
+            .map { "code_line_\($0) = \"portable overflow policy keeps this line on page\"" }
+            .joined(separator: "\n")
+        let tablePayload = (1 ... 54)
+            .map { "cell\($0)" }
+            .joined(separator: " ")
+        let mermaidEdges = (1 ... 10)
+            .map { "N\($0)[Node \($0)] --> N\($0 + 1)[Node \($0 + 1)]" }
+            .joined(separator: "\n")
+        let markdown = """
+        ![Tall local chart](tall-chart.png)
+
+        # Oversized Blocks
+
+        | Kind | Payload |
+        |---|---|
+        | Tall row | \(tablePayload) |
+
+        ```mermaid
+        flowchart TD
+        \(mermaidEdges)
+        ```
+
+        ```text
+        \(code)
+        ```
+        """
+        let assetsBaseURL = try TestImageAssets.directoryWithChartPNG(
+            named: "tall-chart.png",
+            width: 640,
+            height: 1600,
+        )
+        let data = try MarkdownPDFRenderer(
+            options: PDFOptions(
+                pageSize: PDFOptions.PageSize(width: 260, height: 220),
+                margins: PDFOptions.Margins(top: 70, right: 22, bottom: 70, left: 22),
+                baseFontSize: 9,
+            ),
+        ).render(markdown: markdown, assetsBaseURL: assetsBaseURL)
+        let url = try PDFValidation.temporaryPDF(name: "oversized-blocks", data: data)
+        let inspector = PDFInspector(data)
+        let pageCount = inspector.pageCount
+
+        #expect(pageCount >= 6)
+        #expect(inspector.streams.contains { $0.body.contains("32 0 0 80 22 70 cm") })
+        try PDFValidation.writeArtifact(data, name: "oversized-blocks.pdf")
+
+        let qpdf = try PDFValidation.qpdfCheck(url: url)
+        try #require(qpdf.exitCode == 0, "qpdf --check failed:\n\(qpdf.output)")
+
+        let textResult = try PDFValidation.pdftotext(url: url)
+        try #require(textResult.exitCode == 0, "pdftotext failed:\n\(textResult.output)")
+        try PDFValidation.writeTextArtifact(textResult.output, name: "oversized-blocks/text.txt")
+        #expect(textResult.output.contains("Tall row"))
+        #expect(textResult.output.contains("Unsupported Mermaid diagram"))
+        #expect(textResult.output.contains("code_line_18"))
+
+        let tsvResult = try PDFValidation.pdftotextTSV(url: url)
+        try #require(tsvResult.exitCode == 0, "pdftotext -tsv failed:\n\(tsvResult.output)")
+        try PDFValidation.writeTextArtifact(tsvResult.output, name: "oversized-blocks/poppler.tsv")
+        let popplerLayout = try PopplerTextLayout(tsv: tsvResult.output)
+        let popplerIssues = popplerLayout.visualLayoutIssues()
+        #expect(
+            popplerIssues.isEmpty,
+            "Oversized block Poppler layout issues:\n\(popplerIssues.joined(separator: "\n"))",
+        )
+
+        let structuredText = try PDFValidation.mutoolStructuredText(url: url)
+        try #require(structuredText.exitCode == 0, "mutool structured text failed:\n\(structuredText.output)")
+        try PDFValidation.writeTextArtifact(structuredText.output, name: "oversized-blocks/mupdf-stext.xml")
+        let mupdfLayout = try MuPDFStructuredText(xml: structuredText.output)
+        let mupdfIssues = mupdfLayout.characterQuadIssues()
+        #expect(
+            mupdfIssues.isEmpty,
+            "Oversized block MuPDF layout issues:\n\(mupdfIssues.joined(separator: "\n"))",
+        )
+
+        let poppler = try PDFValidation.pdftoppmPNMs(url: url, pageCount: pageCount)
+        let mupdf = try PDFValidation.mutoolPNMs(url: url, pageCount: pageCount)
+        try #require(poppler.result.exitCode == 0, "pdftoppm PNM failed:\n\(poppler.result.output)")
+        try #require(mupdf.result.exitCode == 0, "mutool PNM failed:\n\(mupdf.result.output)")
+        try PDFValidation.writeTextArtifact(poppler.result.output, name: "oversized-blocks/poppler-render.log")
+        try PDFValidation.writeTextArtifact(mupdf.result.output, name: "oversized-blocks/mupdf-render.log")
+
+        var rasterIssues: [String] = []
+        for page in 1 ... pageCount {
+            let popplerImage = try PNMImage(data: Data(contentsOf: poppler.pnmURLs[page - 1]))
+            let mupdfImage = try PNMImage(data: Data(contentsOf: mupdf.pnmURLs[page - 1]))
+            try PDFValidation.copyArtifact(
+                from: poppler.pnmURLs[page - 1],
+                name: "oversized-blocks-pages/poppler/page-\(page).ppm",
+            )
+            try PDFValidation.copyArtifact(
+                from: mupdf.pnmURLs[page - 1],
+                name: "oversized-blocks-pages/mupdf/page-\(page).pnm",
+            )
+            rasterIssues += rasterComparisonIssues(poppler: popplerImage, mupdf: mupdfImage).map {
+                "page \(page): \($0)"
+            }
+        }
+
+        #expect(
+            rasterIssues.isEmpty,
+            "Oversized block raster output diverged:\n\(rasterIssues.joined(separator: "\n"))",
+        )
+    }
+
     @Test("Visual layout validator rejects overlapping words")
     func visualLayoutValidatorRejectsOverlappingWords() throws {
         let layout = try PopplerTextLayout(tsv: """
@@ -527,6 +636,15 @@ struct PDFVisualLayoutValidationTests {
 
     text-encoding-pages/
     Poppler and MuPDF page rasters for the text encoding fixture.
+
+    oversized-blocks.pdf
+    PDF proving oversized block split, fallback, and image scaling policies.
+
+    oversized-blocks/
+    Text, geometry, structured text, and render logs for the oversized blocks fixture.
+
+    oversized-blocks-pages/
+    Poppler and MuPDF page rasters for the oversized blocks fixture.
     """
 
     private func rasterComparisonIssues(poppler: PNMImage, mupdf: PNMImage) -> [String] {

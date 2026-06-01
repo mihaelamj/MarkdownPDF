@@ -329,6 +329,7 @@ private struct Layout {
     private mutating func renderCodeBlock(_ code: String) {
         let size = options.baseFontSize * 0.9
         let lineHeight = size * 1.4
+        let verticalPadding = 12.0
         let lines = code
             .split(separator: "\n", omittingEmptySubsequences: false)
             .map { line in
@@ -338,23 +339,26 @@ private struct Layout {
                 )
             }
             .flatMap(\.self)
-        let height = max(lineHeight, Double(lines.count) * lineHeight) + 12
-        ensureSpace(height)
+        let drawableLines = lines.isEmpty ? [[]] : lines
+        var lineOffset = 0
 
-        currentPage.drawRectangle(
-            x: options.margins.left - 4,
-            y: y - height + 4,
-            width: contentWidth + 8,
-            height: height,
-            stroke: nil,
-            fill: PDFColor(red: 0.95, green: 0.95, blue: 0.95),
-        )
-
-        for line in lines {
-            drawRuns(line, x: options.margins.left, y: y - size)
-            y -= lineHeight
+        while lineOffset < drawableLines.count {
+            ensureSpace(lineHeight + verticalPadding)
+            let lineCount = min(
+                drawableLines.count - lineOffset,
+                codeBlockLineCapacity(lineHeight: lineHeight, verticalPadding: verticalPadding),
+            )
+            renderCodeBlockFragment(
+                Array(drawableLines[lineOffset ..< lineOffset + lineCount]),
+                size: size,
+                lineHeight: lineHeight,
+                verticalPadding: verticalPadding,
+            )
+            lineOffset += lineCount
+            if lineOffset < drawableLines.count {
+                startNewPage()
+            }
         }
-        y -= 12
     }
 
     private func isMermaidCodeBlock(_ info: String?) -> Bool {
@@ -732,38 +736,30 @@ private struct Layout {
             )
         }
         let maxLines = max(1, cellLines.map(\.count).max() ?? 1)
-        let rowHeight = Double(maxLines) * lineHeight + cellPadding * 2
-        ensureSpace(rowHeight)
+        var lineOffset = 0
 
-        let rowBottom = y - rowHeight
-        for column in 0 ..< cells.count {
-            let x = options.margins.left + Double(column) * columnWidth
-            currentPage.drawRectangle(
-                x: x,
-                y: rowBottom,
-                width: columnWidth,
-                height: rowHeight,
-                stroke: .gray,
-                fill: header ? PDFColor(red: 0.93, green: 0.93, blue: 0.93) : nil,
+        while lineOffset < maxLines {
+            ensureSpace(lineHeight + cellPadding * 2)
+            let lineCount = min(
+                maxLines - lineOffset,
+                tableRowLineCapacity(lineHeight: lineHeight, cellPadding: cellPadding),
             )
-
-            var lineY = y - cellPadding - fontSize
-            for line in cellLines[column] {
-                let width = line.reduce(0) { $0 + $1.width(fontSet: options.fontSet) }
-                let alignment = column < alignments.count ? alignments[column] : .leading
-                let textX = switch alignment {
-                case .leading:
-                    x + cellPadding
-                case .center:
-                    x + (columnWidth - width) / 2
-                case .trailing:
-                    x + columnWidth - cellPadding - width
-                }
-                drawRuns(line, x: textX, y: lineY)
-                lineY -= lineHeight
+            renderTableRowFragment(
+                cellLines: cellLines,
+                alignments: alignments,
+                columnWidth: columnWidth,
+                cellPadding: cellPadding,
+                fontSize: fontSize,
+                lineHeight: lineHeight,
+                header: header,
+                lineOffset: lineOffset,
+                lineCount: lineCount,
+            )
+            lineOffset += lineCount
+            if lineOffset < maxLines {
+                startNewPage()
             }
         }
-        y = rowBottom
     }
 
     private mutating func renderStandaloneImage(_ content: [MarkdownInline]) throws -> Bool {
@@ -786,7 +782,7 @@ private struct Layout {
         let image = try loadImage(source: source)
 
         let maxWidth = contentWidth
-        let maxHeight = options.pageSize.height * 0.45
+        let maxHeight = max(1, min(contentHeight, options.pageSize.height * 0.45))
         let widthScale = maxWidth / Double(image.width)
         let heightScale = maxHeight / Double(image.height)
         let scale = min(1, widthScale, heightScale)
@@ -900,6 +896,88 @@ private struct Layout {
         }
     }
 
+    private mutating func renderCodeBlockFragment(
+        _ lines: [[PDFTextRun]],
+        size: Double,
+        lineHeight: Double,
+        verticalPadding: Double,
+    ) {
+        let height = Double(lines.count) * lineHeight + verticalPadding
+        currentPage.drawRectangle(
+            x: options.margins.left - 4,
+            y: y - height + 4,
+            width: contentWidth + 8,
+            height: height,
+            stroke: nil,
+            fill: PDFColor(red: 0.95, green: 0.95, blue: 0.95),
+        )
+
+        for line in lines {
+            drawRuns(line, x: options.margins.left, y: y - size)
+            y -= lineHeight
+        }
+        y -= verticalPadding
+    }
+
+    private func codeBlockLineCapacity(
+        lineHeight: Double,
+        verticalPadding: Double,
+    ) -> Int {
+        max(1, Int(floor((availablePageHeight - verticalPadding) / lineHeight)))
+    }
+
+    private mutating func renderTableRowFragment(
+        cellLines: [[[PDFTextRun]]],
+        alignments: [MarkdownBlock.Alignment],
+        columnWidth: Double,
+        cellPadding: Double,
+        fontSize: Double,
+        lineHeight: Double,
+        header: Bool,
+        lineOffset: Int,
+        lineCount: Int,
+    ) {
+        let rowHeight = Double(lineCount) * lineHeight + cellPadding * 2
+        let rowBottom = y - rowHeight
+
+        for column in 0 ..< cellLines.count {
+            let x = options.margins.left + Double(column) * columnWidth
+            currentPage.drawRectangle(
+                x: x,
+                y: rowBottom,
+                width: columnWidth,
+                height: rowHeight,
+                stroke: .gray,
+                fill: header ? PDFColor(red: 0.93, green: 0.93, blue: 0.93) : nil,
+            )
+
+            let visibleLines = cellLines[column].dropFirst(lineOffset).prefix(lineCount)
+            var lineY = y - cellPadding - fontSize
+            for line in visibleLines {
+                let width = line.reduce(0) { $0 + $1.width(fontSet: options.fontSet) }
+                let alignment = column < alignments.count ? alignments[column] : .leading
+                let textX = switch alignment {
+                case .leading:
+                    x + cellPadding
+                case .center:
+                    x + (columnWidth - width) / 2
+                case .trailing:
+                    x + columnWidth - cellPadding - width
+                }
+                drawRuns(line, x: textX, y: lineY)
+                lineY -= lineHeight
+            }
+        }
+        y = rowBottom
+    }
+
+    private func tableRowLineCapacity(
+        lineHeight: Double,
+        cellPadding: Double,
+    ) -> Int {
+        max(1, Int(floor((availablePageHeight - cellPadding * 2) / lineHeight)))
+    }
+
     private func wrappedLines(
         _ runs: [PDFTextRun],
         maxWidth: Double,
@@ -1008,9 +1086,13 @@ private struct Layout {
 
     private mutating func ensureSpace(_ height: Double) {
         if y - height < options.margins.bottom {
-            pages.append(PDFPageCanvas())
-            y = options.pageSize.height - options.margins.top
+            startNewPage()
         }
+    }
+
+    private mutating func startNewPage() {
+        pages.append(PDFPageCanvas())
+        y = pageTopY
     }
 
     private mutating func keepHeadingWithNextBlock(
@@ -1130,6 +1212,10 @@ private struct Layout {
 
     private var contentHeight: Double {
         options.pageSize.height - options.margins.top - options.margins.bottom
+    }
+
+    private var availablePageHeight: Double {
+        y - options.margins.bottom
     }
 
     private var pageTopY: Double {
