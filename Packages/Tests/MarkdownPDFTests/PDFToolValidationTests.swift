@@ -72,6 +72,43 @@ struct PDFToolValidationTests {
         #expect((dimensions?.height ?? 0) > 0)
     }
 
+    @Test("Artifact directory is opt in and writes nested files")
+    func artifactDirectoryIsOptInAndWritesNestedFiles() throws {
+        let root = try PDFValidation.temporaryDirectory()
+        let explicitDirectory = PDFValidation.artifactDirectory(
+            environment: [PDFValidation.artifactDirectoryEnvironmentKey: root.path],
+        )
+
+        #expect(PDFValidation.artifactDirectory(environment: [:]) == nil)
+        #expect(explicitDirectory?.standardizedFileURL.path == root.standardizedFileURL.path)
+
+        try PDFValidation.writeTextArtifact(
+            "artifact text",
+            name: "nested/sample.txt",
+            root: explicitDirectory,
+        )
+
+        let text = try String(
+            contentsOf: root.appendingPathComponent("nested/sample.txt"),
+            encoding: .utf8,
+        )
+        #expect(text == "artifact text")
+
+        let source = root.appendingPathComponent("source.txt")
+        try Data("copy text".utf8).write(to: source)
+        try PDFValidation.copyArtifact(
+            from: source,
+            name: "copies/source.txt",
+            root: explicitDirectory,
+        )
+
+        let copiedText = try String(
+            contentsOf: root.appendingPathComponent("copies/source.txt"),
+            encoding: .utf8,
+        )
+        #expect(copiedText == "copy text")
+    }
+
     private var minimalPDF: Data {
         get throws {
             try MarkdownPDFRenderer().render(markdown: minimalMarkdown)

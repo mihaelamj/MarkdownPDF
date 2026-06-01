@@ -32,5 +32,14 @@ jobs:
           fi
           git checkout --detach FETCH_HEAD
       - name: Build and test
+        env:
+          MARKDOWNPDF_ARTIFACT_DIR: ${{ github.workspace }}/rendered-test-artifacts/linux
         run: |
           cd Packages && swift build && swift test
+      - name: Upload PDF witness artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: markdownpdf-witness-linux
+          path: rendered-test-artifacts/linux
+          if-no-files-found: error

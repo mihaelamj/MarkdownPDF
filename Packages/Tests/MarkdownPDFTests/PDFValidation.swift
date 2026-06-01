@@ -20,6 +20,52 @@ enum PDFValidation {
     }
 
     static let pngSignature: [UInt8] = [137, 80, 78, 71, 13, 10, 26, 10]
+    static let artifactDirectoryEnvironmentKey = "MARKDOWNPDF_ARTIFACT_DIR"
+
+    static func artifactDirectory(
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+    ) -> URL? {
+        guard let path = environment[artifactDirectoryEnvironmentKey]?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+            !path.isEmpty
+        else {
+            return nil
+        }
+
+        return URL(fileURLWithPath: path, isDirectory: true)
+    }
+
+    static func writeArtifact(_ data: some DataProtocol, name: String) throws {
+        try writeArtifact(data, name: name, root: artifactDirectory())
+    }
+
+    static func writeArtifact(_ data: some DataProtocol, name: String, root: URL?) throws {
+        guard let root else {
+            return
+        }
+
+        try ArtifactWriter.write(data: Data(data), name: name, root: root)
+    }
+
+    static func writeTextArtifact(_ text: String, name: String) throws {
+        try writeTextArtifact(text, name: name, root: artifactDirectory())
+    }
+
+    static func writeTextArtifact(_ text: String, name: String, root: URL?) throws {
+        try writeArtifact(Data(text.utf8), name: name, root: root)
+    }
+
+    static func copyArtifact(from url: URL, name: String) throws {
+        try copyArtifact(from: url, name: name, root: artifactDirectory())
+    }
+
+    static func copyArtifact(from url: URL, name: String, root: URL?) throws {
+        guard let root else {
+            return
+        }
+
+        try ArtifactWriter.copy(from: url, name: name, root: root)
+    }
 
     static func temporaryPDF(name: String, data: some DataProtocol) throws -> URL {
         let directory = try temporaryDirectory()
@@ -270,6 +316,52 @@ enum PDFValidation {
         return (1 ... pageCount).map { page in
             directory.appendingPathComponent("page-\(page)").appendingPathExtension(pathExtension)
         }
+    }
+}
+
+private enum ArtifactWriter {
+    private static let lock = NSLock()
+
+    static func write(data: Data, name: String, root: URL) throws {
+        try locked {
+            let destination = try destinationURL(root: root, name: name)
+            try FileManager.default.createDirectory(
+                at: destination.deletingLastPathComponent(),
+                withIntermediateDirectories: true,
+            )
+            try data.write(to: destination, options: .atomic)
+        }
+    }
+
+    static func copy(from source: URL, name: String, root: URL) throws {
+        try locked {
+            let destination = try destinationURL(root: root, name: name)
+            try FileManager.default.createDirectory(
+                at: destination.deletingLastPathComponent(),
+                withIntermediateDirectories: true,
+            )
+            if FileManager.default.fileExists(atPath: destination.path) {
+                try FileManager.default.removeItem(at: destination)
+            }
+            try FileManager.default.copyItem(at: source, to: destination)
+        }
+    }
+
+    private static func destinationURL(root: URL, name: String) throws -> URL {
+        guard !name.isEmpty,
+              !name.hasPrefix("/"),
+              !name.split(separator: "/").contains(where: { $0 == ".." })
+        else {
+            throw CocoaError(.fileWriteInvalidFileName)
+        }
+
+        return root.appendingPathComponent(name, isDirectory: false)
+    }
+
+    private static func locked(_ body: () throws -> Void) rethrows {
+        lock.lock()
+        defer { lock.unlock() }
+        try body()
     }
 }
 
