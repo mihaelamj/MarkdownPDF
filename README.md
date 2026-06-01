@@ -27,6 +27,33 @@ backend; it currently delegates to the portable renderer.
 
 See [docs/DESIGN.md](docs/DESIGN.md) for the architecture.
 
+## Canonical PDF roadmap
+
+Epic [#27](https://github.com/mihaelamj/MarkdownPDF/issues/27) tracks the
+ordered path from the current byte writer to a fully typed canonical PDF
+document structure.
+
+```mermaid
+flowchart TD
+    P0["Phase 0<br/>#28 Minimal canonical PDF<br/>Done"]
+    P1["Phase 1<br/>#29 Tool validation<br/>#25 Structural validation<br/>Done"]
+    P2["Phase 2<br/>#22 PDF syntax<br/>#30 Object registry, xref, trailer<br/>Done"]
+    P3["Phase 3<br/>#18 Catalog, page tree, page dictionaries<br/>Next"]
+    P4["Phase 4<br/>#19 Page resources<br/>#20 Font objects<br/>#23 Image XObjects"]
+    P5["Phase 5<br/>#21 Typed content streams"]
+    P6["Phase 6<br/>#26 Metadata, outlines, destinations"]
+    P7["Phase 7<br/>#24 Output profile documentation"]
+
+    P0 --> P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7
+
+    classDef done fill:#e8f5e9,stroke:#2e7d32,color:#111;
+    classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
+    classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
+    class P0,P1,P2 done;
+    class P3 next;
+    class P4,P5,P6,P7 todo;
+```
+
 ## Use
 
 ```swift
