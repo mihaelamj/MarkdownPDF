@@ -18,8 +18,10 @@ Swift source and tests.
    PDF layout feature.
 6. Use `portable-mermaid-flowcharts.md` before changing portable Mermaid
    rendering.
-7. Use the source studies when planning new writer features.
-8. Use macOS-specific research only for macOS targets. It is not a Linux or iOS
+7. Use `portable-embedded-fonts-tounicode-plan.md` before changing embedded
+   fonts, Type 0 fonts, CID fonts, or ToUnicode output.
+8. Use the source studies when planning new writer features.
+9. Use macOS-specific research only for macOS targets. It is not a Linux or iOS
    implementation plan.
 
 ## Boundaries
@@ -40,6 +42,7 @@ Swift source and tests.
 | `markdownpdf-output-profile.md` | The current portable output profile MarkdownPDF emits and validates. |
 | `pdf-type-modeling-policy.md` | Policy for adding internal typed PDF model structures. |
 | `portable-mermaid-flowcharts.md` | Portable Mermaid flowchart subset, unsupported fallback behavior, and validation expectations. |
+| `portable-embedded-fonts-tounicode-plan.md` | Portable embedded-font and ToUnicode implementation plan, including Type 0, CIDFontType2, font input policy, and staged issues. |
 | `existing-pdf-writer-alignment.md` | Alignment notes between existing writer behavior and research findings. |
 | `pdf-validation-tooling.md` | Open source validation tools and the current CI validation strategy. |
 | `pdf-visual-layout-validation.md` | Visual layout validation strategy using text and render extraction tools. |

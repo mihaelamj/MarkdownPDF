@@ -317,6 +317,7 @@ The current profile does not implement:
 
 Future embedded-font work must introduce a separate tested profile and must not
 commit font files to the public repository without an explicit policy change.
+See `portable-embedded-fonts-tounicode-plan.md` for the staged portable plan.
 
 ## Images
 
