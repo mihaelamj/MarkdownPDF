@@ -372,9 +372,20 @@ swiftlint --config .swiftlint.yml
   images, remote image fallback, raw HTML fallback, code blocks, Mermaid drawing,
   and unsupported Mermaid fallback.
 - Issue [#97](https://github.com/mihaelamj/MarkdownPDF/issues/97) is the current
-  A4 manuscript witness pass. It adds sustained manuscript prose, A4 page-size
-  assertions, tables, local and remote figures, supported Mermaid drawing,
-  unsupported Mermaid fallback, and all-page Poppler/MuPDF raster comparison.
+  A4 and external manuscript witness pass. It adds sustained manuscript prose,
+  A4 page-size assertions, tables, local and remote figures, supported Mermaid
+  drawing, unsupported Mermaid fallback, a complete patent fixture, Formidabble
+  source-style manuscript coverage, an App Intents framework manuscript, an
+  optimized WWDC transcript witness path, a full WWDC source bundle for explicit
+  large-fixture stress runs, and all-page Poppler/MuPDF raster comparison for
+  the A4 manuscript.
+- The full WWDC fixture is committed for special stress coverage. Run it with
+  `MARKDOWNPDF_LARGE_FIXTURE_TESTS=1 swift test --filter FixtureTests/wwdcLargeFixtureRendersSelectedOversizedAssetsWhenEnabled`
+  from `Packages/`.
+- Issue [#99](https://github.com/mihaelamj/MarkdownPDF/issues/99) tracks
+  source-code formatting research and implementation.
+- Issue [#100](https://github.com/mihaelamj/MarkdownPDF/issues/100) tracks
+  named PDF page sizes, including A1, A3, A4, and A5.
 - Apple system font names remain available through
   `PDFOptions.FontSet.appleSystem`, but the public repo does not embed font
   files.
@@ -400,9 +411,13 @@ swiftlint --config .swiftlint.yml
 ```mermaid
 flowchart TD
     H0["#95<br/>Hard Markdown fixture corpus<br/>Done"]
-    H1["#97<br/>A4 manuscript fixture<br/>Review"]
+    H1["#97<br/>A4 and external fixtures<br/>Review"]
+    H2["#99<br/>Source-code formatting<br/>Next"]
+    H3["#100<br/>Named page sizes<br/>Next"]
 
     H0 --> H1
+    H1 --> H2
+    H1 --> H3
 
     classDef done fill:#e8f5e9,stroke:#2e7d32,color:#111;
     classDef active fill:#e3f2fd,stroke:#1565c0,color:#111;
@@ -411,6 +426,8 @@ flowchart TD
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
     class H0 done;
     class H1 review;
+    class H2 next;
+    class H3 next;
 ```
 
 ## License
