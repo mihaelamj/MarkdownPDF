@@ -1,0 +1,22 @@
+name: Swift (macOS)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  swift-macos:
+    name: Swift (macOS)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Format, lint, build, test
+        run: |
+          brew install poppler qpdf swiftformat swiftlint
+          swiftformat . --config .swiftformat --lint
+          swiftlint --config .swiftlint.yml --strict
+          cd Packages && swift build && swift test
