@@ -300,7 +300,7 @@ Apple-only APIs or C shaping libraries, and does not claim iOS support.
 ```mermaid
 flowchart TD
     S0["Phase 0<br/>#80 Standards and boundary<br/>Done"]
-    S1["Phase 1<br/>#81 Fixtures and witnesses<br/>In progress"]
+    S1["Phase 1<br/>#81 Fixtures and witnesses<br/>Review and CI"]
     S2["Phase 2<br/>#82 Shaped cluster model<br/>Planned"]
     S3["Phase 3<br/>#83 Line-break opportunities<br/>Planned"]
     S4["Phase 4<br/>#84 Bidi ordering<br/>Planned"]
@@ -315,7 +315,7 @@ flowchart TD
     classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
     class S0 done;
-    class S1 active;
+    class S1 review;
     class S2,S3,S4,S5,S6 todo;
 ```
 

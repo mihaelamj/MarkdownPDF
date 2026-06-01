@@ -1,6 +1,6 @@
 # Complex script fixture and witness policy
 
-Status: active for #81 on 2026-06-01.
+Status: in review for #81 through PR #89 on 2026-06-01.
 
 Scope: this policy defines the fixture and validation bar before MarkdownPDF can
 claim any complex-script, bidi, ligature, combining-mark, or no-space line-break
