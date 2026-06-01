@@ -366,11 +366,15 @@ swiftlint --config .swiftlint.yml
   scalars, including Latin-1 letters, Windows-1252 punctuation, emoji, complex
   scripts, combining marks, and bidirectional text, render as `?` unless the
   caller enables an embedded TrueType font profile that covers those scalars.
-- Issue [#95](https://github.com/mihaelamj/MarkdownPDF/issues/95) is the active
-  hard fixture corpus pass. It extends public fixtures with duplicate headings,
-  generated ToC pressure, internal and external links, nested quotes, lists,
-  wide tables, reused local images, remote image fallback, raw HTML fallback,
-  code blocks, Mermaid drawing, and unsupported Mermaid fallback.
+- Issue [#95](https://github.com/mihaelamj/MarkdownPDF/issues/95) completed the
+  hard fixture corpus pass with duplicate headings, generated ToC pressure,
+  internal and external links, nested quotes, lists, wide tables, reused local
+  images, remote image fallback, raw HTML fallback, code blocks, Mermaid drawing,
+  and unsupported Mermaid fallback.
+- Issue [#97](https://github.com/mihaelamj/MarkdownPDF/issues/97) is the current
+  A4 manuscript witness pass. It adds sustained manuscript prose, A4 page-size
+  assertions, tables, local and remote figures, supported Mermaid drawing,
+  unsupported Mermaid fallback, and all-page Poppler/MuPDF raster comparison.
 - Apple system font names remain available through
   `PDFOptions.FontSet.appleSystem`, but the public repo does not embed font
   files.
