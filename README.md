@@ -212,7 +212,7 @@ without adding Apple-only dependencies.
 ```mermaid
 flowchart TD
     F0["Phase 0<br/>#49 Witness artifacts Done"]
-    F1["Phase 1<br/>#50 Article fixtures In progress"]
+    F1["Phase 1<br/>#50 Article fixtures In review"]
     F2["Phase 2<br/>#51 Text encoding Ready"]
     F3["Phase 3<br/>#52 Oversized blocks Ready"]
     F4["Phase 4<br/>#53 Tables Ready"]
@@ -227,7 +227,7 @@ flowchart TD
     classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
     class F0 done;
-    class F1 active;
+    class F1 review;
     class F2,F3,F4,F5,F6 todo;
 ```
 
