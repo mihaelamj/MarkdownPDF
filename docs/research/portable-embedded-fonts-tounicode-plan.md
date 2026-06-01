@@ -128,15 +128,16 @@ classes:
   writer, and public API tests. These are source-level byte builders, not
   committed font files.
 - CI-installed or environment-provided open fonts for external-font smoke
-  tests. GitHub CI installs DejaVu Sans and passes its path through
-  `MARKDOWNPDF_OPEN_FONT_PATH`. Unsupported local environments may skip only
-  those external-font tests, with the skip reason naming the missing font path.
+  tests. GitHub CI installs DejaVu Sans on Linux and Liberation Sans on macOS,
+  then passes the chosen path through `MARKDOWNPDF_OPEN_FONT_PATH`. Unsupported
+  local environments may skip only those external-font tests, with the skip
+  reason naming the missing font path.
 
 The current #70 public API witness uses the generated TrueType fixture so macOS
 and Linux run the same deterministic test without committing a font binary. A
-separate external-font smoke test uses the CI-installed DejaVu Sans path to
-prove the public API also accepts a real open TrueType font without making that
-font a repository dependency.
+separate external-font smoke test uses a CI-installed open font path to prove
+the public API also accepts a real open TrueType font without making that font a
+repository dependency.
 
 ## Required PDF objects
 

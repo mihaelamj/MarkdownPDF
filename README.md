@@ -219,9 +219,10 @@ uploads those files as `markdownpdf-witness-linux` and
 `markdownpdf-witness-macos` artifacts for pull request review.
 
 Embedded-font tests use generated Swift TrueType fixtures for deterministic
-coverage and CI-installed DejaVu Sans for an external open-font smoke test. The
-font path is supplied through `MARKDOWNPDF_OPEN_FONT_PATH`; the public
-repository does not commit font binaries.
+coverage and CI-installed open fonts for an external smoke test. Linux CI uses
+DejaVu Sans, macOS CI uses Liberation Sans, and both pass the chosen font path
+through `MARKDOWNPDF_OPEN_FONT_PATH`; the public repository does not commit font
+binaries.
 
 See [docs/research/pdf-validation-tooling.md](docs/research/pdf-validation-tooling.md)
 and [docs/research/pdf-visual-layout-validation.md](docs/research/pdf-visual-layout-validation.md)
@@ -303,8 +304,8 @@ flowchart TD
     S1["Phase 1<br/>#81 Fixtures and witnesses<br/>Done"]
     S2["Phase 2<br/>#82 Shaped cluster model<br/>Done"]
     S3["Phase 3<br/>#83 Line-break opportunities<br/>Done"]
-    S4["Phase 4<br/>#84 Bidi ordering<br/>Review and CI"]
-    S5["Phase 5<br/>#85 Pure Swift shaping increments<br/>Planned"]
+    S4["Phase 4<br/>#84 Bidi ordering<br/>Done"]
+    S5["Phase 5<br/>#85 Pure Swift shaping increments<br/>In review"]
     S6["Phase 6<br/>#86 PDF emission and ToUnicode clusters<br/>Planned"]
 
     S0 --> S1 --> S2 --> S3 --> S4 --> S5 --> S6
@@ -314,9 +315,9 @@ flowchart TD
     classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
     classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
-    class S0,S1,S2,S3 done;
-    class S4 review;
-    class S5,S6 todo;
+    class S0,S1,S2,S3,S4 done;
+    class S5 review;
+    class S6 todo;
 ```
 
 ## Build and Test
