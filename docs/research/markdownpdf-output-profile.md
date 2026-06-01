@@ -226,6 +226,34 @@ unsupported input. qpdf validates syntax and stream structure but does not act a
 a text extraction witness. macOS and Linux use the same replacement profile. iOS
 support is not claimed.
 
+## Oversized blocks
+
+The portable layout profile must not rely on a permissive PDF viewer clipping
+content that falls outside the page body. Block kinds use explicit overflow
+policies:
+
+- Paragraphs, list item bodies, block quote bodies, raw HTML fallback, generated
+  ToC entries, and remote image fallback labels split through the shared wrapped
+  line renderer. Each line reserves page space before it is drawn.
+- Code blocks split by wrapped code line fragments. Each fragment gets its own
+  code background rectangle and never reserves more than the available page body.
+- Table rows split by wrapped cell-line fragments when one row is taller than the
+  usable page body. Header repetition and richer table pagination remain future
+  table work.
+- Mermaid diagrams render as vector drawing commands only when the measured plan
+  fits the page body. Too-tall or too-wide diagrams fall back to a visible code
+  block, so the split code-block policy applies.
+- Local standalone images scale to the content width and to the smaller of 45%
+  of page height or the usable page body height. Remote images stay as wrapped
+  fallback text.
+- Thematic breaks reserve their fixed height before drawing.
+
+The witness fixture for this policy renders a document with a body height smaller
+than the previous local-image cap, a table row taller than the body, a Mermaid
+diagram that falls back because it is taller than one page, and a multi-page code
+block. qpdf, Poppler text and geometry, MuPDF structured text, and Poppler/MuPDF
+rasters inspect the output on macOS and Linux.
+
 ## Fonts
 
 The default font profile uses standard PDF base font names and does not embed
