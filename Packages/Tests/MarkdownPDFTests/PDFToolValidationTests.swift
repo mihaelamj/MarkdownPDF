@@ -39,6 +39,19 @@ struct PDFToolValidationTests {
         #expect(info["Encrypted"] == "no", "Unexpected pdfinfo output:\n\(result.output)")
     }
 
+    @Test("pdfinfo reports deterministic document title metadata")
+    func pdfinfoReportsDeterministicDocumentTitleMetadata() throws {
+        let data = try MarkdownPDFRenderer(
+            options: PDFOptions(title: "Navigation Article"),
+        ).render(markdown: "# Intro\n\nBody.")
+        let result = try PDFValidation.pdfinfo(data: data, name: "navigation-title")
+        let info = PDFValidation.parsedInfo(from: result)
+
+        #expect(result.exitCode == 0, "pdfinfo failed:\n\(result.output)")
+        #expect(info["Title"] == "Navigation Article", "Unexpected pdfinfo output:\n\(result.output)")
+        #expect(info["Pages"] == "1", "Unexpected pdfinfo output:\n\(result.output)")
+    }
+
     @Test("pdftotext extracts minimal PDF text")
     func pdftotextExtractsMinimalPDFText() throws {
         let result = try PDFValidation.pdftotext(data: minimalPDF, name: "minimal-text")

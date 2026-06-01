@@ -16,8 +16,8 @@ JavaScript, Python, shell renderers, or C Markdown/PDF libraries.
 ## What Works Today
 
 MarkdownPDF is early, but it already emits inspectable PDF 1.4 files with
-deterministic object order, xref offsets, trailer data, page resources, link
-annotations, text, and image XObjects.
+deterministic object order, xref offsets, trailer data, page resources, metadata,
+heading destinations, outlines, link annotations, text, and image XObjects.
 
 The generic renderer currently covers:
 
@@ -27,6 +27,7 @@ The generic renderer currently covers:
   escapes.
 - Ordered lists, unordered lists, fenced code blocks, and GitHub-flavored tables.
 - Local JPEG and PNG images resolved relative to the input document.
+- PDF document title metadata, heading outlines, and internal heading links.
 - Standard PDF base fonts by default, without embedding font files.
 
 The compatibility target is CommonMark plus GitHub Flavored Markdown tables and
@@ -131,7 +132,7 @@ flowchart TD
     P3["Phase 3<br/>#18 Catalog, page tree, page dictionaries<br/>Done"]
     P4["Phase 4<br/>#19 Page resources Done<br/>#20 Font objects Done<br/>#23 Image XObjects Done"]
     P5["Phase 5<br/>#21 Typed content streams Done"]
-    P6["Phase 6<br/>#26 Metadata, outlines, destinations Next"]
+    P6["Phase 6<br/>#26 Metadata, outlines, destinations In progress"]
     P7["Phase 7<br/>#37 Mermaid diagrams"]
     P8["Phase 8<br/>#36 Generated ToC"]
     P9["Phase 9<br/>#24 Output profile documentation"]

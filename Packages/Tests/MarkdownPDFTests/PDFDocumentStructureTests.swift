@@ -17,6 +17,80 @@ struct PDFDocumentStructureTests {
         )
     }
 
+    @Test("Serializes catalog dictionary with navigation entries")
+    func serializesCatalogDictionaryWithNavigationEntries() {
+        let page = PDFSyntax.Reference(objectNumber: 7)
+        let names = PDFNamedDestinations(destinations: [
+            PDFNamedDestinations.ResolvedDestination(
+                destination: PDFHeadingDestination(
+                    name: "intro",
+                    title: "Intro",
+                    level: 1,
+                    x: 54,
+                    y: 720,
+                ),
+                page: page,
+            ),
+        ]).pdfDictionary
+        let catalog = PDFDocumentCatalog(
+            pages: PDFSyntax.Reference(objectNumber: 2),
+            outlines: PDFSyntax.Reference(objectNumber: 3),
+            names: names,
+            metadata: PDFSyntax.Reference(objectNumber: 4),
+            displayDocumentTitle: true,
+        )
+
+        #expect(
+            catalog.pdfDictionary.serialized()
+                ==
+                "<< /Type /Catalog /Pages 2 0 R /Outlines 3 0 R /PageMode /UseOutlines /Names << /Dests << /Names [(intro) [7 0 R /XYZ 54 720 null]] >> >> /Metadata 4 0 R /ViewerPreferences << /DisplayDocTitle true >> >>",
+        )
+    }
+
+    @Test("Serializes deterministic metadata dictionaries and XMP")
+    func serializesDeterministicMetadataDictionariesAndXMP() {
+        let metadata = PDFDocumentMetadata(title: "Article & Report")
+        let xmp = String(decoding: metadata.xmpData, as: UTF8.self)
+
+        #expect(!metadata.isEmpty)
+        #expect(metadata.infoDictionary.serialized() == "<< /Title (Article & Report) /Producer (MarkdownPDF) >>")
+        #expect(metadata.xmpDictionary.serialized() == "<< /Type /Metadata /Subtype /XML >>")
+        #expect(xmp.contains("<dc:title>"))
+        #expect(xmp.contains("Article &amp; Report"))
+        #expect(!xmp.contains("CreationDate"))
+    }
+
+    @Test("Serializes outline tree from heading destinations")
+    func serializesOutlineTreeFromHeadingDestinations() throws {
+        let destinations = [
+            resolvedDestination(name: "intro", title: "Intro", level: 1, page: 7, y: 720),
+            resolvedDestination(name: "details", title: "Details", level: 2, page: 7, y: 680),
+            resolvedDestination(name: "appendix", title: "Appendix", level: 1, page: 8, y: 720),
+        ]
+        let objects = PDFDocumentOutline(destinations: destinations).outlineObjects(
+            root: PDFSyntax.Reference(objectNumber: 10),
+            itemReferences: [
+                PDFSyntax.Reference(objectNumber: 11),
+                PDFSyntax.Reference(objectNumber: 12),
+                PDFSyntax.Reference(objectNumber: 13),
+            ],
+        )
+
+        let root = try #require(objects.first { $0.reference.objectNumber == 10 })
+        let intro = try #require(objects.first { $0.reference.objectNumber == 11 })
+        let details = try #require(objects.first { $0.reference.objectNumber == 12 })
+        let appendix = try #require(objects.first { $0.reference.objectNumber == 13 })
+
+        #expect(root.dictionary.serialized().contains("/Count 3"))
+        #expect(root.dictionary.serialized().contains("/First 11 0 R"))
+        #expect(root.dictionary.serialized().contains("/Last 13 0 R"))
+        #expect(intro.dictionary.serialized().contains("/Next 13 0 R"))
+        #expect(intro.dictionary.serialized().contains("/First 12 0 R"))
+        #expect(intro.dictionary.serialized().contains("/Count 1"))
+        #expect(details.dictionary.serialized().contains("/Parent 11 0 R"))
+        #expect(appendix.dictionary.serialized().contains("/Prev 11 0 R"))
+    }
+
     @Test("Serializes flat page tree")
     func serializesFlatPageTree() {
         let pageTree = PDFDocumentPageTree(kids: [
@@ -352,5 +426,24 @@ struct PDFDocumentStructureTests {
         let text = String(decoding: data, as: UTF8.self)
 
         #expect(text.contains("/Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R /F4 6 0 R >>"))
+    }
+
+    private func resolvedDestination(
+        name: String,
+        title: String,
+        level: Int,
+        page: Int,
+        y: Double,
+    ) -> PDFNamedDestinations.ResolvedDestination {
+        PDFNamedDestinations.ResolvedDestination(
+            destination: PDFHeadingDestination(
+                name: name,
+                title: title,
+                level: level,
+                x: 54,
+                y: y,
+            ),
+            page: PDFSyntax.Reference(objectNumber: page),
+        )
     }
 }

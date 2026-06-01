@@ -217,6 +217,53 @@ struct MarkdownPDFRendererTests {
         #expect(text.contains("/URI (mailto:person@example.com)"))
     }
 
+    @Test("Writes heading destinations, outlines, internal links, and metadata")
+    func writesHeadingDestinationsOutlinesInternalLinksAndMetadata() throws {
+        let markdown = """
+        # Intro
+
+        [Jump to details](#details) and [External](https://example.com).
+
+        ## Details
+
+        Body text.
+
+        # Intro
+
+        Duplicate heading.
+        """
+        let data = try MarkdownPDFRenderer(
+            options: PDFOptions(title: "Navigation Article"),
+        ).render(markdown: markdown)
+        let inspector = PDFInspector(data)
+
+        #expect(inspector.hasDocumentMetadata)
+        #expect(inspector.outlineItemCount == 3)
+        #expect(Set(inspector.namedDestinationNames) == ["intro", "details", "intro-2"])
+        #expect(inspector.text.contains("/Outlines "))
+        #expect(inspector.text.contains("/Names << /Dests"))
+        #expect(inspector.text.contains("/Dest (details)"))
+        #expect(inspector.text.contains("/URI (https://example.com)"))
+        #expect(
+            inspector.canonicalStructureIssues().isEmpty,
+            "Canonical PDF structure failed:\n\(inspector.canonicalStructureReport())",
+        )
+    }
+
+    @Test("Keeps unknown fragment links as URI annotations")
+    func keepsUnknownFragmentLinksAsURIAnnotations() throws {
+        let data = try MarkdownPDFRenderer().render(markdown: "[Missing](#missing)")
+        let inspector = PDFInspector(data)
+
+        #expect(inspector.namedDestinationNames.isEmpty)
+        #expect(inspector.text.contains("/URI (#missing)"))
+        #expect(!inspector.text.contains("/Dest (missing)"))
+        #expect(
+            inspector.canonicalStructureIssues().isEmpty,
+            "Canonical PDF structure failed:\n\(inspector.canonicalStructureReport())",
+        )
+    }
+
     @Test("Keeps section headings with first child content")
     func keepsSectionHeadingsWithFirstChildContent() throws {
         let markdown = """

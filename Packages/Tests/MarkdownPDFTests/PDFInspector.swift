@@ -41,6 +41,40 @@ struct PDFInspector {
         occurrences(of: "/Subtype /Link")
     }
 
+    var outlineItemCount: Int {
+        indirectObjects.count(where: { object in
+            object.content.contains("/Title ") && object.content.contains("/Dest [")
+        })
+    }
+
+    var namedDestinationNames: [String] {
+        guard let catalog = catalogObject(),
+              let names = dictionary(after: "/Names", in: catalog.content)
+        else {
+            return []
+        }
+
+        return namedDestinations(in: names).map(\.name)
+    }
+
+    var hasDocumentMetadata: Bool {
+        guard let objects = indirectObjectDictionary(),
+              let trailer = trailerDictionary(),
+              let infoRef = reference(after: "/Info", in: trailer),
+              let info = objects[infoRef],
+              let catalog = catalogObject(),
+              let metadataRef = reference(after: "/Metadata", in: catalog.content),
+              let metadata = objects[metadataRef]
+        else {
+            return false
+        }
+
+        return info.content.contains("/Producer ")
+            && metadata.isStream
+            && metadata.content.contains("/Type /Metadata")
+            && metadata.content.contains("/Subtype /XML")
+    }
+
     var indirectObjectCount: Int {
         occurrences(of: " 0 obj\n")
     }
@@ -114,6 +148,22 @@ struct PDFInspector {
         }
     }
 
+    private func indirectObjectDictionary() -> [Int: IndirectObject]? {
+        let objects = Dictionary(uniqueKeysWithValues: indirectObjects.map { ($0.number, $0) })
+        return objects.isEmpty ? nil : objects
+    }
+
+    private func catalogObject() -> IndirectObject? {
+        guard let objects = indirectObjectDictionary(),
+              let trailer = trailerDictionary(),
+              let rootRef = reference(after: "/Root", in: trailer)
+        else {
+            return nil
+        }
+
+        return objects[rootRef]
+    }
+
     func canonicalStructureIssues() -> [String] {
         var issues: [String] = []
         if !text.hasPrefix("%PDF-1.4\n%") {
@@ -143,7 +193,7 @@ struct PDFInspector {
             issues.append("startxref is missing or malformed")
         }
 
-        let objects = Dictionary(uniqueKeysWithValues: indirectObjects.map { ($0.number, $0) })
+        let objects = indirectObjectDictionary() ?? [:]
         let objectCount = entries.filter(\.inUse).count
         if objects.count != objectCount {
             issues.append("parsed object count \(objects.count) does not match xref in-use count \(objectCount)")
@@ -156,6 +206,9 @@ struct PDFInspector {
 
         if integer(after: "/Size", in: trailer) != entries.count {
             issues.append("trailer /Size does not match xref entry count")
+        }
+        if let infoRef = reference(after: "/Info", in: trailer) {
+            validateInfo(ref: infoRef, objects: objects, issues: &issues)
         }
 
         guard let rootRef = reference(after: "/Root", in: trailer) else {
@@ -194,6 +247,17 @@ struct PDFInspector {
         }
 
         validatePages(pages, objects: objects, issues: &issues)
+
+        if let metadataRef = reference(after: "/Metadata", in: catalog.content) {
+            validateMetadata(ref: metadataRef, objects: objects, issues: &issues)
+        }
+        if let outlinesRef = reference(after: "/Outlines", in: catalog.content) {
+            validateOutlines(ref: outlinesRef, objects: objects, issues: &issues)
+        }
+        if let names = dictionary(after: "/Names", in: catalog.content) {
+            validateNamedDestinations(names, objects: objects, issues: &issues)
+            validateInternalLinkDestinations(objects: objects, names: names, issues: &issues)
+        }
     }
 
     private func validatePages(
@@ -310,9 +374,141 @@ struct PDFInspector {
     }
 
     private func validateAnnotation(_ annotation: IndirectObject, issues: inout [String]) {
-        let required = ["/Type /Annot", "/Subtype /Link", "/Rect [", "/A <<", "/S /URI", "/URI "]
+        let required = ["/Type /Annot", "/Subtype /Link", "/Rect ["]
         for key in required where !annotation.content.contains(key) {
             issues.append("annotation object \(annotation.number) is missing \(key)")
+        }
+        let hasURIAction = annotation.content.contains("/A <<")
+            && annotation.content.contains("/S /URI")
+            && annotation.content.contains("/URI ")
+        let hasDestination = annotation.content.contains("/Dest ")
+        if !hasURIAction, !hasDestination {
+            issues.append("annotation object \(annotation.number) is missing URI action or destination")
+        }
+    }
+
+    private func validateInfo(
+        ref: Int,
+        objects: [Int: IndirectObject],
+        issues: inout [String],
+    ) {
+        guard let info = objects[ref] else {
+            issues.append("trailer /Info object \(ref) is missing")
+            return
+        }
+        if !info.content.contains("/Producer ") {
+            issues.append("info object \(ref) is missing /Producer")
+        }
+    }
+
+    private func validateMetadata(
+        ref: Int,
+        objects: [Int: IndirectObject],
+        issues: inout [String],
+    ) {
+        guard let metadata = objects[ref] else {
+            issues.append("catalog /Metadata object \(ref) is missing")
+            return
+        }
+        if !metadata.isStream {
+            issues.append("metadata object \(ref) is not a stream")
+        }
+        for key in ["/Type /Metadata", "/Subtype /XML"] where !metadata.content.contains(key) {
+            issues.append("metadata object \(ref) is missing \(key)")
+        }
+    }
+
+    private func validateOutlines(
+        ref: Int,
+        objects: [Int: IndirectObject],
+        issues: inout [String],
+    ) {
+        guard let outline = objects[ref] else {
+            issues.append("catalog /Outlines object \(ref) is missing")
+            return
+        }
+        if !hasName("/Type", value: "Outlines", in: outline.content) {
+            issues.append("outline object \(ref) is missing /Type /Outlines")
+        }
+
+        var visited: Set<Int> = []
+        visitOutlineItems(parent: outline, objects: objects, visited: &visited, issues: &issues)
+        if integer(after: "/Count", in: outline.content) != visited.count {
+            issues.append("outline object \(ref) /Count does not match reachable items")
+        }
+    }
+
+    private func visitOutlineItems(
+        parent: IndirectObject,
+        objects: [Int: IndirectObject],
+        visited: inout Set<Int>,
+        issues: inout [String],
+    ) {
+        var nextRef = reference(after: "/First", in: parent.content)
+        while let itemRef = nextRef {
+            guard !visited.contains(itemRef) else {
+                issues.append("outline item \(itemRef) is linked more than once")
+                return
+            }
+            guard let item = objects[itemRef] else {
+                issues.append("outline item object \(itemRef) is missing")
+                return
+            }
+            visited.insert(itemRef)
+            validateOutlineItem(item, objects: objects, issues: &issues)
+            visitOutlineItems(parent: item, objects: objects, visited: &visited, issues: &issues)
+            nextRef = reference(after: "/Next", in: item.content)
+        }
+    }
+
+    private func validateOutlineItem(
+        _ item: IndirectObject,
+        objects: [Int: IndirectObject],
+        issues: inout [String],
+    ) {
+        for key in ["/Title ", "/Parent ", "/Dest ["] where !item.content.contains(key) {
+            issues.append("outline item \(item.number) is missing \(key)")
+        }
+        guard let pageRef = references(inArrayAfter: "/Dest", in: item.content).first,
+              let page = objects[pageRef],
+              hasName("/Type", value: "Page", in: page.content)
+        else {
+            issues.append("outline item \(item.number) does not point at a valid page destination")
+            return
+        }
+    }
+
+    private func validateNamedDestinations(
+        _ names: String,
+        objects: [Int: IndirectObject],
+        issues: inout [String],
+    ) {
+        let destinations = namedDestinations(in: names)
+        if destinations.isEmpty {
+            issues.append("catalog /Names dictionary has no named destinations")
+        }
+
+        for destination in destinations {
+            guard let page = objects[destination.page],
+                  hasName("/Type", value: "Page", in: page.content)
+            else {
+                issues.append("named destination \(destination.name) points at missing page object \(destination.page)")
+                continue
+            }
+        }
+    }
+
+    private func validateInternalLinkDestinations(
+        objects: [Int: IndirectObject],
+        names: String,
+        issues: inout [String],
+    ) {
+        let destinationNames = Set(namedDestinations(in: names).map(\.name))
+        let linkNames = objects.values.flatMap { object in
+            regexMatches(#"/Dest\s+\(([^)]*)\)"#, in: object.content).compactMap(\.first)
+        }
+        for linkName in linkNames where !destinationNames.contains(linkName) {
+            issues.append("link annotation points at unknown destination \(linkName)")
         }
     }
 
@@ -486,6 +682,16 @@ struct PDFInspector {
                 }
                 values[groups[0]] = ref
             }
+    }
+
+    private func namedDestinations(in text: String) -> [(name: String, page: Int)] {
+        regexMatches(#"\(([^)]*)\)\s+\[(\d+)\s+0\s+R\s+/XYZ"#, in: text).compactMap { groups in
+            guard groups.count == 2, let page = Int(groups[1]) else {
+                return nil
+            }
+
+            return (name: groups[0], page: page)
+        }
     }
 
     private func referenceNumbers(in text: String) -> [Int] {

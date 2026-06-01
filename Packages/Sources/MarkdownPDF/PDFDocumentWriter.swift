@@ -42,11 +42,16 @@ struct PDFDocumentWriter {
             return PDFPageResources(fonts: pageFonts, imageXObjects: pageXObjects)
         }
 
+        let headingDestinationNames = Set(pages.flatMap { page in
+            page.headingDestinations.map(\.name)
+        })
         var pageRefs: [PDFSyntax.Reference] = []
         for page in pages {
             let contentData = Data(page.commands.utf8)
             let contentRef = builder.addStream(dictionary: PDFSyntax.Dictionary(), data: contentData)
-            let annotationRefs = page.linkAnnotations.map { builder.addLinkAnnotation($0) }
+            let annotationRefs = page.linkAnnotations.map {
+                builder.addLinkAnnotation($0, knownDestinations: headingDestinationNames)
+            }
 
             let pageRef = builder.addDictionary(
                 PDFPageDictionary(
@@ -61,6 +66,21 @@ struct PDFDocumentWriter {
             pageRefs.append(pageRef)
         }
 
+        let resolvedDestinations = pages.enumerated().flatMap { index, page in
+            page.headingDestinations.map { destination in
+                PDFNamedDestinations.ResolvedDestination(
+                    destination: destination,
+                    page: pageRefs[index],
+                )
+            }
+        }
+        let outlineRef = builder.addOutline(destinations: resolvedDestinations)
+        let names = resolvedDestinations.isEmpty
+            ? nil
+            : PDFNamedDestinations(destinations: resolvedDestinations).pdfDictionary
+        let metadata = PDFDocumentMetadata(title: title)
+        let metadataRefs = metadata.isEmpty ? nil : builder.addMetadata(metadata)
+
         builder.set(
             pagesRef,
             .dictionary(PDFDocumentPageTree(kids: pageRefs).pdfDictionary),
@@ -70,12 +90,15 @@ struct PDFDocumentWriter {
             .dictionary(
                 PDFDocumentCatalog(
                     pages: pagesRef,
+                    outlines: outlineRef,
+                    names: names,
+                    metadata: metadataRefs?.xmp,
                     displayDocumentTitle: title?.isEmpty == false,
                 ).pdfDictionary,
             ),
         )
 
-        return builder.build(root: catalogRef)
+        return builder.build(root: catalogRef, info: metadataRefs?.info)
     }
 
     private struct Builder {
@@ -115,64 +138,97 @@ struct PDFDocumentWriter {
             addData(image.pdfStream.serialized)
         }
 
-        mutating func addLinkAnnotation(_ annotation: PDFLinkAnnotation) -> PDFSyntax.Reference {
+        mutating func addMetadata(_ metadata: PDFDocumentMetadata) -> (info: PDFSyntax.Reference, xmp: PDFSyntax.Reference) {
+            (
+                info: addDictionary(metadata.infoDictionary),
+                xmp: addStream(dictionary: metadata.xmpDictionary, data: metadata.xmpData),
+            )
+        }
+
+        mutating func addOutline(destinations: [PDFNamedDestinations.ResolvedDestination]) -> PDFSyntax.Reference? {
+            guard !destinations.isEmpty else {
+                return nil
+            }
+
+            let root = reserve()
+            let itemReferences = destinations.map { _ in reserve() }
+            let objects = PDFDocumentOutline(destinations: destinations).outlineObjects(
+                root: root,
+                itemReferences: itemReferences,
+            )
+            for object in objects {
+                setDictionary(object.dictionary, for: object.reference)
+            }
+
+            return root
+        }
+
+        mutating func addLinkAnnotation(
+            _ annotation: PDFLinkAnnotation,
+            knownDestinations: Set<String>,
+        ) -> PDFSyntax.Reference {
             let minX = annotation.x
             let minY = annotation.y
             let maxX = annotation.x + annotation.width
             let maxY = annotation.y + annotation.height
+            var entries: [PDFSyntax.Dictionary.Entry] = [
+                .init("Type", .pdfName("Annot")),
+                .init("Subtype", .pdfName("Link")),
+                .init(
+                    "Rect",
+                    .pdfArray([
+                        .number(minX),
+                        .number(minY),
+                        .number(maxX),
+                        .number(maxY),
+                    ]),
+                ),
+                .init(
+                    "Border",
+                    .pdfArray([
+                        .int(0),
+                        .int(0),
+                        .int(0),
+                    ]),
+                ),
+            ]
+            switch annotation.target {
+            case let .uri(uri):
+                entries.append(uriAction(uri))
+            case let .destination(destination):
+                if knownDestinations.contains(destination) {
+                    entries.append(.init("Dest", .pdfString(destination)))
+                } else {
+                    entries.append(uriAction("#\(destination)"))
+                }
+            }
+
             return addDictionary(
-                PDFSyntax.Dictionary([
-                    .init("Type", .pdfName("Annot")),
-                    .init("Subtype", .pdfName("Link")),
-                    .init(
-                        "Rect",
-                        .pdfArray([
-                            .number(minX),
-                            .number(minY),
-                            .number(maxX),
-                            .number(maxY),
-                        ]),
-                    ),
-                    .init(
-                        "Border",
-                        .pdfArray([
-                            .int(0),
-                            .int(0),
-                            .int(0),
-                        ]),
-                    ),
-                    .init(
-                        "A",
-                        .pdfDictionary([
-                            .init("S", .pdfName("URI")),
-                            .init("URI", .pdfString(annotation.destination.pdfURI)),
-                        ]),
-                    ),
-                ]),
+                PDFSyntax.Dictionary(entries),
                 style: .multiline,
             )
         }
 
-        func build(root: PDFSyntax.Reference) -> Data {
-            registry.serializedFile(root: root)
+        private func uriAction(_ uri: String) -> PDFSyntax.Dictionary.Entry {
+            PDFSyntax.Dictionary.Entry(
+                "A",
+                .pdfDictionary([
+                    .init("S", .pdfName("URI")),
+                    .init("URI", .pdfString(uri)),
+                ]),
+            )
+        }
+
+        func build(root: PDFSyntax.Reference, info: PDFSyntax.Reference?) -> Data {
+            registry.serializedFile(root: root, info: info)
+        }
+
+        private mutating func setDictionary(_ dictionary: PDFSyntax.Dictionary, for ref: PDFSyntax.Reference) {
+            set(ref, Data(dictionary.serialized(style: .multiline).utf8))
         }
 
         private mutating func addData(_ data: Data) -> PDFSyntax.Reference {
             registry.add(data)
         }
-    }
-}
-
-private extension String {
-    var pdfURI: String {
-        if contains("://") || hasPrefix("mailto:") || hasPrefix("#") || hasPrefix("/") || hasPrefix(".") {
-            return self
-        }
-
-        if contains("@"), !contains("/") {
-            return "mailto:\(self)"
-        }
-
-        return self
     }
 }

@@ -154,6 +154,19 @@ struct PDFStructuralValidationTests {
         #expect(issues.contains { $0.contains("references missing content object 99") })
     }
 
+    @Test("Rejects link annotations that point at unknown named destinations")
+    func rejectsLinkAnnotationsThatPointAtUnknownNamedDestinations() throws {
+        let data = try MarkdownPDFRenderer().render(markdown: """
+        # Target
+
+        [Jump](#target)
+        """)
+        let damaged = replaceFirst("(target) [", with: "(missng) [", in: data)
+        let issues = PDFInspector(damaged).canonicalStructureIssues()
+
+        #expect(issues.contains { $0.contains("unknown destination target") })
+    }
+
     private func replaceFirst(_ needle: String, with replacement: String, in data: Data) -> Data {
         let text = String(decoding: data, as: UTF8.self)
         guard let range = text.range(of: needle) else {

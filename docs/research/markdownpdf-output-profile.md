@@ -120,7 +120,9 @@ Each page dictionary includes:
 >>
 ```
 
-`/Annots` is present only when the page has annotations.
+`/Annots` is present only when the page has annotations. Heading destinations are
+recorded during layout and used by the document-level name tree and outline
+objects; they do not change page dictionaries by themselves.
 
 ## Resources
 
@@ -223,29 +225,43 @@ URI links are emitted as page annotations:
 >>
 ```
 
-Internal links, outlines, named destinations, and ToC entries are not baseline
-features yet. They should be added after layout produces stable heading anchors.
-The intended order is:
+Heading destinations, internal destination links, and outlines are emitted from
+the typed layout and writer model. Heading anchors use deterministic slugs based
+on visible heading text, with numeric suffixes for duplicates.
 
-1. Layout anchors for headings and explicit IDs.
-2. Destination objects or destination arrays.
-3. Link annotations for internal destinations.
-4. Outline dictionary and outline item tree.
-5. Table of contents generated from settled layout results.
+Named destinations live in the catalog name tree:
+
+```text
+/Names << /Dests << /Names [(details) [page-ref 0 R /XYZ x y null]] >> >>
+```
+
+Internal Markdown links whose destination starts with `#` become link
+annotations with `/Dest (name)`. External links remain URI actions.
+
+The outline dictionary hangs from the catalog through `/Outlines`; outline items
+use direct destination arrays and linked `/First`, `/Last`, `/Prev`, and `/Next`
+relationships. The current outline tree follows Markdown heading levels.
+
+Visible ToC entries are not baseline features yet. The remaining intended order
+is:
+
+1. Table of contents generated from settled layout results.
+2. ToC link annotations that point at the existing named heading destinations.
 
 ToC is a layout feature before it is a PDF feature. The writer should not invent
 page numbers from parser order.
 
 ## Metadata
 
-The baseline profile does not require `/Info`, `/Metadata`, or `/ID`.
-
-When metadata is added:
+The writer emits deterministic metadata when `PDFOptions.title` is present:
 
 - `/Info` is referenced from the trailer.
 - XMP `/Metadata` is referenced from the catalog.
-- `/ID` is generated deterministically only if the validation target allows that,
-  or generated from stable file content when nondeterminism is acceptable.
+- `/Producer` is deterministic.
+
+The baseline profile still does not emit `/ID`. It should be generated
+deterministically only if the validation target allows that, or generated from
+stable file content when nondeterminism is acceptable.
 
 PDF/A and PDF/UA are separate profiles. They require additional constraints and
 must not be claimed by the baseline.
@@ -288,4 +304,3 @@ The following remain explicit future profiles or feature decisions:
 
 Deferring these keeps the portable writer small enough to test thoroughly on both
 Linux and macOS.
-

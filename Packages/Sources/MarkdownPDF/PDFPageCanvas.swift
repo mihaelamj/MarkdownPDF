@@ -3,6 +3,7 @@ import Foundation
 final class PDFPageCanvas {
     private var contentStream = PDFContentStream()
     private(set) var linkAnnotations: [PDFLinkAnnotation] = []
+    private(set) var headingDestinations: [PDFHeadingDestination] = []
     private(set) var resourceUsage = PDFPageResourceUsage()
 
     var commands: String {
@@ -57,6 +58,10 @@ final class PDFPageCanvas {
                 ),
             )
         }
+    }
+
+    func addHeadingDestination(_ destination: PDFHeadingDestination) {
+        headingDestinations.append(destination)
     }
 
     func drawLine(

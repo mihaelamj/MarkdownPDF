@@ -24,6 +24,7 @@ private struct Layout {
     var pages: [PDFPageCanvas] = [PDFPageCanvas()]
     var images: [PDFImage] = []
     var imageCache: [String: PDFImage] = [:]
+    var headingNames = HeadingDestinationNameGenerator()
     var y: Double
     var listDepth = 0
 
@@ -57,6 +58,7 @@ private struct Layout {
             let topSpacing = headingTopSpacing(level)
             ensureSpace(size * 1.8 + topSpacing)
             addHeadingTopSpacing(topSpacing)
+            addHeadingDestination(level: level, content: content, y: y + size * 0.4)
             drawWrapped(
                 flatten(content, font: .helveticaBold, size: size),
                 x: options.margins.left,
@@ -500,6 +502,43 @@ private struct Layout {
         y -= spacing
     }
 
+    private mutating func addHeadingDestination(
+        level: Int,
+        content: [MarkdownInline],
+        y: Double,
+    ) {
+        let title = plainText(content).trimmingCharacters(in: .whitespacesAndNewlines)
+        let displayTitle = title.isEmpty ? "Heading" : title
+        currentPage.addHeadingDestination(
+            PDFHeadingDestination(
+                name: headingNames.name(for: displayTitle),
+                title: displayTitle,
+                level: level,
+                x: options.margins.left,
+                y: min(options.pageSize.height, y),
+            ),
+        )
+    }
+
+    private func plainText(_ inlines: [MarkdownInline]) -> String {
+        inlines.map(plainText).joined()
+    }
+
+    private func plainText(_ inline: MarkdownInline) -> String {
+        switch inline {
+        case let .text(text), let .code(text):
+            text
+        case .softBreak, .lineBreak:
+            " "
+        case let .emphasis(children), let .strong(children), let .strikethrough(children):
+            plainText(children)
+        case let .link(children, _, _):
+            plainText(children)
+        case let .image(alt, source, _):
+            alt.isEmpty ? source : alt
+        }
+    }
+
     private func headingTopSpacing(_ level: Int) -> Double {
         switch level {
         case 1:
@@ -575,5 +614,36 @@ private extension PDFTextRun {
             strikethrough: strikethrough,
             linkDestination: linkDestination,
         )
+    }
+}
+
+private struct HeadingDestinationNameGenerator {
+    private var counts: [String: Int] = [:]
+
+    mutating func name(for title: String) -> String {
+        let base = slug(for: title)
+        let count = (counts[base] ?? 0) + 1
+        counts[base] = count
+        return count == 1 ? base : "\(base)-\(count)"
+    }
+
+    private func slug(for title: String) -> String {
+        var output = ""
+        var previousWasSeparator = false
+
+        for scalar in title.lowercased().unicodeScalars {
+            if CharacterSet.alphanumerics.contains(scalar), scalar.value < 128 {
+                output.unicodeScalars.append(scalar)
+                previousWasSeparator = false
+            } else if !previousWasSeparator, !output.isEmpty {
+                output.append("-")
+                previousWasSeparator = true
+            }
+        }
+
+        while output.last == "-" {
+            output.removeLast()
+        }
+        return output.isEmpty ? "heading" : output
     }
 }
