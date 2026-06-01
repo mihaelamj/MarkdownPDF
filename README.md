@@ -396,7 +396,7 @@ swiftlint --config .swiftlint.yml
 ```mermaid
 flowchart TD
     H0["#95<br/>Hard Markdown fixture corpus<br/>Done"]
-    H1["#97<br/>A4 manuscript fixture<br/>Active"]
+    H1["#97<br/>A4 manuscript fixture<br/>Review"]
 
     H0 --> H1
 
@@ -406,7 +406,7 @@ flowchart TD
     classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
     class H0 done;
-    class H1 active;
+    class H1 review;
 ```
 
 ## License
