@@ -304,7 +304,7 @@ flowchart TD
     S2["Phase 2<br/>#82 Shaped cluster model<br/>Done"]
     S3["Phase 3<br/>#83 Line-break opportunities<br/>Done"]
     S4["Phase 4<br/>#84 Bidi ordering<br/>Done"]
-    S5["Phase 5<br/>#85 Pure Swift shaping increments<br/>Active"]
+    S5["Phase 5<br/>#85 Pure Swift shaping increments<br/>In review"]
     S6["Phase 6<br/>#86 PDF emission and ToUnicode clusters<br/>Planned"]
 
     S0 --> S1 --> S2 --> S3 --> S4 --> S5 --> S6
@@ -315,7 +315,7 @@ flowchart TD
     classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
     class S0,S1,S2,S3,S4 done;
-    class S5 active;
+    class S5 review;
     class S6 todo;
 ```
 
