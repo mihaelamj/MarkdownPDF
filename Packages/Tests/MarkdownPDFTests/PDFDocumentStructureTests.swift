@@ -436,6 +436,10 @@ struct PDFDocumentStructureTests {
         let chunked = PDFToUnicodeCMap(mappings: (0 ..< 101).map { index in
             PDFToUnicodeCMap.Mapping(code: UInt16(index + 1), unicode: "A")
         }).serialized
+        let unicode = PDFToUnicodeCMap(mappings: [
+            PDFToUnicodeCMap.Mapping(code: 3, unicode: "\u{017D}"),
+            PDFToUnicodeCMap.Mapping(code: 4, unicode: "\u{1F600}"),
+        ]).serialized
 
         #expect(
             cmap.serialized
@@ -464,6 +468,8 @@ struct PDFDocumentStructureTests {
         #expect(cmap.pdfStream.serialized.contains(Data("/Length ".utf8)))
         #expect(chunked.contains("100 beginbfchar"))
         #expect(chunked.contains("1 beginbfchar"))
+        #expect(unicode.contains("<0003> <017D>"))
+        #expect(unicode.contains("<0004> <D83DDE00>"))
     }
 
     @Test("Font object keeps composite font references as explicit future hooks")
