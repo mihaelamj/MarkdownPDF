@@ -274,7 +274,12 @@ enum PDFValidation {
 }
 
 private enum Tool {
+    private static let processLock = NSLock()
+
     static func run(_ executable: String, arguments: [String]) throws -> PDFValidation.Result {
+        processLock.lock()
+        defer { processLock.unlock() }
+
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
         process.arguments = [executable] + arguments
