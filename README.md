@@ -132,7 +132,7 @@ flowchart TD
     P3["Phase 3<br/>#18 Catalog, page tree, page dictionaries<br/>Done"]
     P4["Phase 4<br/>#19 Page resources Done<br/>#20 Font objects Done<br/>#23 Image XObjects Done"]
     P5["Phase 5<br/>#21 Typed content streams Done"]
-    P6["Phase 6<br/>#26 Metadata, outlines, destinations In progress"]
+    P6["Phase 6<br/>#26 Metadata, outlines, destinations In review"]
     P7["Phase 7<br/>#37 Mermaid diagrams"]
     P8["Phase 8<br/>#36 Generated ToC"]
     P9["Phase 9<br/>#24 Output profile documentation"]
@@ -141,10 +141,11 @@ flowchart TD
 
     classDef done fill:#e8f5e9,stroke:#2e7d32,color:#111;
     classDef active fill:#e3f2fd,stroke:#1565c0,color:#111;
+    classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
     classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
     class P0,P1,P2,P3,P4,P5 done;
-    class P6 active;
+    class P6 review;
     class P7,P8,P9 todo;
 ```
 
