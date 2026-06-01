@@ -187,6 +187,78 @@ struct PDFVisualLayoutValidationTests {
         )
     }
 
+    @Test("Portable text encoding profile passes visual witness stack")
+    func portableTextEncodingProfilePassesVisualWitnessStack() throws {
+        let markdown = """
+        # Portable Text Encoding
+
+        ASCII: The quick brown fox stays portable.
+
+        Latin: Caf\u{00E9} ni\u{00F1}o NBSP\u{00A0}done.
+
+        WinAnsi: \u{201C}quoted\u{201D} \u{20AC}.
+
+        Unicode: \u{010D} \u{03C0} \u{1F680}.
+        """
+        let data = try MarkdownPDFRenderer(options: PDFOptions(baseFontSize: 10)).render(markdown: markdown)
+        let url = try PDFValidation.temporaryPDF(name: "portable-text-encoding", data: data)
+        let inspector = PDFInspector(data)
+
+        #expect(inspector.pageCount == 1)
+        #expect(!inspector.text.contains("/ToUnicode"))
+        #expect(!inspector.text.contains("/FontFile"))
+        try PDFValidation.writeArtifact(data, name: "text-encoding-profile.pdf")
+
+        let qpdf = try PDFValidation.qpdfCheck(url: url)
+        try #require(qpdf.exitCode == 0, "qpdf --check failed:\n\(qpdf.output)")
+
+        let textResult = try PDFValidation.pdftotext(url: url)
+        try #require(textResult.exitCode == 0, "pdftotext failed:\n\(textResult.output)")
+        try PDFValidation.writeTextArtifact(textResult.output, name: "text-encoding/text.txt")
+        #expect(textResult.output.contains("ASCII: The quick brown fox stays portable."))
+        #expect(textResult.output.contains("Latin: Caf? ni?o NBSP?done."))
+        #expect(textResult.output.contains("WinAnsi: ?quoted? ?."))
+        #expect(textResult.output.contains("Unicode: ? ? ?."))
+
+        let tsvResult = try PDFValidation.pdftotextTSV(url: url)
+        try #require(tsvResult.exitCode == 0, "pdftotext -tsv failed:\n\(tsvResult.output)")
+        try PDFValidation.writeTextArtifact(tsvResult.output, name: "text-encoding/poppler.tsv")
+        let popplerLayout = try PopplerTextLayout(tsv: tsvResult.output)
+        let popplerIssues = popplerLayout.visualLayoutIssues()
+        #expect(
+            popplerIssues.isEmpty,
+            "Text encoding Poppler layout issues:\n\(popplerIssues.joined(separator: "\n"))",
+        )
+
+        let structuredText = try PDFValidation.mutoolStructuredText(url: url)
+        try #require(structuredText.exitCode == 0, "mutool structured text failed:\n\(structuredText.output)")
+        try PDFValidation.writeTextArtifact(structuredText.output, name: "text-encoding/mupdf-stext.xml")
+        let mupdfLayout = try MuPDFStructuredText(xml: structuredText.output)
+        let mupdfIssues = mupdfLayout.characterQuadIssues()
+        #expect(
+            mupdfIssues.isEmpty,
+            "Text encoding MuPDF layout issues:\n\(mupdfIssues.joined(separator: "\n"))",
+        )
+
+        let poppler = try PDFValidation.pdftoppmPNM(url: url)
+        let mupdf = try PDFValidation.mutoolPNM(url: url)
+        try #require(poppler.result.exitCode == 0, "pdftoppm PNM failed:\n\(poppler.result.output)")
+        try #require(mupdf.result.exitCode == 0, "mutool PNM failed:\n\(mupdf.result.output)")
+        try PDFValidation.writeTextArtifact(poppler.result.output, name: "text-encoding/poppler-render.log")
+        try PDFValidation.writeTextArtifact(mupdf.result.output, name: "text-encoding/mupdf-render.log")
+        try PDFValidation.copyArtifact(from: poppler.pnmURL, name: "text-encoding-pages/poppler/page-1.ppm")
+        try PDFValidation.copyArtifact(from: mupdf.pnmURL, name: "text-encoding-pages/mupdf/page-1.pnm")
+
+        let rasterIssues = try rasterComparisonIssues(
+            poppler: PNMImage(data: Data(contentsOf: poppler.pnmURL)),
+            mupdf: PNMImage(data: Data(contentsOf: mupdf.pnmURL)),
+        )
+        #expect(
+            rasterIssues.isEmpty,
+            "Text encoding raster output diverged:\n\(rasterIssues.joined(separator: "\n"))",
+        )
+    }
+
     @Test("Visual layout validator rejects overlapping words")
     func visualLayoutValidatorRejectsOverlappingWords() throws {
         let layout = try PopplerTextLayout(tsv: """
@@ -446,6 +518,15 @@ struct PDFVisualLayoutValidationTests {
 
     article-stress-pages/
     Poppler and MuPDF page rasters for the article fixture.
+
+    text-encoding-profile.pdf
+    One-page PDF proving the portable text encoding replacement profile.
+
+    text-encoding/
+    Text, geometry, structured text, and render logs for the text encoding fixture.
+
+    text-encoding-pages/
+    Poppler and MuPDF page rasters for the text encoding fixture.
     """
 
     private func rasterComparisonIssues(poppler: PNMImage, mupdf: PNMImage) -> [String] {

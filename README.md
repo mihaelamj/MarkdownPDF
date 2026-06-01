@@ -212,8 +212,8 @@ without adding Apple-only dependencies.
 ```mermaid
 flowchart TD
     F0["Phase 0<br/>#49 Witness artifacts Done"]
-    F1["Phase 1<br/>#50 Article fixtures In review"]
-    F2["Phase 2<br/>#51 Text encoding Ready"]
+    F1["Phase 1<br/>#50 Article fixtures Done"]
+    F2["Phase 2<br/>#51 Text encoding In review"]
     F3["Phase 3<br/>#52 Oversized blocks Ready"]
     F4["Phase 4<br/>#53 Tables Ready"]
     F5["Phase 5<br/>#54 Diagrams and charts Ready"]
@@ -226,9 +226,9 @@ flowchart TD
     classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
     classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
-    class F0 done;
-    class F1 review;
-    class F2,F3,F4,F5,F6 todo;
+    class F0,F1 done;
+    class F2 review;
+    class F3,F4,F5,F6 todo;
 ```
 
 ## Build and Test
@@ -270,6 +270,10 @@ swiftlint --config .swiftlint.yml
 - Portable behavior means macOS and Linux.
 - `MarkdownPDFMac` is a macOS target hook, not a separate backend yet.
 - iOS support is not implemented or tested.
+- The default portable text profile emits printable ASCII. Unsupported Unicode
+  scalars, including Latin-1 letters, Windows-1252 punctuation, emoji, complex
+  scripts, combining marks, and bidirectional text, render as `?` until a
+  separate embedded-font and `/ToUnicode` profile exists.
 - Apple system font names remain available through
   `PDFOptions.FontSet.appleSystem`, but the public repo does not embed font
   files.

@@ -39,7 +39,7 @@ enum StandardFont: String, CaseIterable {
     ) -> Double {
         let widths = widthTable(in: fontSet)
 
-        let units = text.unicodeScalars.reduce(0) { partialResult, scalar in
+        let units = PDFTextEncoding.portableScalars(for: text).reduce(0) { partialResult, scalar in
             partialResult + widths.width(for: scalar)
         }
         return Double(units) * size / 1000
