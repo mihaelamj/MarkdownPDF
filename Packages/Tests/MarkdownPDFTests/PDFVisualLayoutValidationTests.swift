@@ -6,6 +6,98 @@ import Testing
 struct PDFVisualLayoutValidationTests {
     @Test("Generated PDFs do not have overlapping Poppler word boxes")
     func generatedPDFsDoNotHaveOverlappingPopplerWordBoxes() throws {
+        let data = try visualValidationPDF()
+        let result = try PDFValidation.pdftotextTSV(data: data, name: "visual-layout")
+        try #require(result.exitCode == 0, "pdftotext -tsv failed:\n\(result.output)")
+
+        let layout = try PopplerTextLayout(tsv: result.output)
+        let issues = layout.visualLayoutIssues()
+
+        #expect(layout.words.count > 30)
+        #expect(
+            issues.isEmpty,
+            "Poppler text layout has visual issues:\n\(issues.joined(separator: "\n"))",
+        )
+    }
+
+    @Test("Generated PDFs do not have overlapping MuPDF character quads")
+    func generatedPDFsDoNotHaveOverlappingMuPDFCharacterQuads() throws {
+        let data = try visualValidationPDF()
+        let result = try PDFValidation.mutoolStructuredText(data: data, name: "visual-layout-mupdf")
+        try #require(result.exitCode == 0, "mutool structured text failed:\n\(result.output)")
+
+        let layout = try MuPDFStructuredText(xml: result.output)
+        let visibleGlyphCount = layout.glyphs.count(where: { !$0.isWhitespace })
+        let issues = layout.characterQuadIssues()
+
+        #expect(visibleGlyphCount > 200)
+        #expect(
+            issues.isEmpty,
+            "MuPDF character layout has visual issues:\n\(issues.joined(separator: "\n"))",
+        )
+    }
+
+    @Test("Poppler and MuPDF render comparable ink bounds")
+    func popplerAndMuPDFRenderComparableInkBounds() throws {
+        let data = try visualValidationPDF()
+        let poppler = try PDFValidation.pdftoppmPNM(data: data, name: "visual-layout-poppler")
+        let mupdf = try PDFValidation.mutoolPNM(data: data, name: "visual-layout-mupdf")
+        try #require(poppler.result.exitCode == 0, "pdftoppm PNM failed:\n\(poppler.result.output)")
+        try #require(mupdf.result.exitCode == 0, "mutool PNM failed:\n\(mupdf.result.output)")
+
+        let popplerImage = try PNMImage(data: Data(contentsOf: poppler.pnmURL))
+        let mupdfImage = try PNMImage(data: Data(contentsOf: mupdf.pnmURL))
+        let issues = rasterComparisonIssues(poppler: popplerImage, mupdf: mupdfImage)
+
+        #expect(
+            issues.isEmpty,
+            "Poppler and MuPDF raster output diverged:\n\(issues.joined(separator: "\n"))",
+        )
+    }
+
+    @Test("Visual layout validator rejects overlapping words")
+    func visualLayoutValidatorRejectsOverlappingWords() throws {
+        let layout = try PopplerTextLayout(tsv: """
+        level\tpage_num\tpar_num\tblock_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext
+        1\t1\t0\t0\t0\t0\t0.000000\t0.000000\t200.000000\t200.000000\t-1\t###PAGE###
+        4\t1\t0\t1\t0\t0\t10.000000\t20.000000\t60.000000\t10.000000\t-1\t###LINE###
+        5\t1\t0\t1\t0\t0\t10.00\t20.00\t40.00\t10.00\t100\tFirst
+        5\t1\t0\t1\t0\t1\t49.00\t20.00\t30.00\t10.00\t100\tSecond
+        """)
+
+        #expect(layout.visualLayoutIssues().contains { $0.contains("overlaps") })
+    }
+
+    @Test("MuPDF character quad validator rejects overlapping glyphs")
+    func muPDFCharacterQuadValidatorRejectsOverlappingGlyphs() throws {
+        let layout = try MuPDFStructuredText(xml: """
+        <?xml version="1.0"?>
+        <document filename="overlap.pdf">
+        <page id="page1" width="100" height="100">
+        <block bbox="10 10 40 20" justify="unknown">
+        <line bbox="10 10 40 20" wmode="0" dir="1 0" flags="0" text="AB">
+        <font name="Helvetica" size="12">
+        <char quad="10 10 20 10 10 20 20 20" x="10" y="20" c="A"/>
+        <char quad="19 10 30 10 19 20 30 20" x="19" y="20" c="B"/>
+        </font>
+        </line>
+        </block>
+        </page>
+        </document>
+        """)
+
+        #expect(layout.characterQuadIssues().contains { $0.contains("overlaps") })
+    }
+
+    @Test("Raster comparison rejects divergent ink bounds")
+    func rasterComparisonRejectsDivergentInkBounds() throws {
+        let poppler = try PNMImage(data: pnmImage(width: 20, height: 20, inkBox: 2 ... 5))
+        let mupdf = try PNMImage(data: pnmImage(width: 20, height: 20, inkBox: 16 ... 19))
+
+        #expect(rasterComparisonIssues(poppler: poppler, mupdf: mupdf).contains { $0.contains("ink bounds differ") })
+    }
+
+    private func visualValidationPDF() throws -> Data {
         let markdown = """
         # Visual validation
 
@@ -21,37 +113,71 @@ struct PDFVisualLayoutValidationTests {
         Another paragraph gives Poppler enough lines to expose vertical spacing
         problems if text positions are too tight.
         """
-        let data = try MarkdownPDFRenderer(
+
+        return try MarkdownPDFRenderer(
             options: PDFOptions(
                 pageSize: PDFOptions.PageSize(width: 260, height: 320),
                 margins: PDFOptions.Margins(top: 24, right: 22, bottom: 24, left: 22),
                 baseFontSize: 10,
             ),
         ).render(markdown: markdown)
-        let result = try PDFValidation.pdftotextTSV(data: data, name: "visual-layout")
-        try #require(result.exitCode == 0, "pdftotext -tsv failed:\n\(result.output)")
-
-        let layout = try PopplerTextLayout(tsv: result.output)
-        let issues = layout.visualLayoutIssues()
-
-        #expect(layout.words.count > 30)
-        #expect(
-            issues.isEmpty,
-            "Poppler text layout has visual issues:\n\(issues.joined(separator: "\n"))",
-        )
     }
 
-    @Test("Visual layout validator rejects overlapping words")
-    func visualLayoutValidatorRejectsOverlappingWords() throws {
-        let layout = try PopplerTextLayout(tsv: """
-        level\tpage_num\tpar_num\tblock_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext
-        1\t1\t0\t0\t0\t0\t0.000000\t0.000000\t200.000000\t200.000000\t-1\t###PAGE###
-        4\t1\t0\t1\t0\t0\t10.000000\t20.000000\t60.000000\t10.000000\t-1\t###LINE###
-        5\t1\t0\t1\t0\t0\t10.00\t20.00\t40.00\t10.00\t100\tFirst
-        5\t1\t0\t1\t0\t1\t49.00\t20.00\t30.00\t10.00\t100\tSecond
-        """)
+    private func rasterComparisonIssues(poppler: PNMImage, mupdf: PNMImage) -> [String] {
+        var issues: [String] = []
+        if poppler.width != mupdf.width || poppler.height != mupdf.height {
+            issues.append(
+                "image dimensions differ: Poppler \(poppler.width)x\(poppler.height), "
+                    + "MuPDF \(mupdf.width)x\(mupdf.height)",
+            )
+        }
 
-        #expect(layout.visualLayoutIssues().contains { $0.contains("overlaps") })
+        let popplerInk = poppler.inkMetrics()
+        let mupdfInk = mupdf.inkMetrics()
+        if popplerInk.nonWhitePixelCount < 1000 {
+            issues.append("Poppler rendered too little ink: \(popplerInk.nonWhitePixelCount) pixels")
+        }
+        if mupdfInk.nonWhitePixelCount < 1000 {
+            issues.append("MuPDF rendered too little ink: \(mupdfInk.nonWhitePixelCount) pixels")
+        }
+
+        guard let popplerBox = popplerInk.box,
+              let mupdfBox = mupdfInk.box
+        else {
+            issues.append("one renderer produced a blank page")
+            return issues
+        }
+
+        let overlapRatio = inkOverlapRatio(popplerBox, mupdfBox)
+        if overlapRatio < 0.85 {
+            issues.append("ink bounds differ: Poppler \(popplerBox), MuPDF \(mupdfBox)")
+        }
+
+        return issues
+    }
+
+    private func inkOverlapRatio(_ left: PNMImage.InkBox, _ right: PNMImage.InkBox) -> Double {
+        let intersectionLeft = max(left.left, right.left)
+        let intersectionTop = max(left.top, right.top)
+        let intersectionRight = min(left.right, right.right)
+        let intersectionBottom = min(left.bottom, right.bottom)
+        guard intersectionLeft <= intersectionRight, intersectionTop <= intersectionBottom else {
+            return 0
+        }
+
+        let intersectionArea = (intersectionRight - intersectionLeft + 1) * (intersectionBottom - intersectionTop + 1)
+        let smallerArea = min(left.width * left.height, right.width * right.height)
+        return Double(intersectionArea) / Double(smallerArea)
+    }
+
+    private func pnmImage(width: Int, height: Int, inkBox: ClosedRange<Int>) -> Data {
+        var data = Data("P5\n\(width) \(height)\n255\n".utf8)
+        for y in 0 ..< height {
+            for x in 0 ..< width {
+                data.append(inkBox.contains(x) && inkBox.contains(y) ? 0 : 255)
+            }
+        }
+        return data
     }
 }
 
