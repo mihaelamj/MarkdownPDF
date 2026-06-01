@@ -466,6 +466,101 @@ struct PDFVisualLayoutValidationTests {
         )
     }
 
+    @Test("Diagram policy witness covers edge labels and chart fallback")
+    func diagramPolicyWitnessCoversEdgeLabelsAndChartFallback() throws {
+        let markdown = """
+        # Diagram Policy
+
+        ```mermaid
+        flowchart TD
+            Source["Markdown input"] -->|parse| Parser["Flow parser"]
+            Parser -->|draw| Renderer["PDF renderer"]
+        ```
+
+        ```mermaid
+        pie title Unsupported chart
+            "Alpha" : 3
+            "Beta" : 2
+        ```
+        """
+        let data = try MarkdownPDFRenderer(
+            options: PDFOptions(
+                pageSize: PDFOptions.PageSize(width: 280, height: 300),
+                margins: PDFOptions.Margins(top: 28, right: 24, bottom: 28, left: 24),
+                baseFontSize: 10,
+            ),
+        ).render(markdown: markdown)
+        let url = try PDFValidation.temporaryPDF(name: "diagram-policy", data: data)
+        let inspector = PDFInspector(data)
+        let pageCount = inspector.pageCount
+
+        #expect(pageCount >= 1)
+        try PDFValidation.writeArtifact(data, name: "diagram-policy.pdf")
+
+        let qpdf = try PDFValidation.qpdfCheck(url: url)
+        try #require(qpdf.exitCode == 0, "qpdf --check failed:\n\(qpdf.output)")
+
+        let textResult = try PDFValidation.pdftotext(url: url)
+        try #require(textResult.exitCode == 0, "pdftotext failed:\n\(textResult.output)")
+        try PDFValidation.writeTextArtifact(textResult.output, name: "diagram-policy/text.txt")
+        #expect(textResult.output.contains("Markdown input"))
+        #expect(textResult.output.contains("parse"))
+        #expect(textResult.output.contains("draw"))
+        #expect(!textResult.output.contains("Source[\"Markdown input\"]"))
+        #expect(!textResult.output.contains("Parser[\"Flow parser\"]"))
+        #expect(textResult.output.contains("Unsupported Mermaid diagram"))
+        #expect(textResult.output.contains("pie title Unsupported chart"))
+
+        let tsvResult = try PDFValidation.pdftotextTSV(url: url)
+        try #require(tsvResult.exitCode == 0, "pdftotext -tsv failed:\n\(tsvResult.output)")
+        try PDFValidation.writeTextArtifact(tsvResult.output, name: "diagram-policy/poppler.tsv")
+        let popplerLayout = try PopplerTextLayout(tsv: tsvResult.output)
+        let popplerIssues = popplerLayout.visualLayoutIssues()
+        #expect(
+            popplerIssues.isEmpty,
+            "Diagram policy Poppler layout issues:\n\(popplerIssues.joined(separator: "\n"))",
+        )
+
+        let structuredText = try PDFValidation.mutoolStructuredText(url: url)
+        try #require(structuredText.exitCode == 0, "mutool structured text failed:\n\(structuredText.output)")
+        try PDFValidation.writeTextArtifact(structuredText.output, name: "diagram-policy/mupdf-stext.xml")
+        let mupdfLayout = try MuPDFStructuredText(xml: structuredText.output)
+        let mupdfIssues = mupdfLayout.characterQuadIssues()
+        #expect(
+            mupdfIssues.isEmpty,
+            "Diagram policy MuPDF layout issues:\n\(mupdfIssues.joined(separator: "\n"))",
+        )
+
+        let poppler = try PDFValidation.pdftoppmPNMs(url: url, pageCount: pageCount)
+        let mupdf = try PDFValidation.mutoolPNMs(url: url, pageCount: pageCount)
+        try #require(poppler.result.exitCode == 0, "pdftoppm PNM failed:\n\(poppler.result.output)")
+        try #require(mupdf.result.exitCode == 0, "mutool PNM failed:\n\(mupdf.result.output)")
+        try PDFValidation.writeTextArtifact(poppler.result.output, name: "diagram-policy/poppler-render.log")
+        try PDFValidation.writeTextArtifact(mupdf.result.output, name: "diagram-policy/mupdf-render.log")
+
+        var rasterIssues: [String] = []
+        for page in 1 ... pageCount {
+            let popplerImage = try PNMImage(data: Data(contentsOf: poppler.pnmURLs[page - 1]))
+            let mupdfImage = try PNMImage(data: Data(contentsOf: mupdf.pnmURLs[page - 1]))
+            try PDFValidation.copyArtifact(
+                from: poppler.pnmURLs[page - 1],
+                name: "diagram-policy-pages/poppler/page-\(page).ppm",
+            )
+            try PDFValidation.copyArtifact(
+                from: mupdf.pnmURLs[page - 1],
+                name: "diagram-policy-pages/mupdf/page-\(page).pnm",
+            )
+            rasterIssues += rasterComparisonIssues(poppler: popplerImage, mupdf: mupdfImage).map {
+                "page \(page): \($0)"
+            }
+        }
+
+        #expect(
+            rasterIssues.isEmpty,
+            "Diagram policy raster output diverged:\n\(rasterIssues.joined(separator: "\n"))",
+        )
+    }
+
     @Test("Visual layout validator rejects overlapping words")
     func visualLayoutValidatorRejectsOverlappingWords() throws {
         let layout = try PopplerTextLayout(tsv: """
@@ -752,6 +847,15 @@ struct PDFVisualLayoutValidationTests {
 
     measured-tables-pages/
     Poppler and MuPDF page rasters for the measured table fixture.
+
+    diagram-policy.pdf
+    PDF proving edge-labeled Mermaid diagrams and unsupported chart fallback.
+
+    diagram-policy/
+    Text, geometry, structured text, and render logs for the diagram policy fixture.
+
+    diagram-policy-pages/
+    Poppler and MuPDF page rasters for the diagram policy fixture.
     """
 
     private func tableRectangleWidths(in inspector: PDFInspector) -> [Double] {

@@ -66,20 +66,42 @@ Examples of unsupported syntax in the first subset:
 - Dashed or thick arrows such as `-.->`, `---`, or `==>`
 - Cyclic flowcharts, because the first layout pass is a deterministic DAG layer
   layout
+- Mermaid chart syntax, including pie charts
 
 ## Validation
 
 The implementation is validated through:
 
 - Unit tests for supported parsing, graph aliases, quoted labels, edge labels,
-  and unsupported syntax.
+  unsupported syntax, and unsupported chart syntax.
 - Renderer tests that check supported Mermaid labels are emitted as PDF text and
   the raw Mermaid source is not rendered for supported diagrams.
 - Fallback tests that check unsupported syntax remains visible in extracted
-  text.
+  text, including edge labels that cannot be placed without colliding with a
+  node.
 - Fixture validation using the scientific article fixture.
-- Poppler word-box and MuPDF character-quad visual layout tests, now including a
-  Mermaid diagram, to catch label overlap.
+- Poppler word-box and MuPDF character-quad visual layout tests, now including
+  edge-labeled Mermaid diagrams and unsupported chart fallback, to catch label
+  overlap.
+
+## Edge label placement
+
+Edge labels are not drawn opportunistically. During diagram planning, the
+renderer measures the label background box and checks it against the diagram
+content area and every planned node box. If the label would leave the content
+area or collide with a node, the diagram falls back visibly instead of emitting
+overlapping text.
+
+This rule is portable across macOS and Linux because it uses the same base-font
+measurement tables that drive normal text layout. It does not use CoreGraphics,
+CoreText, SVG conversion, or browser measurement.
+
+## Chart policy
+
+Portable chart rendering is not part of this subset. Mermaid chart syntax,
+including pie charts, remains visible fallback text. A future chart profile must
+be typed PDF drawing code in Swift and must use structural, text, geometry, and
+raster witnesses before it can be documented as supported.
 
 ## Platform note
 

@@ -495,6 +495,13 @@ private struct Layout {
         guard height <= contentHeight else {
             return .fallback("diagram is taller than one page")
         }
+        if let reason = mermaidEdgeLabelFallbackReason(
+            boxes: boxes,
+            edges: edges,
+            planHeight: height,
+        ) {
+            return .fallback(reason)
+        }
 
         return .plan(MermaidRenderPlan(height: height, boxes: boxes, edges: edges))
     }
@@ -547,7 +554,53 @@ private struct Layout {
             x += columnWidths[columnIndex] + spacing
         }
 
+        if let reason = mermaidEdgeLabelFallbackReason(
+            boxes: boxes,
+            edges: edges,
+            planHeight: height,
+        ) {
+            return .fallback(reason)
+        }
+
         return .plan(MermaidRenderPlan(height: height, boxes: boxes, edges: edges))
+    }
+
+    private func mermaidEdgeLabelFallbackReason(
+        boxes: [MermaidNodeBox],
+        edges: [MermaidDiagram.Edge],
+        planHeight: Double,
+    ) -> String? {
+        let contentFrame = MermaidFrame(
+            left: options.margins.left,
+            top: 0,
+            width: contentWidth,
+            height: planHeight,
+        )
+        let boxesByID = Dictionary(uniqueKeysWithValues: boxes.map { ($0.id, $0) })
+        let nodeFrames = boxes.map { $0.frame(topY: 0).expanded(by: 2) }
+
+        for edge in edges {
+            guard let label = edge.label,
+                  let source = boxesByID[edge.source],
+                  let target = boxesByID[edge.target]
+            else {
+                continue
+            }
+
+            let sourceFrame = source.frame(topY: 0)
+            let targetFrame = target.frame(topY: 0)
+            let endpoints = mermaidEdgeEndpoints(source: sourceFrame, target: targetFrame)
+            let labelFrame = mermaidEdgeLabelFrame(label, start: endpoints.start, end: endpoints.end)
+
+            guard contentFrame.contains(labelFrame) else {
+                return "edge label `\(label)` does not fit inside the diagram content area"
+            }
+            if nodeFrames.contains(where: { labelFrame.intersects($0) }) {
+                return "edge label `\(label)` collides with a diagram node"
+            }
+        }
+
+        return nil
     }
 
     private mutating func drawMermaidPlan(_ plan: MermaidRenderPlan) {
@@ -662,20 +715,42 @@ private struct Layout {
         start: MermaidPoint,
         end: MermaidPoint,
     ) {
-        let fontSize = options.baseFontSize * 0.72
-        let run = PDFTextRun(text: label, font: .helveticaOblique, size: fontSize, color: .gray)
-        let width = run.width(fontSet: options.fontSet)
-        let centerX = (start.x + end.x) / 2
-        let centerY = (start.y + end.y) / 2
+        let run = mermaidEdgeLabelRun(label)
+        let frame = mermaidEdgeLabelFrame(label, start: start, end: end)
         currentPage.drawRectangle(
-            x: centerX - width / 2 - 3,
-            y: centerY - fontSize / 2 - 2,
-            width: width + 6,
-            height: fontSize + 4,
+            x: frame.left,
+            y: frame.bottom,
+            width: frame.width,
+            height: frame.height,
             stroke: nil,
             fill: PDFColor(red: 0.97, green: 0.98, blue: 0.99),
         )
-        currentPage.drawTextRun(run, x: centerX - width / 2, y: centerY - fontSize / 2 + 1, fontSet: options.fontSet)
+        currentPage.drawTextRun(run, x: frame.left + 3, y: frame.bottom + 3, fontSet: options.fontSet)
+    }
+
+    private func mermaidEdgeLabelFrame(
+        _ label: String,
+        start: MermaidPoint,
+        end: MermaidPoint,
+    ) -> MermaidFrame {
+        let run = mermaidEdgeLabelRun(label)
+        let width = run.width(fontSet: options.fontSet)
+        let height = run.size + 4
+        return MermaidFrame(
+            left: (start.x + end.x) / 2 - width / 2 - 3,
+            top: (start.y + end.y) / 2 + height / 2,
+            width: width + 6,
+            height: height,
+        )
+    }
+
+    private func mermaidEdgeLabelRun(_ label: String) -> PDFTextRun {
+        PDFTextRun(
+            text: label,
+            font: .helveticaOblique,
+            size: options.baseFontSize * 0.72,
+            color: .gray,
+        )
     }
 
     private mutating func drawMermaidNode(_ box: MermaidNodeBox, topY: Double) {
@@ -1506,6 +1581,29 @@ private struct Layout {
 
         var centerY: Double {
             top - height / 2
+        }
+
+        func contains(_ child: MermaidFrame) -> Bool {
+            child.left >= left
+                && child.right <= right
+                && child.top <= top
+                && child.bottom >= bottom
+        }
+
+        func intersects(_ other: MermaidFrame) -> Bool {
+            left < other.right
+                && right > other.left
+                && bottom < other.top
+                && top > other.bottom
+        }
+
+        func expanded(by amount: Double) -> MermaidFrame {
+            MermaidFrame(
+                left: left - amount,
+                top: top + amount,
+                width: width + amount * 2,
+                height: height + amount * 2,
+            )
         }
     }
 
