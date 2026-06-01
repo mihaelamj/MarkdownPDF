@@ -254,10 +254,11 @@ struct PDFInspector {
         if let outlinesRef = reference(after: "/Outlines", in: catalog.content) {
             validateOutlines(ref: outlinesRef, objects: objects, issues: &issues)
         }
-        if let names = dictionary(after: "/Names", in: catalog.content) {
+        let names = dictionary(after: "/Names", in: catalog.content)
+        if let names {
             validateNamedDestinations(names, objects: objects, issues: &issues)
-            validateInternalLinkDestinations(objects: objects, names: names, issues: &issues)
         }
+        validateInternalLinkDestinations(objects: objects, names: names, issues: &issues)
     }
 
     private func validatePages(
@@ -500,13 +501,27 @@ struct PDFInspector {
 
     private func validateInternalLinkDestinations(
         objects: [Int: IndirectObject],
-        names: String,
+        names: String?,
         issues: inout [String],
     ) {
-        let destinationNames = Set(namedDestinations(in: names).map(\.name))
         let linkNames = objects.values.flatMap { object in
-            regexMatches(#"/Dest\s+\(([^)]*)\)"#, in: object.content).compactMap(\.first)
+            guard object.content.contains("/Subtype /Link") else {
+                return [String]()
+            }
+
+            return regexMatches(#"/Dest\s+\(([^)]*)\)"#, in: object.content).compactMap(\.first)
         }
+        guard !linkNames.isEmpty else {
+            return
+        }
+        guard let names else {
+            for linkName in linkNames {
+                issues.append("link annotation points at destination \(linkName) but catalog /Names is missing")
+            }
+            return
+        }
+
+        let destinationNames = Set(namedDestinations(in: names).map(\.name))
         for linkName in linkNames where !destinationNames.contains(linkName) {
             issues.append("link annotation points at unknown destination \(linkName)")
         }

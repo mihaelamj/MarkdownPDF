@@ -33,7 +33,7 @@ private extension String {
             return nil
         }
 
-        return String(dropFirst())
+        return PDFHeadingDestinationName.linkTargetName(for: String(dropFirst()))
     }
 
     var pdfURI: String {

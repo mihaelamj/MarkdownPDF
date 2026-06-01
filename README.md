@@ -140,10 +140,11 @@ flowchart TD
     P0 --> P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9
 
     classDef done fill:#e8f5e9,stroke:#2e7d32,color:#111;
+    classDef active fill:#e3f2fd,stroke:#1565c0,color:#111;
     classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
     class P0,P1,P2,P3,P4,P5 done;
-    class P6 next;
+    class P6 active;
     class P7,P8,P9 todo;
 ```
 
