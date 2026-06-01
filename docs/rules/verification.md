@@ -69,8 +69,9 @@ Enable the local hooks once after cloning:
 git config core.hooksPath .githooks
 ```
 
-The Swift gates are inert until `Packages/Package.swift` exists; the style and
-namespacing gates run now. CI lives in `.github/workflows/ci.yml`.
+The Swift gates run in both local hooks and GitHub workflows. CI lives in
+`.github/workflows/style.yml`, `.github/workflows/swift-macos.yml`, and
+`.github/workflows/swift-linux.yml`.
 
 ## Anti-Patterns
 
