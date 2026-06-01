@@ -24,6 +24,11 @@ The visual failure modes to catch are:
 - A PDF opens, but Poppler/Ghostscript/MuPDF interpret its font metrics
   differently than our expectations.
 
+The current test fixture is intentionally multi-page. It mixes dense prose,
+inline styles, lists, tables, links, Mermaid diagrams, unsupported Mermaid code
+fallback, and closing text after page breaks. Small single-page smoke fixtures
+are still useful for syntax tests, but they are not enough for layout evidence.
+
 ## Findings
 
 ### Poppler: best first CI check
@@ -60,6 +65,10 @@ Limitations:
   pure visual proof.
 - Poppler's line grouping is an interpretation. We should tune thresholds and
   use it as a smoke/regression gate, not as a full typography oracle.
+- Linux Poppler can report non-zero page row origins for later pages even when
+  the generated PDF MediaBox starts at `0 0`. MarkdownPDF generated pages use
+  zero-origin MediaBoxes, so the validator treats the Poppler page row as a size
+  record and uses zero-origin bounds for generated pages.
 
 ### Poppler rasterization: useful for smoke and artifacts
 
@@ -79,6 +88,10 @@ Limitations:
 - A non-empty PNG does not prove the text is readable.
 - Pixel comparison needs baselines and can be noisy across Poppler/font
   versions unless the same CI image is used.
+- Homebrew Poppler on GitHub macOS needs URW Base35 fonts available through
+  fontconfig before it reliably paints PDF base-font text during rasterization.
+  Without those fonts, text extraction can still succeed while text-only pages
+  rasterize blank. macOS CI installs `font-urw-base35` for this reason.
 
 ### MuPDF: best per-character geometry check
 
@@ -175,8 +188,8 @@ This confirms why `qpdf` is necessary but insufficient for the visual problem.
 
 ## Recommended order
 
-1. Add a Swift test helper around `pdftotext -tsv`.
-2. Add a normal `swift test` case for representative generated PDFs:
+1. Keep a Swift test helper around `pdftotext -tsv`.
+2. Keep normal `swift test` cases for representative generated PDFs:
    - body text with proportional base font,
    - monospaced text,
    - bold and italic spans,
@@ -185,9 +198,9 @@ This confirms why `qpdf` is necessary but insufficient for the visual problem.
    - multi-page fixture.
 3. Fail on invalid word boxes, same-line word overlap, and suspicious line-box
    collisions.
-4. Add MuPDF per-character quad validation for letter-level overlap.
-5. Add Poppler and MuPDF raster comparison for blank renders and divergent ink
-   bounds.
+4. Keep MuPDF per-character quad validation for letter-level overlap.
+5. Keep Poppler and MuPDF raster comparison for blank renders and divergent ink
+   bounds across every generated page in the visual stress fixture.
 6. Consider golden-image regression only after layout stabilizes. Start with
    one fixture and explicit tool versions to avoid noisy PRs.
 
@@ -223,11 +236,13 @@ or glyph order moving backward inside a text run.
 
 Raster comparison lives in
 `PDFVisualLayoutValidationTests.popplerAndMuPDFRenderComparableInkBounds`. It
-renders the first representative page through Poppler and MuPDF as raw PNM,
-measures non-white pixels and ink bounds, and fails on blank renders, size
+renders every page of the visual stress fixture through Poppler and MuPDF as raw
+PNM, measures non-white pixels and ink bounds, and fails on blank renders, size
 divergence, or divergent ink bounds.
 
 Together, these tests are now the canonical visual gate for layout-affecting
 renderer changes. Remaining gaps are smaller: this is not a full
 pixel-perfect golden image suite, but it no longer relies on manual inspection
-or word-level geometry alone.
+or word-level geometry alone. Manual rendered artifacts can help reviewers see
+what failed, but the normal gate is automated witness evidence on macOS and
+Linux.

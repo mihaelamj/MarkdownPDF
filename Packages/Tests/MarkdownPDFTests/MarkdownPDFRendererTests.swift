@@ -250,6 +250,67 @@ struct MarkdownPDFRendererTests {
         )
     }
 
+    @Test("Renders supported Mermaid flowcharts through PDF drawing operators")
+    func rendersSupportedMermaidFlowchartsThroughPDFDrawingOperators() throws {
+        let data = try MarkdownPDFRenderer().render(markdown: """
+        ```mermaid
+        flowchart TD
+            Input[Markdown source] --> Parse[Block parser]
+            Parse --> Layout[Article layout]
+            Layout --> PDF[PDF bytes]
+        ```
+        """)
+        let inspector = PDFInspector(data)
+        let streamText = inspector.streams.map(\.body).joined(separator: "\n")
+        let textResult = try PDFValidation.pdftotext(data: data, name: "mermaid-flowchart")
+
+        #expect(streamText.contains("(Markdown )"))
+        #expect(streamText.contains("(source)"))
+        #expect(streamText.contains("(Block )"))
+        #expect(streamText.contains("(parser)"))
+        #expect(streamText.contains(" re f"))
+        #expect(!streamText.contains("(flowchart TD)"))
+        #expect(textResult.exitCode == 0, "pdftotext failed for Mermaid PDF:\n\(textResult.output)")
+        #expect(textResult.output.contains("Markdown source"))
+        #expect(textResult.output.contains("PDF bytes"))
+        #expect(
+            inspector.canonicalStructureIssues().isEmpty,
+            "Canonical PDF structure failed:\n\(inspector.canonicalStructureReport())",
+        )
+    }
+
+    @Test("Falls back visibly for unsupported Mermaid syntax")
+    func fallsBackVisiblyForUnsupportedMermaidSyntax() throws {
+        let data = try MarkdownPDFRenderer().render(markdown: """
+        ```mermaid
+        sequenceDiagram
+            Alice->>Bob: Hello
+        ```
+        """)
+        let textResult = try PDFValidation.pdftotext(data: data, name: "unsupported-mermaid")
+
+        #expect(textResult.exitCode == 0, "pdftotext failed for unsupported Mermaid fallback:\n\(textResult.output)")
+        #expect(textResult.output.contains("Unsupported Mermaid diagram"))
+        #expect(textResult.output.contains("sequenceDiagram"))
+    }
+
+    @Test("Renders Mermaid edge labels into extractable PDF text")
+    func rendersMermaidEdgeLabelsIntoExtractablePDFText() throws {
+        let data = try MarkdownPDFRenderer().render(markdown: """
+        ```mermaid
+        graph LR
+            A["Markdown"] -->|parse| B["PDF"]
+        ```
+        """)
+        let textResult = try PDFValidation.pdftotext(data: data, name: "mermaid-edge-label")
+
+        #expect(textResult.exitCode == 0, "pdftotext failed for Mermaid edge label PDF:\n\(textResult.output)")
+        #expect(textResult.output.contains("Markdown"))
+        #expect(textResult.output.contains("parse"))
+        #expect(textResult.output.contains("PDF"))
+        #expect(!textResult.output.contains("graph LR"))
+    }
+
     @Test("Keeps unknown fragment links as URI annotations")
     func keepsUnknownFragmentLinksAsURIAnnotations() throws {
         let data = try MarkdownPDFRenderer().render(markdown: "[Missing](#Missing%20Section)")

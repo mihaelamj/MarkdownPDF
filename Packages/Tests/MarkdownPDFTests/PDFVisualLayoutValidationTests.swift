@@ -13,11 +13,38 @@ struct PDFVisualLayoutValidationTests {
         let layout = try PopplerTextLayout(tsv: result.output)
         let issues = layout.visualLayoutIssues()
 
-        #expect(layout.words.count > 30)
+        #expect(layout.pages.count >= 4)
+        #expect(layout.words.count > 200)
         #expect(
             issues.isEmpty,
             "Poppler text layout has visual issues:\n\(issues.joined(separator: "\n"))",
         )
+    }
+
+    @Test("Generated code blocks wrap long lines inside page bounds")
+    func generatedCodeBlocksWrapLongLinesInsidePageBounds() throws {
+        let markdown = """
+        # Code block wrapping
+
+        ```text
+        let clippedLine = "Author[Author input] --> Parser[Swift parser] --> Renderer[PDF renderer] --> Tools[Open tools]"
+        ```
+        """
+        let data = try MarkdownPDFRenderer(
+            options: PDFOptions(
+                pageSize: PDFOptions.PageSize(width: 220, height: 220),
+                margins: PDFOptions.Margins(top: 24, right: 22, bottom: 24, left: 22),
+                baseFontSize: 10,
+            ),
+        ).render(markdown: markdown)
+
+        let result = try PDFValidation.pdftotextTSV(data: data, name: "code-block-wrap")
+        try #require(result.exitCode == 0, "pdftotext -tsv failed:\n\(result.output)")
+
+        let layout = try PopplerTextLayout(tsv: result.output)
+        #expect(layout.visualLayoutIssues().isEmpty)
+        #expect(layout.words.contains { $0.text == "Renderer[PDF" })
+        #expect(layout.words.contains { $0.text == "tools]\"" })
     }
 
     @Test("Generated PDFs do not have overlapping MuPDF character quads")
@@ -30,7 +57,8 @@ struct PDFVisualLayoutValidationTests {
         let visibleGlyphCount = layout.glyphs.count(where: { !$0.isWhitespace })
         let issues = layout.characterQuadIssues()
 
-        #expect(visibleGlyphCount > 200)
+        #expect(layout.pages.count >= 4)
+        #expect(visibleGlyphCount > 1200)
         #expect(
             issues.isEmpty,
             "MuPDF character layout has visual issues:\n\(issues.joined(separator: "\n"))",
@@ -40,14 +68,24 @@ struct PDFVisualLayoutValidationTests {
     @Test("Poppler and MuPDF render comparable ink bounds")
     func popplerAndMuPDFRenderComparableInkBounds() throws {
         let data = try visualValidationPDF()
-        let poppler = try PDFValidation.pdftoppmPNM(data: data, name: "visual-layout-poppler")
-        let mupdf = try PDFValidation.mutoolPNM(data: data, name: "visual-layout-mupdf")
+        let url = try PDFValidation.temporaryPDF(name: "visual-layout-raster", data: data)
+        let pageCount = PDFInspector(data).pageCount
+
+        #expect(pageCount >= 4)
+
+        let poppler = try PDFValidation.pdftoppmPNMs(url: url, pageCount: pageCount)
+        let mupdf = try PDFValidation.mutoolPNMs(url: url, pageCount: pageCount)
         try #require(poppler.result.exitCode == 0, "pdftoppm PNM failed:\n\(poppler.result.output)")
         try #require(mupdf.result.exitCode == 0, "mutool PNM failed:\n\(mupdf.result.output)")
 
-        let popplerImage = try PNMImage(data: Data(contentsOf: poppler.pnmURL))
-        let mupdfImage = try PNMImage(data: Data(contentsOf: mupdf.pnmURL))
-        let issues = rasterComparisonIssues(poppler: popplerImage, mupdf: mupdfImage)
+        var issues: [String] = []
+        for page in 1 ... pageCount {
+            let popplerImage = try PNMImage(data: Data(contentsOf: poppler.pnmURLs[page - 1]))
+            let mupdfImage = try PNMImage(data: Data(contentsOf: mupdf.pnmURLs[page - 1]))
+            issues += rasterComparisonIssues(poppler: popplerImage, mupdf: mupdfImage).map {
+                "page \(page): \($0)"
+            }
+        }
 
         #expect(
             issues.isEmpty,
@@ -66,6 +104,19 @@ struct PDFVisualLayoutValidationTests {
         """)
 
         #expect(layout.visualLayoutIssues().contains { $0.contains("overlaps") })
+    }
+
+    @Test("Visual layout validator normalizes offset Poppler page rows")
+    func visualLayoutValidatorNormalizesOffsetPopplerPageRows() throws {
+        let layout = try PopplerTextLayout(tsv: """
+        level\tpage_num\tpar_num\tblock_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext
+        1\t2\t0\t0\t0\t0\t205.970000\t253.270000\t260.000000\t320.000000\t-1\t###PAGE###
+        4\t2\t0\t0\t0\t0\t95.280000\t41.481600\t69.440800\t8.140000\t-1\t###LINE###
+        5\t2\t0\t0\t0\t0\t95.28\t41.48\t40.59\t8.14\t100\tMarkdown
+        5\t2\t0\t0\t0\t1\t138.31\t41.48\t26.41\t8.14\t100\tsource
+        """)
+
+        #expect(layout.visualLayoutIssues().isEmpty)
     }
 
     @Test("MuPDF character quad validator rejects overlapping glyphs")
@@ -102,16 +153,91 @@ struct PDFVisualLayoutValidationTests {
         # Visual validation
 
         This fixture checks proportional spacing, **bold spacing**, *italic spacing*,
-        and `monospaced spacing` on narrow pages.
+        `monospaced spacing`, URI text, table cells, list indentation, and diagram
+        labels on narrow pages. The point is to give Poppler and MuPDF enough
+        material to disagree if the renderer starts placing glyphs badly.
+
+        ## Inline stress
+
+        A narrow paragraph mixes words with very different shapes: WWWWWW, iiiiii,
+        minimum, maximum, allocation, fulfillment, and reproducibility. The line
+        wrapper must keep each word separated even when punctuation, commas, and
+        periods appear at the edge of the available measure.
+
+        The same paragraph family also checks **bold words near normal words**,
+        *italic words near normal words*, and `code tokens beside prose`. A later
+        regression in font metrics should appear as either overlapping Poppler word
+        boxes or overlapping MuPDF character quads.
+
+        - First bullet item has enough text to wrap onto a second line while the
+          marker remains separate from the body text.
+        - Second bullet item includes `code`, **bold emphasis**, and iiiiii WWWWWW
+          patterns to stress mixed-font cursor movement.
+        - Third bullet item is deliberately ordinary so vertical spacing issues
+          show up between adjacent list rows.
 
         | Column | Description |
         |---|---|
-        | Alpha | Several words should remain separated. |
+        | Alpha | Several words should remain separated across wrapped cell lines. |
         | Beta | Wide letters like WWWWWW and narrow letters like iiiiii both render. |
+        | Gamma | Inline code, bold text, and italic text are checked beside table borders. |
+        | Delta | A final row gives the table enough height to reveal cell spacing drift. |
 
-        The renderer should wrap text without causing adjacent words to collide.
-        Another paragraph gives Poppler enough lines to expose vertical spacing
-        problems if text positions are too tight.
+        ## Diagram pipeline
+
+        ```mermaid
+        flowchart TD
+            Source[Markdown source] -->|parse| Blocks[Block tree]
+            Blocks --> Layout[PDF layout]
+            Layout --> Bytes[PDF bytes]
+        ```
+
+        After the first diagram, prose resumes immediately. This catches cases
+        where a diagram consumes the wrong amount of vertical space and lets the
+        next paragraph collide with the diagram background or node labels.
+
+        ## Dense article section
+
+        The dense section repeats realistic article prose instead of isolated
+        tokens. Rendering should remain stable while headings, paragraphs, tables,
+        lists, and diagrams cross page boundaries. The sentences use plain ASCII
+        because the public package currently targets PDF base fonts by default.
+
+        A second paragraph adds link-shaped text without depending on network
+        access: https://example.com/articles/portable-layout. The text should
+        remain extractable as words and should not compress into neighboring runs.
+
+        | Phase | Check | Expected signal |
+        |---|---|---|
+        | Parse | Headings, lists, tables, and Mermaid fences | Extractable labels |
+        | Layout | Page breaks and table rows | Non-overlapping boxes |
+        | Serialize | Streams, resources, and xref entries | Valid PDF bytes |
+        | Inspect | Poppler, MuPDF, and qpdf witnesses | Actionable failures |
+
+        More prose follows the second table so the document spans more than a
+        token amount of content. The renderer should keep line spacing consistent
+        after tables, before diagrams, and across new pages. If line height is too
+        small, independent text extraction will flag collisions.
+
+        ```mermaid
+        graph LR
+            Author[Author input] --> Parser[Swift parser]
+            Parser --> Renderer[PDF renderer]
+            Renderer --> Tools[Open tools]
+        ```
+
+        ## Closing checks
+
+        The final section is intentionally not empty. It validates that the last
+        page still has enough ink for raster comparison and that tail content is
+        not clipped. Several short sentences follow. First, text extraction must
+        include the closing words. Second, glyph quads must move monotonically in
+        each visible run. Third, raster bounds from Poppler and MuPDF must overlap
+        enough to prove both engines saw the same broad layout.
+
+        A compact summary ends the fixture with known labels: Markdown source,
+        Block tree, PDF layout, PDF bytes, Author input, Swift parser, PDF renderer,
+        and Open tools.
         """
 
         return try MarkdownPDFRenderer(
@@ -250,10 +376,19 @@ private struct PopplerTextLayout {
                 continue
             }
 
-            if word.left < page.left - tolerance
-                || word.top < page.top - tolerance
-                || word.right > page.right + tolerance
-                || word.bottom > page.bottom + tolerance
+            // Linux Poppler can report non-zero page-row origins on later
+            // pages even when the PDF MediaBox starts at 0,0. Generated
+            // MarkdownPDF pages use zero-origin MediaBoxes, so use the page
+            // size row as the bounds and ignore its reported origin.
+            let pageLeft = 0.0
+            let pageTop = 0.0
+            let pageRight = page.width
+            let pageBottom = page.height
+
+            if word.left < pageLeft - tolerance
+                || word.top < pageTop - tolerance
+                || word.right > pageRight + tolerance
+                || word.bottom > pageBottom + tolerance
             {
                 issues.append("\(boxDescription(word)) is outside page bounds")
             }

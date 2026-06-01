@@ -22,17 +22,37 @@ This is stronger than relying on screenshots alone. Screenshot or raster checks
 prove that a page can render through one renderer. They do not prove that the
 object graph, resources, text extraction, or xref table are correct.
 
+## Current MarkdownPDF gate
+
+The current committed gate is:
+
+1. Swift structural inspection with `PDFInspector`.
+2. qpdf syntax and xref validation.
+3. Poppler metadata and text extraction through `pdfinfo`, `pdftotext`, and
+   `pdftotext -tsv`.
+4. MuPDF structured text extraction through `mutool draw -F stext`.
+5. Poppler and MuPDF all-page raster comparison for the visual stress fixture.
+
+This gate runs inside `swift test`, so both macOS and Linux CI exercise the same
+Swift test logic. Linux installs `qpdf`, `poppler-utils`, and `mupdf-tools`.
+macOS installs `qpdf`, `poppler`, `mupdf`, and the `font-urw-base35` cask. The
+font cask matters because Homebrew Poppler on a fresh GitHub macOS runner can
+extract PDF base-font text but fail to paint that text during rasterization until
+URW Base35 fonts are available to fontconfig.
+
 ## Recommended CI gate
 
-The portable Linux CI gate should generate at least one minimal PDF and one
-article-grade fixture PDF, then run:
+The portable CI gate should generate at least one minimal PDF, one article-grade
+fixture PDF, and one multi-page visual stress PDF, then run:
 
 ```sh
 qpdf --check "$pdf"
 pdfinfo "$pdf"
 pdftotext "$pdf" -
-gs -q -dSAFER -dBATCH -dNOPAUSE -dPDFSTOPONERROR -sDEVICE=nullpage -o /dev/null "$pdf"
-gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=png16m -r144 -o "$out/page-%d.png" "$pdf"
+pdftotext -tsv "$pdf" -
+pdftoppm -r 96 "$pdf" "$out/poppler/page"
+mutool draw -q -F stext "$pdf"
+mutool draw -q -F pnm -r 96 -o "$out/mupdf/page-%d.pnm" "$pdf"
 ```
 
 For a basic smoke gate:
@@ -40,8 +60,10 @@ For a basic smoke gate:
 - `qpdf --check` must exit 0.
 - `pdfinfo` must report the expected PDF version and page count.
 - `pdftotext` must extract expected visible text.
-- Ghostscript nullpage rendering must exit 0.
-- Ghostscript bitmap rendering must produce at least one non-empty image.
+- `pdftotext -tsv` must produce valid word and line boxes.
+- MuPDF structured text must produce valid character quads.
+- Poppler and MuPDF raster outputs must be nonblank and broadly agree on ink
+  bounds across every generated page in the visual stress fixture.
 
 Treat qpdf warnings as CI failures. qpdf documents distinct exit behavior for
 `--check`: 0 for syntactic correctness, 2 for errors, and 3 for warnings. In a
@@ -123,13 +145,13 @@ For GitHub Actions on Ubuntu:
 
 ```sh
 sudo apt-get update
-sudo apt-get install -y qpdf poppler-utils ghostscript
+sudo apt-get install -y git mupdf-tools poppler-utils qpdf
 ```
 
 Optional additions:
 
 ```sh
-sudo apt-get install -y mupdf-tools imagemagick
+sudo apt-get install -y ghostscript imagemagick
 ```
 
 `imagemagick` is only needed if CI checks PNG statistics. If the gate only checks
@@ -139,16 +161,29 @@ that a raster file exists, `file` is enough, but that is weaker.
 valuable, but it should not block the first validation gate unless installation is
 stable and fast.
 
+## macOS CI package plan
+
+For GitHub Actions on macOS:
+
+```sh
+brew install mupdf poppler qpdf swiftformat swiftlint
+brew install --cask font-urw-base35
+fc-cache -f "$HOME/Library/Fonts" || true
+```
+
+The Base35 cask is validation infrastructure, not a runtime dependency of the
+renderer and not a font file committed to the public repository.
+
 ## Best order for MarkdownPDF
 
-1. Add a Linux CI step with qpdf, Poppler, and Ghostscript for the minimal PDF and
-   one fixture PDF.
-2. Make qpdf exit 0 mandatory. Treat exit 2 and exit 3 as failures.
-3. Add MuPDF rendering if `mupdf-tools` is available without slowing CI too much.
-4. Add pdfcpu strict validation after evaluating install speed and reliability.
-5. Add veraPDF only when MarkdownPDF intentionally emits PDF/A or PDF/UA.
-6. Keep Swift structural tests as the first line of defense because they can
+1. Keep Swift structural tests as the first line of defense because they can
    assert exact writer invariants more clearly than external tools.
+2. Make qpdf exit 0 mandatory. Treat exit 2 and exit 3 as failures.
+3. Keep Poppler metadata, text extraction, TSV geometry, and raster witnesses in
+   normal CI.
+4. Keep MuPDF structured text and raster witnesses in normal CI.
+5. Add pdfcpu strict validation after evaluating install speed and reliability.
+6. Add veraPDF only when MarkdownPDF intentionally emits PDF/A or PDF/UA.
 
 ## Sources
 

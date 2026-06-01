@@ -133,7 +133,7 @@ flowchart TD
     P4["Phase 4<br/>#19 Page resources Done<br/>#20 Font objects Done<br/>#23 Image XObjects Done"]
     P5["Phase 5<br/>#21 Typed content streams Done"]
     P6["Phase 6<br/>#26 Metadata, outlines, destinations Done"]
-    P7["Phase 7<br/>#37 Mermaid diagrams Next"]
+    P7["Phase 7<br/>#37 Mermaid diagrams In review"]
     P8["Phase 8<br/>#36 Generated ToC"]
     P9["Phase 9<br/>#24 Output profile documentation"]
 
@@ -145,33 +145,44 @@ flowchart TD
     classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
     class P0,P1,P2,P3,P4,P5,P6 done;
-    class P7 next;
+    class P7 review;
     class P8,P9 todo;
 ```
 
 ## Validation
 
-The test suite validates generated PDFs in four layers:
+The test suite validates generated PDFs in five layers:
 
 - Swift structural inspection checks object references, xref offsets, stream
   lengths, page resources, annotations, fonts, images, and canonical page
   structure.
 - `qpdf --check` validates syntax, xref, trailer, and stream-level structure.
-- Poppler tools inspect real reader behavior through `pdfinfo`, `pdftotext`, and
-  `pdftoppm`.
-- MuPDF `mutool` independently extracts character quads and renders page rasters.
+- Poppler tools inspect reader behavior through `pdfinfo`, `pdftotext`,
+  `pdftotext -tsv`, and `pdftoppm`.
+- MuPDF `mutool` independently extracts character quads and renders page
+  rasters.
+- Poppler and MuPDF raster output is compared across every generated page in the
+  visual stress fixture.
 
 Layout-affecting renderer changes must keep the visual geometry tests passing.
-Those tests render representative Markdown, extract Poppler word and line boxes
-with `pdftotext -tsv`, extract MuPDF character quads with `mutool draw -F stext`,
-and compare Poppler and MuPDF raster ink bounds. They fail on
-non-positive boxes, text outside page bounds, same-line word overlap,
-same-word glyph overlap, vertical line collisions, blank renders, or
-divergent ink bounds.
+Those tests render representative multi-page Markdown with dense prose, inline
+styles, lists, tables, links, fenced code fallback, Mermaid diagrams, and page
+breaks. They extract Poppler word and line boxes with `pdftotext -tsv`, extract
+MuPDF character quads with `mutool draw -F stext`, and compare Poppler and MuPDF
+raster ink bounds for every page. They fail on non-positive boxes, text outside
+page bounds, same-line word overlap, same-word glyph overlap, vertical line
+collisions, blank renders, or divergent ink bounds.
+
+Witness differences are handled in the test layer unless the generated PDF bytes
+truly need to differ by platform. Linux Poppler page-origin normalization and
+macOS CI Base35 font installation are examples of witness environment fixes, not
+production renderer forks.
 
 See [docs/research/pdf-validation-tooling.md](docs/research/pdf-validation-tooling.md)
 and [docs/research/pdf-visual-layout-validation.md](docs/research/pdf-visual-layout-validation.md)
-for the validation rationale.
+for the validation rationale. See
+[docs/rules/pdf-witness-gate.md](docs/rules/pdf-witness-gate.md) for the policy
+future PDF features must satisfy.
 
 ## Build and Test
 

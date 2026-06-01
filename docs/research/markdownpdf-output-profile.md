@@ -165,6 +165,13 @@ Content streams use PDF operators directly. Layout code should move toward typed
 draw commands and a typed content-stream builder, but the profile does not
 require that refactor before the current structural tests pass.
 
+Portable Mermaid flowcharts are rendered as ordinary page content operators:
+rectangles, strokes, lines, and text. They do not introduce external image
+objects, form XObjects, JavaScript, embedded fonts, or platform-specific drawing
+APIs in the first profile. Unsupported Mermaid syntax is emitted through the
+documented visible code-block fallback rather than delegated to Node, browser
+renderers, shell renderers, Apple APIs, or external PDF libraries.
+
 ## Fonts
 
 The default profile uses standard PDF base fonts and does not embed font files.
