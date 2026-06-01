@@ -195,11 +195,11 @@ struct PDFDocumentWriter {
             switch annotation.target {
             case let .uri(uri):
                 entries.append(uriAction(uri))
-            case let .destination(destination):
+            case let .destination(destination, fallbackURI):
                 if knownDestinations.contains(destination) {
                     entries.append(.init("Dest", .pdfString(destination)))
                 } else {
-                    entries.append(uriAction("#\(destination)"))
+                    entries.append(uriAction(fallbackURI))
                 }
             }
 

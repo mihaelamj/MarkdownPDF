@@ -252,12 +252,12 @@ struct MarkdownPDFRendererTests {
 
     @Test("Keeps unknown fragment links as URI annotations")
     func keepsUnknownFragmentLinksAsURIAnnotations() throws {
-        let data = try MarkdownPDFRenderer().render(markdown: "[Missing](#missing)")
+        let data = try MarkdownPDFRenderer().render(markdown: "[Missing](#Missing%20Section)")
         let inspector = PDFInspector(data)
 
         #expect(inspector.namedDestinationNames.isEmpty)
-        #expect(inspector.text.contains("/URI (#missing)"))
-        #expect(!inspector.text.contains("/Dest (missing)"))
+        #expect(inspector.text.contains("/URI (#Missing%20Section)"))
+        #expect(!inspector.text.contains("/Dest (missing-section)"))
         #expect(
             inspector.canonicalStructureIssues().isEmpty,
             "Canonical PDF structure failed:\n\(inspector.canonicalStructureReport())",
