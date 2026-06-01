@@ -12,10 +12,56 @@ public struct MarkdownPDFRenderer: Sendable {
         assetsBaseURL: URL? = nil,
     ) throws -> Data {
         let document = MarkdownParser().parse(markdown)
-        var layout = Layout(options: options, assetsBaseURL: assetsBaseURL)
-        try layout.render(document)
-        return layout.pdfData()
+        if options.tableOfContents.isEnabled {
+            return try renderWithTableOfContents(document, assetsBaseURL: assetsBaseURL)
+        }
+
+        return try renderDocument(document, assetsBaseURL: assetsBaseURL).pdfData()
     }
+
+    private func renderDocument(
+        _ document: MarkdownDocument,
+        assetsBaseURL: URL?,
+        tableOfContentsEntries: [TableOfContentsEntry]? = nil,
+    ) throws -> Layout {
+        var layout = Layout(options: options, assetsBaseURL: assetsBaseURL)
+        try layout.render(document, tableOfContentsEntries: tableOfContentsEntries)
+        return layout
+    }
+
+    private func renderWithTableOfContents(
+        _ document: MarkdownDocument,
+        assetsBaseURL: URL?,
+    ) throws -> Data {
+        let maximumPasses = 6
+        var entries = try renderDocument(document, assetsBaseURL: assetsBaseURL)
+            .tableOfContentsEntries(maximumDepth: options.tableOfContents.maximumDepth)
+        guard !entries.isEmpty else {
+            return try renderDocument(document, assetsBaseURL: assetsBaseURL).pdfData()
+        }
+
+        for _ in 0 ..< maximumPasses {
+            let layout = try renderDocument(
+                document,
+                assetsBaseURL: assetsBaseURL,
+                tableOfContentsEntries: entries,
+            )
+            let nextEntries = layout.tableOfContentsEntries(maximumDepth: options.tableOfContents.maximumDepth)
+            if nextEntries == entries {
+                return layout.pdfData()
+            }
+            entries = nextEntries
+        }
+
+        throw MarkdownPDFError.tableOfContentsDidNotConverge(maxPasses: maximumPasses)
+    }
+}
+
+private struct TableOfContentsEntry: Equatable {
+    var destinationName: String
+    var title: String
+    var level: Int
+    var pageNumber: Int
 }
 
 private struct Layout {
@@ -34,10 +80,24 @@ private struct Layout {
         y = options.pageSize.height - options.margins.top
     }
 
-    mutating func render(_ document: MarkdownDocument) throws {
+    mutating func render(
+        _ document: MarkdownDocument,
+        tableOfContentsEntries: [TableOfContentsEntry]? = nil,
+    ) throws {
+        let tableOfContentsInsertionIndex = tableOfContentsEntries.map {
+            $0.isEmpty ? nil : self.tableOfContentsInsertionIndex(for: document)
+        } ?? nil
+
+        if tableOfContentsInsertionIndex == 0, let tableOfContentsEntries {
+            renderTableOfContents(tableOfContentsEntries)
+        }
+
         for (index, block) in document.blocks.enumerated() {
             keepHeadingWithNextBlock(block, isLast: index == document.blocks.count - 1)
             try render(block)
+            if tableOfContentsInsertionIndex == index + 1, let tableOfContentsEntries {
+                renderTableOfContents(tableOfContentsEntries)
+            }
         }
     }
 
@@ -49,6 +109,23 @@ private struct Layout {
             images: images,
             title: options.title,
         ).data()
+    }
+
+    func tableOfContentsEntries(maximumDepth: Int) -> [TableOfContentsEntry] {
+        pages.enumerated().flatMap { pageIndex, page in
+            page.headingDestinations.compactMap { destination in
+                guard destination.level <= maximumDepth else {
+                    return nil
+                }
+
+                return TableOfContentsEntry(
+                    destinationName: destination.name,
+                    title: destination.title,
+                    level: destination.level,
+                    pageNumber: pageIndex + 1,
+                )
+            }
+        }
     }
 
     private mutating func render(_ block: MarkdownBlock) throws {
@@ -127,6 +204,98 @@ private struct Layout {
             )
             y -= 9
         }
+    }
+
+    private func tableOfContentsInsertionIndex(for document: MarkdownDocument) -> Int {
+        guard let first = document.blocks.first,
+              case .heading(level: 1, _) = first
+        else {
+            return 0
+        }
+
+        return 1
+    }
+
+    private mutating func renderTableOfContents(_ entries: [TableOfContentsEntry]) {
+        let titleSize = options.baseFontSize * 1.55
+        let entrySize = options.baseFontSize * 0.95
+        let lineHeight = entrySize * 1.35
+        let widestPageNumber = entries
+            .map { PDFTextRun(text: "\($0.pageNumber)", font: .helvetica, size: entrySize).width(fontSet: options.fontSet) }
+            .max() ?? 0
+        let pageColumnWidth = max(28, widestPageNumber + 8)
+        let title = options.tableOfContents.title.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        ensureSpace(titleSize * 2.2 + lineHeight)
+        drawRuns(
+            [PDFTextRun(text: title.isEmpty ? "Table of Contents" : title, font: .helveticaBold, size: titleSize)],
+            x: options.margins.left,
+            y: y,
+        )
+        y -= titleSize * 1.45
+
+        for entry in entries {
+            renderTableOfContentsEntry(
+                entry,
+                entrySize: entrySize,
+                lineHeight: lineHeight,
+                pageColumnWidth: pageColumnWidth,
+            )
+        }
+
+        y -= options.baseFontSize * 0.9
+    }
+
+    private mutating func renderTableOfContentsEntry(
+        _ entry: TableOfContentsEntry,
+        entrySize: Double,
+        lineHeight: Double,
+        pageColumnWidth: Double,
+    ) {
+        let indent = Double(max(0, entry.level - 1)) * 14
+        let x = options.margins.left + indent
+        let pageText = "\(entry.pageNumber)"
+        let pageRun = PDFTextRun(text: pageText, font: .helvetica, size: entrySize)
+        let pageX = options.pageSize.width - options.margins.right - pageRun.width(fontSet: options.fontSet)
+        let titleWidth = max(36, contentWidth - indent - pageColumnWidth - 10)
+        let titleLines = wrappedLines(
+            [
+                PDFTextRun(
+                    text: entry.title,
+                    font: .helvetica,
+                    size: entrySize,
+                    color: .link,
+                    linkDestination: "#\(entry.destinationName)",
+                ),
+            ],
+            maxWidth: titleWidth,
+        )
+
+        ensureSpace(Double(titleLines.count) * lineHeight)
+        for (index, line) in titleLines.enumerated() {
+            drawRuns(line, x: x, y: y)
+            if index == titleLines.count - 1 {
+                let lineWidth = line.reduce(0) { $0 + $1.width(fontSet: options.fontSet) }
+                drawTableOfContentsLeader(from: x + lineWidth + 5, to: pageX - 5, y: y + entrySize * 0.3)
+                currentPage.drawTextRun(pageRun, x: pageX, y: y, fontSet: options.fontSet)
+            }
+            y -= lineHeight
+        }
+    }
+
+    private mutating func drawTableOfContentsLeader(from startX: Double, to endX: Double, y: Double) {
+        guard endX - startX > 12 else {
+            return
+        }
+
+        currentPage.drawLine(
+            x1: startX,
+            y1: y,
+            x2: endX,
+            y2: y,
+            width: 0.25,
+            color: PDFColor(red: 0.72, green: 0.72, blue: 0.72),
+        )
     }
 
     private mutating func renderList(
@@ -740,7 +909,7 @@ private struct Layout {
         var current: [PDFTextRun] = []
         var currentWidth = 0.0
 
-        for token in tokens {
+        for token in tokens.flatMap({ splitOversizedToken($0, maxWidth: maxWidth) }) {
             if token.text == "\n" {
                 lines.append(current)
                 current = []
@@ -764,6 +933,37 @@ private struct Layout {
         }
 
         return lines
+    }
+
+    private func splitOversizedToken(
+        _ token: PDFTextRun,
+        maxWidth: Double,
+    ) -> [PDFTextRun] {
+        guard token.text != "\n",
+              maxWidth > 0,
+              token.width(fontSet: options.fontSet) > maxWidth
+        else {
+            return [token]
+        }
+
+        var parts: [PDFTextRun] = []
+        var buffer = ""
+        for character in token.text {
+            let candidate = buffer + String(character)
+            if !buffer.isEmpty,
+               token.withText(candidate).width(fontSet: options.fontSet) > maxWidth
+            {
+                parts.append(token.withText(buffer))
+                buffer = String(character)
+            } else {
+                buffer = candidate
+            }
+        }
+
+        if !buffer.isEmpty {
+            parts.append(token.withText(buffer))
+        }
+        return parts
     }
 
     private func tokenize(_ runs: [PDFTextRun]) -> [PDFTextRun] {

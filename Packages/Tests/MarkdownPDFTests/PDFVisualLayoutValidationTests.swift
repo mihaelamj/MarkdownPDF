@@ -15,6 +15,8 @@ struct PDFVisualLayoutValidationTests {
 
         #expect(layout.pages.count >= 4)
         #expect(layout.words.count > 200)
+        #expect(layout.words.contains { $0.text == "Table" })
+        #expect(layout.words.contains { $0.text == "Contents" })
         #expect(
             issues.isEmpty,
             "Poppler text layout has visual issues:\n\(issues.joined(separator: "\n"))",
@@ -226,6 +228,11 @@ struct PDFVisualLayoutValidationTests {
             Renderer --> Tools[Open tools]
         ```
 
+        ## UltraPortableDeterministicHeadingAnchorWithoutSpaces
+
+        This heading deliberately has one long token so the generated table of
+        contents has to wrap it before the page number column.
+
         ## Closing checks
 
         The final section is intentionally not empty. It validates that the last
@@ -245,6 +252,7 @@ struct PDFVisualLayoutValidationTests {
                 pageSize: PDFOptions.PageSize(width: 260, height: 320),
                 margins: PDFOptions.Margins(top: 24, right: 22, bottom: 24, left: 22),
                 baseFontSize: 10,
+                tableOfContents: .enabled,
             ),
         ).render(markdown: markdown)
     }
