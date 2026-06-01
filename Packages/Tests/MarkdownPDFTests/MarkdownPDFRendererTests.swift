@@ -264,6 +264,24 @@ struct MarkdownPDFRendererTests {
         )
     }
 
+    @Test("Normalizes internal fragment links to heading destination names")
+    func normalizesInternalFragmentLinksToHeadingDestinationNames() throws {
+        let data = try MarkdownPDFRenderer().render(markdown: """
+        # Report Section
+
+        [Jump](#Report%20Section)
+        """)
+        let inspector = PDFInspector(data)
+
+        #expect(inspector.namedDestinationNames == ["report-section"])
+        #expect(inspector.text.contains("/Dest (report-section)"))
+        #expect(!inspector.text.contains("/URI (#Report%20Section)"))
+        #expect(
+            inspector.canonicalStructureIssues().isEmpty,
+            "Canonical PDF structure failed:\n\(inspector.canonicalStructureReport())",
+        )
+    }
+
     @Test("Keeps section headings with first child content")
     func keepsSectionHeadingsWithFirstChildContent() throws {
         let markdown = """

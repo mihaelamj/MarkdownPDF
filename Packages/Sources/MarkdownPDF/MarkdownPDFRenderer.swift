@@ -24,7 +24,7 @@ private struct Layout {
     var pages: [PDFPageCanvas] = [PDFPageCanvas()]
     var images: [PDFImage] = []
     var imageCache: [String: PDFImage] = [:]
-    var headingNames = HeadingDestinationNameGenerator()
+    var headingNames = PDFHeadingDestinationName()
     var y: Double
     var listDepth = 0
 
@@ -511,7 +511,7 @@ private struct Layout {
         let displayTitle = title.isEmpty ? "Heading" : title
         currentPage.addHeadingDestination(
             PDFHeadingDestination(
-                name: headingNames.name(for: displayTitle),
+                name: headingNames.uniqueName(for: displayTitle),
                 title: displayTitle,
                 level: level,
                 x: options.margins.left,
@@ -614,36 +614,5 @@ private extension PDFTextRun {
             strikethrough: strikethrough,
             linkDestination: linkDestination,
         )
-    }
-}
-
-private struct HeadingDestinationNameGenerator {
-    private var counts: [String: Int] = [:]
-
-    mutating func name(for title: String) -> String {
-        let base = slug(for: title)
-        let count = (counts[base] ?? 0) + 1
-        counts[base] = count
-        return count == 1 ? base : "\(base)-\(count)"
-    }
-
-    private func slug(for title: String) -> String {
-        var output = ""
-        var previousWasSeparator = false
-
-        for scalar in title.lowercased().unicodeScalars {
-            if CharacterSet.alphanumerics.contains(scalar), scalar.value < 128 {
-                output.unicodeScalars.append(scalar)
-                previousWasSeparator = false
-            } else if !previousWasSeparator, !output.isEmpty {
-                output.append("-")
-                previousWasSeparator = true
-            }
-        }
-
-        while output.last == "-" {
-            output.removeLast()
-        }
-        return output.isEmpty ? "heading" : output
     }
 }
