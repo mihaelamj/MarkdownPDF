@@ -32,8 +32,8 @@ The generic renderer currently covers:
 - Standard PDF base fonts by default, without embedding font files.
 
 The compatibility target is CommonMark plus GitHub Flavored Markdown tables and
-images. The generated profile is still intentionally small while the canonical
-PDF structure is being moved into typed Swift components.
+images. The generated PDF profile is intentionally small, typed, and documented
+under `docs/research/`.
 
 ## Package Products
 
