@@ -213,7 +213,7 @@ without adding Apple-only dependencies.
 flowchart TD
     F0["Phase 0<br/>#49 Witness artifacts Done"]
     F1["Phase 1<br/>#50 Article fixtures Done"]
-    F2["Phase 2<br/>#51 Text encoding In progress"]
+    F2["Phase 2<br/>#51 Text encoding In review"]
     F3["Phase 3<br/>#52 Oversized blocks Ready"]
     F4["Phase 4<br/>#53 Tables Ready"]
     F5["Phase 5<br/>#54 Diagrams and charts Ready"]
@@ -227,7 +227,7 @@ flowchart TD
     classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
     class F0,F1 done;
-    class F2 active;
+    class F2 review;
     class F3,F4,F5,F6 todo;
 ```
 
