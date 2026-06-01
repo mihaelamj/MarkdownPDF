@@ -263,6 +263,91 @@ struct PDFVisualLayoutValidationTests {
         )
     }
 
+    @Test("A4 manuscript fixture passes visual witness stack")
+    func a4ManuscriptFixturePassesVisualWitnessStack() throws {
+        let data = try a4ManuscriptFixturePDF()
+        let url = try PDFValidation.temporaryPDF(name: "a4-manuscript", data: data)
+        let inspector = PDFInspector(data)
+        let pageCount = inspector.pageCount
+
+        #expect(pageCount >= 5)
+        try PDFValidation.writeArtifact(data, name: "a4-manuscript.pdf")
+
+        let qpdf = try PDFValidation.qpdfCheck(url: url)
+        try #require(qpdf.exitCode == 0, "qpdf --check failed:\n\(qpdf.output)")
+
+        let infoResult = try PDFValidation.pdfinfo(url: url)
+        try #require(infoResult.exitCode == 0, "pdfinfo failed:\n\(infoResult.output)")
+        try PDFValidation.writeTextArtifact(infoResult.output, name: "a4-manuscript/pdfinfo.txt")
+        let info = PDFValidation.parsedInfo(from: infoResult)
+        #expect(info["Pages"] == "\(pageCount)")
+        #expect(info["Page size"]?.contains("595.28 x 841.89 pts") == true)
+
+        let textResult = try PDFValidation.pdftotext(url: url)
+        try #require(textResult.exitCode == 0, "pdftotext failed:\n\(textResult.output)")
+        try PDFValidation.writeTextArtifact(textResult.output, name: "a4-manuscript/text.txt")
+        let normalizedText = normalizedExtractedText(textResult.output)
+        #expect(normalizedText.contains("Portable A4 Manuscript Fixture"))
+        #expect(normalizedText.contains("Table of Contents"))
+        #expect(normalizedText.contains("A4 Manuscript Exit Marker"))
+        #expect(normalizedText.contains("Unsupported A4 manuscript chart"))
+
+        let tsvResult = try PDFValidation.pdftotextTSV(url: url)
+        try #require(tsvResult.exitCode == 0, "pdftotext -tsv failed:\n\(tsvResult.output)")
+        try PDFValidation.writeTextArtifact(tsvResult.output, name: "a4-manuscript/poppler.tsv")
+        let popplerLayout = try PopplerTextLayout(tsv: tsvResult.output)
+        let popplerIssues = popplerLayout.visualLayoutIssues()
+
+        #expect(popplerLayout.pages.count == pageCount)
+        #expect(popplerLayout.words.count > 1600)
+        #expect(
+            popplerIssues.isEmpty,
+            "A4 manuscript fixture Poppler layout issues:\n\(popplerIssues.joined(separator: "\n"))",
+        )
+
+        let structuredText = try PDFValidation.mutoolStructuredText(url: url)
+        try #require(structuredText.exitCode == 0, "mutool structured text failed:\n\(structuredText.output)")
+        try PDFValidation.writeTextArtifact(structuredText.output, name: "a4-manuscript/mupdf-stext.xml")
+        let mupdfLayout = try MuPDFStructuredText(xml: structuredText.output)
+        let mupdfIssues = mupdfLayout.characterQuadIssues()
+
+        #expect(mupdfLayout.pages.count == pageCount)
+        #expect(mupdfLayout.glyphs.count(where: { !$0.isWhitespace }) > 9000)
+        #expect(
+            mupdfIssues.isEmpty,
+            "A4 manuscript fixture MuPDF layout issues:\n\(mupdfIssues.joined(separator: "\n"))",
+        )
+
+        let poppler = try PDFValidation.pdftoppmPNMs(url: url, pageCount: pageCount)
+        let mupdf = try PDFValidation.mutoolPNMs(url: url, pageCount: pageCount)
+        try #require(poppler.result.exitCode == 0, "pdftoppm PNM failed:\n\(poppler.result.output)")
+        try #require(mupdf.result.exitCode == 0, "mutool PNM failed:\n\(mupdf.result.output)")
+        try PDFValidation.writeTextArtifact(poppler.result.output, name: "a4-manuscript/poppler-render.log")
+        try PDFValidation.writeTextArtifact(mupdf.result.output, name: "a4-manuscript/mupdf-render.log")
+
+        var rasterIssues: [String] = []
+        for page in 1 ... pageCount {
+            let popplerImage = try PNMImage(data: Data(contentsOf: poppler.pnmURLs[page - 1]))
+            let mupdfImage = try PNMImage(data: Data(contentsOf: mupdf.pnmURLs[page - 1]))
+            try PDFValidation.copyArtifact(
+                from: poppler.pnmURLs[page - 1],
+                name: "a4-manuscript-pages/poppler/page-\(page).ppm",
+            )
+            try PDFValidation.copyArtifact(
+                from: mupdf.pnmURLs[page - 1],
+                name: "a4-manuscript-pages/mupdf/page-\(page).pnm",
+            )
+            rasterIssues += rasterComparisonIssues(poppler: popplerImage, mupdf: mupdfImage).map {
+                "page \(page): \($0)"
+            }
+        }
+
+        #expect(
+            rasterIssues.isEmpty,
+            "A4 manuscript fixture raster output diverged:\n\(rasterIssues.joined(separator: "\n"))",
+        )
+    }
+
     @Test("Portable text encoding profile passes visual witness stack")
     func portableTextEncodingProfilePassesVisualWitnessStack() throws {
         let markdown = """
@@ -1061,6 +1146,24 @@ struct PDFVisualLayoutValidationTests {
         return data
     }
 
+    private func a4ManuscriptFixturePDF() throws -> Data {
+        let assetsBaseURL = try TestImageAssets.directoryWithChartPNG()
+        let data = try MarkdownPDFRenderer(
+            options: PDFOptions(
+                pageSize: .a4,
+                margins: PDFOptions.Margins(top: 56, right: 54, bottom: 56, left: 54),
+                baseFontSize: 11,
+                title: "Portable A4 Manuscript Fixture",
+                tableOfContents: .enabled,
+            ),
+        ).render(
+            markdown: fixture(named: "a4-manuscript.md"),
+            assetsBaseURL: assetsBaseURL,
+        )
+        try PDFValidation.writeTextArtifact(Self.artifactManifest, name: "README.txt")
+        return data
+    }
+
     private func embeddedCIDTextPDF() throws -> Data {
         let fontData = SyntheticTrueTypeFont.data(glyphProfile: .latinWitness, includeGlyphOutlines: true)
         let metadata = try TrueTypeFontParser().parse(fontData)
@@ -1203,6 +1306,15 @@ struct PDFVisualLayoutValidationTests {
 
     hard-markdown-corpus-pages/
     Poppler and MuPDF page rasters for the hard Markdown fixture.
+
+    a4-manuscript.pdf
+    A4 manuscript-style fixture with sustained prose, tables, figures, code, and Mermaid blocks.
+
+    a4-manuscript/
+    Text, pdfinfo, geometry, structured text, and render logs for the A4 manuscript fixture.
+
+    a4-manuscript-pages/
+    Poppler and MuPDF page rasters for the A4 manuscript fixture.
 
     text-encoding-profile.pdf
     One-page PDF proving the portable text encoding replacement profile.
