@@ -540,6 +540,89 @@ struct PDFDocumentStructureTests {
         #expect(!text.contains("/F1 14 Tf"))
     }
 
+    @Test("Writer serializes shaped ligature clusters with source ToUnicode")
+    func writerSerializesShapedLigatureClustersWithSourceToUnicode() throws {
+        let fontData = SyntheticTrueTypeFont.data(
+            glyphProfile: .latinLigature,
+            includeGlyphOutlines: true,
+            includeGSUBLigatures: true,
+        )
+        let metadata = try TrueTypeFontParser().parse(fontData)
+        let mapping = try OpenTypeShaper(data: fontData, metadata: metadata).shape(text: "file", fontSize: 14)
+        let canvas = PDFPageCanvas()
+
+        try canvas.drawCIDText(
+            mapping: mapping,
+            fontResource: PDFEmbeddedFontResource(resourceName: "EF1", fontProgram: fontData, metadata: metadata),
+            fontSize: 14,
+            x: 40,
+            y: 120,
+        )
+        let data = try PDFDocumentWriter(
+            pageSize: PDFOptions.PageSize(width: 300, height: 200),
+            fontSet: .pdfBase,
+            pages: [canvas],
+            images: [],
+            title: "Shaped Ligature Witness",
+        ).data()
+        let text = String(decoding: data, as: UTF8.self)
+
+        #expect(canvas.commands.contains("<000600030004> Tj"))
+        #expect(text.contains("/Subtype /Type0"))
+        #expect(text.contains("/Subtype /CIDFontType2"))
+        #expect(text.contains("/ToUnicode"))
+        #expect(text.contains("<0003> <006C>"))
+        #expect(text.contains("<0004> <0065>"))
+        #expect(text.contains("<0006> <00660069>"))
+
+        try PDFValidation.writeArtifact(data, name: "shaped-ligature-writer-witness.pdf")
+        let qpdf = try PDFValidation.qpdfCheck(data: data, name: "shaped-ligature-writer-qpdf")
+        try #require(qpdf.exitCode == 0, "qpdf --check failed:\n\(qpdf.output)")
+        let extractedText = try PDFValidation.pdftotext(data: data, name: "shaped-ligature-writer-text")
+        try #require(extractedText.exitCode == 0, "pdftotext failed:\n\(extractedText.output)")
+        #expect(extractedText.output.contains("file"))
+    }
+
+    @Test("Writer serializes shaped ligature plus mark clusters with source ToUnicode")
+    func writerSerializesShapedLigaturePlusMarkClustersWithSourceToUnicode() throws {
+        let fontData = SyntheticTrueTypeFont.data(
+            glyphProfile: .latinLigature,
+            includeGlyphOutlines: true,
+            includeGSUBLigatures: true,
+        )
+        let metadata = try TrueTypeFontParser().parse(fontData)
+        let source = "fi\u{0301}"
+        let mapping = try OpenTypeShaper(data: fontData, metadata: metadata).shape(text: source, fontSize: 14)
+        let canvas = PDFPageCanvas()
+
+        try canvas.drawCIDText(
+            mapping: mapping,
+            fontResource: PDFEmbeddedFontResource(resourceName: "EF1", fontProgram: fontData, metadata: metadata),
+            fontSize: 14,
+            x: 40,
+            y: 120,
+        )
+        let data = try PDFDocumentWriter(
+            pageSize: PDFOptions.PageSize(width: 300, height: 200),
+            fontSet: .pdfBase,
+            pages: [canvas],
+            images: [],
+            title: "Shaped Ligature Mark Witness",
+        ).data()
+        let text = String(decoding: data, as: UTF8.self)
+
+        #expect(canvas.commands.contains("<00060005> Tj"))
+        #expect(text.contains("<0005> <0301>"))
+        #expect(text.contains("<0006> <00660069>"))
+
+        try PDFValidation.writeArtifact(data, name: "shaped-ligature-mark-writer-witness.pdf")
+        let qpdf = try PDFValidation.qpdfCheck(data: data, name: "shaped-ligature-mark-writer-qpdf")
+        try #require(qpdf.exitCode == 0, "qpdf --check failed:\n\(qpdf.output)")
+        let extractedText = try PDFValidation.pdftotext(data: data, name: "shaped-ligature-mark-writer-text")
+        try #require(extractedText.exitCode == 0, "pdftotext failed:\n\(extractedText.output)")
+        #expect(extractedText.output.contains(source))
+    }
+
     @Test("Writer serializes subset FontFile2 length and CIDToGIDMap stream")
     func writerSerializesSubsetFontFileLengthAndCIDToGIDMapStream() throws {
         let fontData = SyntheticTrueTypeFont.data(glyphProfile: .latinWitness, includeGlyphOutlines: true)
