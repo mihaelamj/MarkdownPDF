@@ -24,8 +24,7 @@
 #     pnpm-lock.yaml, yarn.lock, uv.lock, Pipfile.lock, poetry.lock, Gemfile.lock
 #   - Binary files (detected via `git diff --numstat` reporting `-` width)
 #   - Vendored / third-party directories: vendor/, third_party/, node_modules/,
-#     researchcode/, _archive/python-reference/ (frozen snapshots we don't
-#     author)
+#     _archive/python-reference/ (frozen senko snapshot we don't author)
 #   - The rule files that DEFINE the prohibitions: github-discipline.md and
 #     similar (would otherwise self-flag for citing the forbidden strings)
 #
@@ -61,7 +60,6 @@ SKIP_PATTERNS=(
   # Vendored / third-party.
   '^vendor/'
   '^third_party/'
-  '^researchcode/'
   '^node_modules/'
   '^_archive/'
   # Rule files that DEFINE the prohibitions; they MUST be able to cite
@@ -79,11 +77,6 @@ SKIP_PATTERNS=(
 SCAN_FILES=""
 while IFS= read -r f; do
   [ -z "$f" ] && continue
-  case "$f" in
-    researchcode/*|vendor/*|third_party/*|node_modules/*|_archive/*)
-      continue
-      ;;
-  esac
   skipped=0
   for pat in "${SKIP_PATTERNS[@]}"; do
     if printf '%s' "$f" | grep -qE -- "$pat"; then

@@ -16,7 +16,7 @@ EMDASH=$(printf '\xe2\x80\x94')
 # detect them, so exclude them from the phrase scan.
 is_enforcement_file() {
   case "$1" in
-    .githooks/*|scripts/check-style.sh|researchcode/*) return 0 ;;
+    .githooks/*|scripts/check-style.sh) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -35,9 +35,6 @@ PHRASES=(
 
 while IFS= read -r f; do
   [ -f "$f" ] || continue
-  case "$f" in
-    researchcode/*) continue ;;
-  esac
   if LC_ALL=C grep -qF -- "$EMDASH" "$f" 2>/dev/null; then
     echo "style: em dash (U+2014) in $f" >&2
     FAIL=1
