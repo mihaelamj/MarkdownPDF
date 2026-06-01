@@ -1,7 +1,7 @@
 # Complex script shaping and bidi roadmap
 
-Status: active for #84 on branch `feat/84-bidi-paragraph-ordering` on
-2026-06-01. #83 is done through PR #91.
+Status: #84 is in review through PR #92 on branch
+`feat/84-bidi-paragraph-ordering` on 2026-06-01. #83 is done through PR #91.
 
 Scope: this note defines the next epic after the Latin-first embedded-font
 foundation. It is portable macOS and Linux research. It is not a macOS-only
@@ -153,7 +153,7 @@ flowchart TD
     S1["Phase 1<br/>#81 Fixtures and witnesses<br/>Done"]
     S2["Phase 2<br/>#82 Shaped cluster model<br/>Done"]
     S3["Phase 3<br/>#83 Line-break opportunities<br/>Done"]
-    S4["Phase 4<br/>#84 Bidi ordering<br/>Active"]
+    S4["Phase 4<br/>#84 Bidi ordering<br/>Review and CI"]
     S5["Phase 5<br/>#85 Pure Swift shaping increments<br/>Planned"]
     S6["Phase 6<br/>#86 PDF emission and ToUnicode clusters<br/>Planned"]
 
@@ -165,7 +165,7 @@ flowchart TD
     classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
     class S0,S1,S2,S3 done;
-    class S4 active;
+    class S4 review;
     class S5,S6 todo;
 ```
 
