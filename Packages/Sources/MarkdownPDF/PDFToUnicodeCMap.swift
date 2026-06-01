@@ -15,6 +15,10 @@ struct PDFToUnicodeCMap {
             Set(mappings.map(\.code)).count == mappings.count,
             "ToUnicode CMap codes must be unique",
         )
+        precondition(
+            mappings.allSatisfy { !$0.unicode.isEmpty },
+            "ToUnicode CMap mappings require a Unicode scalar sequence",
+        )
         self.name = name
         self.mappings = mappings.sorted { lhs, rhs in
             lhs.code < rhs.code

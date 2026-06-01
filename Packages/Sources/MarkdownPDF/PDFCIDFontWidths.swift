@@ -10,10 +10,15 @@ struct PDFCIDFontWidths: Equatable {
         precondition(!segments.isEmpty, "CID font widths require at least one segment")
         for segment in segments {
             switch segment {
-            case let .array(_, widths):
+            case let .array(startCID, widths):
+                precondition(startCID >= 0, "CID font array width segments require a non-negative start CID")
                 precondition(!widths.isEmpty, "CID font array width segments cannot be empty")
-            case let .range(startCID, endCID, _):
+                precondition(widths.allSatisfy { $0 >= 0 }, "CID font widths must be non-negative")
+            case let .range(startCID, endCID, width):
+                precondition(startCID >= 0, "CID font range width segments require a non-negative start CID")
+                precondition(endCID >= 0, "CID font range width segments require a non-negative end CID")
                 precondition(startCID <= endCID, "CID font range width segments must be ordered")
+                precondition(width >= 0, "CID font widths must be non-negative")
             }
         }
         self.segments = segments
