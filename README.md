@@ -395,14 +395,14 @@ swiftlint --config .swiftlint.yml
 
 ```mermaid
 flowchart TD
-    H0["#95<br/>Hard Markdown fixture corpus<br/>Review"]
+    H0["#95<br/>Hard Markdown fixture corpus<br/>Done"]
 
     classDef done fill:#e8f5e9,stroke:#2e7d32,color:#111;
     classDef active fill:#e3f2fd,stroke:#1565c0,color:#111;
     classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
     classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
-    class H0 review;
+    class H0 done;
 ```
 
 ## License
