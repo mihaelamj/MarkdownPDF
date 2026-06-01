@@ -107,6 +107,91 @@ struct PDFDocumentStructureTests {
         #expect(resources.pdfDictionary.serialized() == "<< /Font << /F1 3 0 R >> >>")
     }
 
+    @Test("Serializes PDF base font object without descriptor or embedded font file")
+    func serializesPDFBaseFontObjectWithoutDescriptorOrEmbeddedFontFile() {
+        let font = PDFFontObject(font: .helvetica, fontSet: .pdfBase)
+        let dictionary = font.pdfDictionary(fontDescriptor: nil).serialized()
+
+        #expect(font.resourceName == "F1")
+        #expect(font.fontDescriptor == nil)
+        #expect(font.metrics == nil)
+        #expect(dictionary == "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>")
+        #expect(!dictionary.contains("/FontDescriptor"))
+        #expect(!dictionary.contains("/FontFile"))
+        #expect(!dictionary.contains("/ToUnicode"))
+    }
+
+    @Test("Serializes unembedded TrueType font object from typed metrics and descriptor")
+    func serializesUnembeddedTrueTypeFontObjectFromTypedMetricsAndDescriptor() throws {
+        let font = PDFFontObject(font: .helveticaBold, fontSet: .appleSystem)
+        let descriptor = try #require(font.fontDescriptor)
+        let descriptorText = descriptor.pdfDictionary.serialized()
+        let fontText = font.pdfDictionary(
+            fontDescriptor: PDFSyntax.Reference(objectNumber: 8),
+        ).serialized()
+
+        #expect(font.resourceName == "F2")
+        #expect(font.metrics?.firstCharacter == 32)
+        #expect(font.metrics?.lastCharacter == 126)
+        #expect(descriptorText.contains("/Type /FontDescriptor"))
+        #expect(descriptorText.contains("/FontName /SFProText-Bold"))
+        #expect(!descriptorText.contains("/FontFile"))
+        #expect(fontText.contains("/Subtype /TrueType"))
+        #expect(fontText.contains("/BaseFont /SFProText-Bold"))
+        #expect(fontText.contains("/FirstChar 32 /LastChar 126"))
+        #expect(fontText.contains("/Widths [278 333 474 556"))
+        #expect(fontText.contains("/FontDescriptor 8 0 R"))
+        #expect(!fontText.contains("/FontFile"))
+    }
+
+    @Test("Renderer font model keeps custom non-Type1 font sets on simple TrueType output")
+    func rendererFontModelKeepsCustomNonType1FontSetsOnSimpleTrueTypeOutput() {
+        let customCompositeNameSet = PDFOptions.FontSet(
+            regular: "Portable-Regular",
+            bold: "Portable-Bold",
+            italic: "Portable-Italic",
+            monospaced: "Portable-Mono",
+            subtype: "Type0",
+        )
+        let font = PDFFontObject(font: .helvetica, fontSet: customCompositeNameSet)
+
+        #expect(font.subtype == "TrueType")
+        #expect(font.fontDescriptor != nil)
+        #expect(font.metrics != nil)
+        #expect(font.descendantFonts.isEmpty)
+        #expect(font.toUnicodeMap == nil)
+    }
+
+    @Test("Font descriptor keeps embedded font file reference as explicit future hook")
+    func fontDescriptorKeepsEmbeddedFontFileReferenceAsExplicitFutureHook() {
+        let descriptor = PDFFontDescriptor(
+            fontName: "PortableTrueType",
+            italicAngle: 0,
+            embeddedFontFile: .trueType(PDFSyntax.Reference(objectNumber: 9)),
+        )
+
+        #expect(descriptor.pdfDictionary.serialized().contains("/FontFile2 9 0 R"))
+    }
+
+    @Test("Font object keeps composite font references as explicit future hooks")
+    func fontObjectKeepsCompositeFontReferencesAsExplicitFutureHooks() {
+        let font = PDFFontObject(
+            resourceName: "F9",
+            baseName: "PortableCIDFont",
+            subtype: "Type0",
+            encoding: "Identity-H",
+            descendantFonts: [PDFSyntax.Reference(objectNumber: 10)],
+            toUnicodeMap: PDFSyntax.Reference(objectNumber: 11),
+        )
+
+        let dictionary = font.pdfDictionary(fontDescriptor: nil).serialized()
+
+        #expect(dictionary.contains("/Subtype /Type0"))
+        #expect(dictionary.contains("/Encoding /Identity-H"))
+        #expect(dictionary.contains("/DescendantFonts [10 0 R]"))
+        #expect(dictionary.contains("/ToUnicode 11 0 R"))
+    }
+
     @Test("Draw commands populate typed page resource usage")
     func drawCommandsPopulateTypedPageResourceUsage() {
         let canvas = PDFPageCanvas()
