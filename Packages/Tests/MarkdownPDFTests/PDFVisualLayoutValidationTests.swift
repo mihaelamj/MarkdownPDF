@@ -788,6 +788,49 @@ struct PDFVisualLayoutValidationTests {
         #expect(layout.characterQuadIssues().contains { $0.contains("overlaps") })
     }
 
+    @Test("MuPDF character quad validator allows ToUnicode expansion continuations")
+    func muPDFCharacterQuadValidatorAllowsToUnicodeExpansionContinuations() throws {
+        let layout = try MuPDFStructuredText(xml: """
+        <?xml version="1.0"?>
+        <document filename="ligature.pdf">
+        <page id="page1" width="100" height="100">
+        <block bbox="10 10 40 24" justify="unknown">
+        <line bbox="10 10 40 24" wmode="0" dir="1 0" flags="0" text="file">
+        <font name="Ligature" size="12">
+        <char quad="10 12 20 12 10 22 20 22" x="10" y="22" c="f"/>
+        <char quad="20 10 20 10 20 24 20 24" x="20" y="22" c="i"/>
+        <char quad="20 12 25 12 20 22 25 22" x="20" y="22" c="l"/>
+        <char quad="25 12 34 12 25 22 34 22" x="25" y="22" c="e"/>
+        </font>
+        </line>
+        </block>
+        </page>
+        </document>
+        """)
+
+        #expect(layout.characterQuadIssues().isEmpty)
+    }
+
+    @Test("MuPDF character quad validator rejects isolated zero-width glyphs")
+    func muPDFCharacterQuadValidatorRejectsIsolatedZeroWidthGlyphs() throws {
+        let layout = try MuPDFStructuredText(xml: """
+        <?xml version="1.0"?>
+        <document filename="zero-width.pdf">
+        <page id="page1" width="100" height="100">
+        <block bbox="10 10 40 24" justify="unknown">
+        <line bbox="10 10 40 24" wmode="0" dir="1 0" flags="0" text="A">
+        <font name="Broken" size="12">
+        <char quad="15 12 15 12 15 22 15 22" x="15" y="22" c="A"/>
+        </font>
+        </line>
+        </block>
+        </page>
+        </document>
+        """)
+
+        #expect(layout.characterQuadIssues().contains { $0.contains("non-positive size") })
+    }
+
     @Test("Raster comparison rejects divergent ink bounds")
     func rasterComparisonRejectsDivergentInkBounds() throws {
         let poppler = try PNMImage(data: pnmImage(width: 20, height: 20, inkBox: 2 ... 5))

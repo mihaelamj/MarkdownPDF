@@ -5,6 +5,9 @@ enum PDFEmbeddedFontError: Error, Equatable, LocalizedError {
     case reservedBaseFontResourceName(String)
     case conflictingFontResource(resourceName: String)
     case conflictingCIDWidth(cid: UInt16, existing: UInt16, duplicate: UInt16)
+    case conflictingToUnicodeMapping(code: UInt16, existing: String, duplicate: String)
+    case unsupportedShapedToUnicodeCluster(sourceRange: Range<Int>, glyphCount: Int, scalarCount: Int)
+    case unsupportedComplexScriptScalar(scalar: UnicodeScalar)
 
     var errorDescription: String? {
         switch self {
@@ -16,6 +19,12 @@ enum PDFEmbeddedFontError: Error, Equatable, LocalizedError {
             "Embedded font resource \(resourceName) was used with different font programs or metadata."
         case let .conflictingCIDWidth(cid, existing, duplicate):
             "CID \(cid) has conflicting widths: \(existing) and \(duplicate)."
+        case let .conflictingToUnicodeMapping(code, existing, duplicate):
+            "PDF character code \(code) maps to both \(existing) and \(duplicate)."
+        case let .unsupportedShapedToUnicodeCluster(sourceRange, glyphCount, scalarCount):
+            "Shaped cluster \(sourceRange) has \(glyphCount) glyphs for \(scalarCount) source scalars, which is not supported for PDF emission yet."
+        case let .unsupportedComplexScriptScalar(scalar):
+            "Embedded-font PDF emission does not yet support complex-script scalar U+\(Self.hex(scalar.value))."
         }
     }
 
@@ -29,6 +38,16 @@ enum PDFEmbeddedFontError: Error, Equatable, LocalizedError {
             "Use a stable resource name for one font program, or allocate a separate resource name for each font."
         case .conflictingCIDWidth:
             "Ensure each CID maps to one glyph advance width before writing the CIDFont widths array."
+        case .conflictingToUnicodeMapping:
+            "Assign one stable source Unicode sequence to each emitted PDF character code."
+        case .unsupportedShapedToUnicodeCluster:
+            "Keep this shaped run on an explicit unsupported path until its PDF ToUnicode mapping policy is defined."
+        case .unsupportedComplexScriptScalar:
+            "Keep complex-script text on an explicit unsupported path until shaping, ordering, extraction, and geometry witnesses cover that script."
         }
+    }
+
+    private static func hex(_ value: UInt32) -> String {
+        String(format: "%04X", locale: Locale(identifier: "en_US_POSIX"), value)
     }
 }
