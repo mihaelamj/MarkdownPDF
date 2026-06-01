@@ -24,7 +24,7 @@ public struct MarkdownPDFRenderer: Sendable {
         assetsBaseURL: URL?,
         tableOfContentsEntries: [TableOfContentsEntry]? = nil,
     ) throws -> Layout {
-        var layout = Layout(options: options, assetsBaseURL: assetsBaseURL)
+        var layout = try Layout(options: options, assetsBaseURL: assetsBaseURL)
         try layout.render(document, tableOfContentsEntries: tableOfContentsEntries)
         return layout
     }
@@ -80,12 +80,14 @@ private struct Layout {
     var images: [PDFImage] = []
     var imageCache: [String: PDFImage] = [:]
     var headingNames = PDFHeadingDestinationName()
+    var embeddedFonts: PDFEmbeddedFontCatalog
     var y: Double
     var listDepth = 0
 
-    init(options: PDFOptions, assetsBaseURL: URL?) {
+    init(options: PDFOptions, assetsBaseURL: URL?) throws {
         self.options = options
         self.assetsBaseURL = assetsBaseURL
+        embeddedFonts = try PDFEmbeddedFontCatalog(fonts: options.embeddedFonts)
         y = options.pageSize.height - options.margins.top
     }
 
@@ -98,14 +100,14 @@ private struct Layout {
         } ?? nil
 
         if tableOfContentsInsertionIndex == 0, let tableOfContentsEntries {
-            renderTableOfContents(tableOfContentsEntries)
+            try renderTableOfContents(tableOfContentsEntries)
         }
 
         for (index, block) in document.blocks.enumerated() {
             keepHeadingWithNextBlock(block, isLast: index == document.blocks.count - 1)
             try render(block)
             if tableOfContentsInsertionIndex == index + 1, let tableOfContentsEntries {
-                renderTableOfContents(tableOfContentsEntries)
+                try renderTableOfContents(tableOfContentsEntries)
             }
         }
     }
@@ -145,7 +147,7 @@ private struct Layout {
             ensureSpace(size * 1.8 + topSpacing)
             addHeadingTopSpacing(topSpacing)
             addHeadingDestination(level: level, content: content, y: y + size * 0.4)
-            drawWrapped(
+            try drawWrapped(
                 flatten(content, font: .helveticaBold, size: size),
                 x: options.margins.left,
                 maxWidth: contentWidth,
@@ -156,7 +158,7 @@ private struct Layout {
             if try renderStandaloneImage(content) {
                 y -= 12
             } else {
-                drawWrapped(
+                try drawWrapped(
                     flatten(content, font: .helvetica, size: options.baseFontSize),
                     x: options.margins.left,
                     maxWidth: contentWidth,
@@ -187,12 +189,12 @@ private struct Layout {
             try renderList(items: items, start: start)
         case let .codeBlock(info, code):
             if isMermaidCodeBlock(info) {
-                renderMermaidBlock(code)
+                try renderMermaidBlock(code)
             } else {
-                renderCodeBlock(code)
+                try renderCodeBlock(code)
             }
         case let .table(table):
-            renderTable(table)
+            try renderTable(table)
         case .thematicBreak:
             ensureSpace(18)
             currentPage.drawLine(
@@ -205,7 +207,7 @@ private struct Layout {
             )
             y -= 18
         case let .html(html):
-            drawWrapped(
+            try drawWrapped(
                 [PDFTextRun(text: html, font: .courier, size: options.baseFontSize * 0.9, color: .gray)],
                 x: options.margins.left,
                 maxWidth: contentWidth,
@@ -225,18 +227,18 @@ private struct Layout {
         return 1
     }
 
-    private mutating func renderTableOfContents(_ entries: [TableOfContentsEntry]) {
+    private mutating func renderTableOfContents(_ entries: [TableOfContentsEntry]) throws {
         let titleSize = options.baseFontSize * 1.55
         let entrySize = options.baseFontSize * 0.95
         let lineHeight = entrySize * 1.35
-        let widestPageNumber = entries
-            .map { PDFTextRun(text: "\($0.pageNumber)", font: .helvetica, size: entrySize).width(fontSet: options.fontSet) }
+        let widestPageNumber = try entries
+            .map { try textWidth(PDFTextRun(text: "\($0.pageNumber)", font: .helvetica, size: entrySize)) }
             .max() ?? 0
         let pageColumnWidth = max(28, widestPageNumber + 8)
         let title = options.tableOfContents.title.trimmingCharacters(in: .whitespacesAndNewlines)
 
         ensureSpace(titleSize * 2.2 + lineHeight)
-        drawRuns(
+        try drawRuns(
             [PDFTextRun(text: title.isEmpty ? "Table of Contents" : title, font: .helveticaBold, size: titleSize)],
             x: options.margins.left,
             y: y,
@@ -244,7 +246,7 @@ private struct Layout {
         y -= titleSize * 1.45
 
         for entry in entries {
-            renderTableOfContentsEntry(
+            try renderTableOfContentsEntry(
                 entry,
                 entrySize: entrySize,
                 lineHeight: lineHeight,
@@ -260,14 +262,15 @@ private struct Layout {
         entrySize: Double,
         lineHeight: Double,
         pageColumnWidth: Double,
-    ) {
+    ) throws {
         let indent = Double(max(0, entry.level - 1)) * 14
         let x = options.margins.left + indent
         let pageText = "\(entry.pageNumber)"
         let pageRun = PDFTextRun(text: pageText, font: .helvetica, size: entrySize)
-        let pageX = options.pageSize.width - options.margins.right - pageRun.width(fontSet: options.fontSet)
+        let pageRunWidth = try textWidth(pageRun)
+        let pageX = options.pageSize.width - options.margins.right - pageRunWidth
         let titleWidth = max(36, contentWidth - indent - pageColumnWidth - 10)
-        let titleLines = wrappedLines(
+        let titleLines = try wrappedLines(
             [
                 PDFTextRun(
                     text: entry.title,
@@ -282,11 +285,17 @@ private struct Layout {
 
         ensureSpace(Double(titleLines.count) * lineHeight)
         for (index, line) in titleLines.enumerated() {
-            drawRuns(line, x: x, y: y)
+            try drawRuns(line, x: x, y: y)
             if index == titleLines.count - 1 {
-                let lineWidth = line.reduce(0) { $0 + $1.width(fontSet: options.fontSet) }
+                let lineWidth = try textWidth(line)
                 drawTableOfContentsLeader(from: x + lineWidth + 5, to: pageX - 5, y: y + entrySize * 0.3)
-                currentPage.drawTextRun(pageRun, x: pageX, y: y, fontSet: options.fontSet)
+                try currentPage.drawTextRun(
+                    pageRun,
+                    x: pageX,
+                    y: y,
+                    fontSet: options.fontSet,
+                    embeddedFonts: embeddedFonts,
+                )
             }
             y -= lineHeight
         }
@@ -317,11 +326,12 @@ private struct Layout {
         for item in items {
             ensureSpace(bodyLineHeight)
             if start != nil {
-                currentPage.drawTextRun(
+                try currentPage.drawTextRun(
                     PDFTextRun(text: "\(number).", font: .helvetica, size: options.baseFontSize),
                     x: options.margins.left,
                     y: y,
                     fontSet: options.fontSet,
+                    embeddedFonts: embeddedFonts,
                 )
                 number += 1
             }
@@ -335,14 +345,14 @@ private struct Layout {
         y -= listTrailingSpacing
     }
 
-    private mutating func renderCodeBlock(_ code: String) {
+    private mutating func renderCodeBlock(_ code: String) throws {
         let size = options.baseFontSize * 0.9
         let lineHeight = size * 1.4
         let verticalPadding = 12.0
-        let lines = code
+        let lines = try code
             .split(separator: "\n", omittingEmptySubsequences: false)
             .map { line in
-                wrappedLines(
+                try wrappedLines(
                     [PDFTextRun(text: String(line), font: .courier, size: size)],
                     maxWidth: contentWidth,
                 )
@@ -357,7 +367,7 @@ private struct Layout {
                 drawableLines.count - lineOffset,
                 codeBlockLineCapacity(lineHeight: lineHeight, verticalPadding: verticalPadding),
             )
-            renderCodeBlockFragment(
+            try renderCodeBlockFragment(
                 Array(drawableLines[lineOffset ..< lineOffset + lineCount]),
                 size: size,
                 lineHeight: lineHeight,
@@ -382,44 +392,44 @@ private struct Layout {
         return language == "mermaid"
     }
 
-    private mutating func renderMermaidBlock(_ code: String) {
+    private mutating func renderMermaidBlock(_ code: String) throws {
         switch MermaidDiagram.parse(code) {
         case let .diagram(diagram):
-            switch mermaidRenderPlan(for: diagram) {
+            switch try mermaidRenderPlan(for: diagram) {
             case let .plan(plan):
                 ensureSpace(plan.height + 12)
-                drawMermaidPlan(plan)
+                try drawMermaidPlan(plan)
                 y -= plan.height + 12
             case let .fallback(reason):
-                renderUnsupportedMermaid(reason: reason, code: code)
+                try renderUnsupportedMermaid(reason: reason, code: code)
             }
         case let .unsupported(reason):
-            renderUnsupportedMermaid(reason: reason, code: code)
+            try renderUnsupportedMermaid(reason: reason, code: code)
         }
     }
 
-    private mutating func renderUnsupportedMermaid(reason: String, code: String) {
-        renderCodeBlock("Unsupported Mermaid diagram: \(reason)\n\(code)")
+    private mutating func renderUnsupportedMermaid(reason: String, code: String) throws {
+        try renderCodeBlock("Unsupported Mermaid diagram: \(reason)\n\(code)")
     }
 
-    private func mermaidRenderPlan(for diagram: MermaidDiagram) -> MermaidRenderPlanResult {
+    private func mermaidRenderPlan(for diagram: MermaidDiagram) throws -> MermaidRenderPlanResult {
         guard let layers = diagram.layers() else {
             return .fallback("flowchart cycles are not supported")
         }
 
-        switch measureMermaidNodes(diagram.nodes) {
+        switch try measureMermaidNodes(diagram.nodes) {
         case let .fallback(reason):
             return .fallback(reason)
         case let .measurements(measurements):
             if diagram.direction.isVertical {
-                return verticalMermaidRenderPlan(layers: layers, measurements: measurements, edges: diagram.edges)
+                return try verticalMermaidRenderPlan(layers: layers, measurements: measurements, edges: diagram.edges)
             } else {
-                return horizontalMermaidRenderPlan(layers: layers, measurements: measurements, edges: diagram.edges)
+                return try horizontalMermaidRenderPlan(layers: layers, measurements: measurements, edges: diagram.edges)
             }
         }
     }
 
-    private func measureMermaidNodes(_ nodes: [MermaidDiagram.Node]) -> MermaidMeasurementResult {
+    private func measureMermaidNodes(_ nodes: [MermaidDiagram.Node]) throws -> MermaidMeasurementResult {
         let fontSize = options.baseFontSize * 0.88
         let lineHeight = fontSize * 1.18
         let horizontalPadding = 10.0
@@ -431,9 +441,9 @@ private struct Layout {
 
         for node in nodes {
             let run = PDFTextRun(text: node.label, font: .helvetica, size: fontSize)
-            let labelLines = wrappedLines([run], maxWidth: labelWidthLimit)
-            let lineWidths = labelLines.map { line in
-                line.reduce(0) { $0 + $1.width(fontSet: options.fontSet) }
+            let labelLines = try wrappedLines([run], maxWidth: labelWidthLimit)
+            let lineWidths = try labelLines.map { line in
+                try textWidth(line)
             }
             let widestLine = lineWidths.max() ?? 0
             guard widestLine <= labelWidthLimit + 0.1 else {
@@ -458,7 +468,7 @@ private struct Layout {
         layers: [[MermaidDiagram.Node]],
         measurements: [String: MermaidNodeMeasurement],
         edges: [MermaidDiagram.Edge],
-    ) -> MermaidRenderPlanResult {
+    ) throws -> MermaidRenderPlanResult {
         let outerPadding = 8.0
         let rowSpacing = 36.0
         let preferredColumnSpacing = 24.0
@@ -495,7 +505,7 @@ private struct Layout {
         guard height <= contentHeight else {
             return .fallback("diagram is taller than one page")
         }
-        if let reason = mermaidEdgeLabelFallbackReason(
+        if let reason = try mermaidEdgeLabelFallbackReason(
             boxes: boxes,
             edges: edges,
             planHeight: height,
@@ -510,7 +520,7 @@ private struct Layout {
         layers: [[MermaidDiagram.Node]],
         measurements: [String: MermaidNodeMeasurement],
         edges: [MermaidDiagram.Edge],
-    ) -> MermaidRenderPlanResult {
+    ) throws -> MermaidRenderPlanResult {
         let outerPadding = 8.0
         let columnSpacing = 34.0
         let compactColumnSpacing = 18.0
@@ -554,7 +564,7 @@ private struct Layout {
             x += columnWidths[columnIndex] + spacing
         }
 
-        if let reason = mermaidEdgeLabelFallbackReason(
+        if let reason = try mermaidEdgeLabelFallbackReason(
             boxes: boxes,
             edges: edges,
             planHeight: height,
@@ -569,7 +579,7 @@ private struct Layout {
         boxes: [MermaidNodeBox],
         edges: [MermaidDiagram.Edge],
         planHeight: Double,
-    ) -> String? {
+    ) throws -> String? {
         let contentFrame = MermaidFrame(
             left: options.margins.left,
             top: 0,
@@ -590,7 +600,7 @@ private struct Layout {
             let sourceFrame = source.frame(topY: 0)
             let targetFrame = target.frame(topY: 0)
             let endpoints = mermaidEdgeEndpoints(source: sourceFrame, target: targetFrame)
-            let labelFrame = mermaidEdgeLabelFrame(label, start: endpoints.start, end: endpoints.end)
+            let labelFrame = try mermaidEdgeLabelFrame(label, start: endpoints.start, end: endpoints.end)
 
             guard contentFrame.contains(labelFrame) else {
                 return "edge label `\(label)` does not fit inside the diagram content area"
@@ -603,7 +613,7 @@ private struct Layout {
         return nil
     }
 
-    private mutating func drawMermaidPlan(_ plan: MermaidRenderPlan) {
+    private mutating func drawMermaidPlan(_ plan: MermaidRenderPlan) throws {
         let topY = y
         currentPage.drawRectangle(
             x: options.margins.left - 4,
@@ -621,11 +631,11 @@ private struct Layout {
             else {
                 continue
             }
-            drawMermaidEdge(edge, source: source, target: target, topY: topY)
+            try drawMermaidEdge(edge, source: source, target: target, topY: topY)
         }
 
         for box in plan.boxes {
-            drawMermaidNode(box, topY: topY)
+            try drawMermaidNode(box, topY: topY)
         }
     }
 
@@ -634,14 +644,14 @@ private struct Layout {
         source: MermaidNodeBox,
         target: MermaidNodeBox,
         topY: Double,
-    ) {
+    ) throws {
         let sourceFrame = source.frame(topY: topY)
         let targetFrame = target.frame(topY: topY)
         let endpoints = mermaidEdgeEndpoints(source: sourceFrame, target: targetFrame)
 
         drawArrow(from: endpoints.start, to: endpoints.end)
         if let label = edge.label {
-            drawMermaidEdgeLabel(label, start: endpoints.start, end: endpoints.end)
+            try drawMermaidEdgeLabel(label, start: endpoints.start, end: endpoints.end)
         }
     }
 
@@ -714,9 +724,9 @@ private struct Layout {
         _ label: String,
         start: MermaidPoint,
         end: MermaidPoint,
-    ) {
+    ) throws {
         let run = mermaidEdgeLabelRun(label)
-        let frame = mermaidEdgeLabelFrame(label, start: start, end: end)
+        let frame = try mermaidEdgeLabelFrame(label, start: start, end: end)
         currentPage.drawRectangle(
             x: frame.left,
             y: frame.bottom,
@@ -725,16 +735,22 @@ private struct Layout {
             stroke: nil,
             fill: PDFColor(red: 0.97, green: 0.98, blue: 0.99),
         )
-        currentPage.drawTextRun(run, x: frame.left + 3, y: frame.bottom + 3, fontSet: options.fontSet)
+        try currentPage.drawTextRun(
+            run,
+            x: frame.left + 3,
+            y: frame.bottom + 3,
+            fontSet: options.fontSet,
+            embeddedFonts: embeddedFonts,
+        )
     }
 
     private func mermaidEdgeLabelFrame(
         _ label: String,
         start: MermaidPoint,
         end: MermaidPoint,
-    ) -> MermaidFrame {
+    ) throws -> MermaidFrame {
         let run = mermaidEdgeLabelRun(label)
-        let width = run.width(fontSet: options.fontSet)
+        let width = try textWidth(run)
         let height = run.size + 4
         return MermaidFrame(
             left: (start.x + end.x) / 2 - width / 2 - 3,
@@ -753,7 +769,7 @@ private struct Layout {
         )
     }
 
-    private mutating func drawMermaidNode(_ box: MermaidNodeBox, topY: Double) {
+    private mutating func drawMermaidNode(_ box: MermaidNodeBox, topY: Double) throws {
         let frame = box.frame(topY: topY)
         currentPage.drawRectangle(
             x: frame.left,
@@ -766,24 +782,24 @@ private struct Layout {
 
         var textY = frame.top - box.verticalPadding - box.fontSize
         for line in box.labelLines {
-            let lineWidth = line.reduce(0) { $0 + $1.width(fontSet: options.fontSet) }
-            drawRuns(line, x: frame.left + (box.width - lineWidth) / 2, y: textY)
+            let lineWidth = try textWidth(line)
+            try drawRuns(line, x: frame.left + (box.width - lineWidth) / 2, y: textY)
             textY -= box.lineHeight
         }
     }
 
-    private mutating func renderTable(_ table: MarkdownBlock.Table) {
+    private mutating func renderTable(_ table: MarkdownBlock.Table) throws {
         let cellPadding = 4.0
         let fontSize = options.baseFontSize * 0.9
         let lineHeight = fontSize * 1.35
         let columns = tableColumnCount(table)
-        let columnWidths = measuredTableColumnWidths(
+        let columnWidths = try measuredTableColumnWidths(
             table,
             columns: columns,
             cellPadding: cellPadding,
             fontSize: fontSize,
         )
-        let header = preparedTableRow(
+        let header = try preparedTableRow(
             cells: table.headers,
             columns: columns,
             columnWidths: columnWidths,
@@ -792,7 +808,7 @@ private struct Layout {
             header: true,
         )
 
-        renderPreparedTableRow(
+        try renderPreparedTableRow(
             header,
             alignments: table.alignments,
             columnWidths: columnWidths,
@@ -804,7 +820,7 @@ private struct Layout {
         )
 
         for row in table.rows {
-            let preparedRow = preparedTableRow(
+            let preparedRow = try preparedTableRow(
                 cells: row,
                 columns: columns,
                 columnWidths: columnWidths,
@@ -812,7 +828,7 @@ private struct Layout {
                 fontSize: fontSize,
                 header: false,
             )
-            renderPreparedTableRow(
+            try renderPreparedTableRow(
                 preparedRow,
                 alignments: table.alignments,
                 columnWidths: columnWidths,
@@ -837,11 +853,11 @@ private struct Layout {
         columns: Int,
         cellPadding: Double,
         fontSize: Double,
-    ) -> [Double] {
+    ) throws -> [Double] {
         let minimumColumnWidth = min(36, contentWidth / Double(columns))
         let maximumColumnWidth = columns == 1 ? contentWidth : contentWidth * 0.65
-        let metrics = (0 ..< columns).map { column in
-            tableColumnMetrics(
+        let metrics = try (0 ..< columns).map { column in
+            try tableColumnMetrics(
                 table,
                 column: column,
                 columns: columns,
@@ -887,7 +903,7 @@ private struct Layout {
         maximumWidth: Double,
         cellPadding: Double,
         fontSize: Double,
-    ) -> TableColumnMetrics {
+    ) throws -> TableColumnMetrics {
         let headerRuns = tableRuns(
             table.headers,
             column: column,
@@ -898,11 +914,11 @@ private struct Layout {
             tableRuns($0, column: column, font: .helvetica, size: fontSize)
         }
         let allRuns = [headerRuns] + bodyRuns
-        let contentWidths = allRuns.map { $0.reduce(0) { $0 + $1.width(fontSet: options.fontSet) } }
-        let tokenWidths = allRuns
+        let contentWidths = try allRuns.map { try textWidth($0) }
+        let tokenWidths = try allRuns
             .flatMap(tokenize)
             .filter { $0.text != "\n" }
-            .map { $0.width(fontSet: options.fontSet) }
+            .map { try textWidth($0) }
         let preferredContentWidth = contentWidths.max() ?? 0
         let widestTokenWidth = tokenWidths.max() ?? 0
         let paddedPreferredWidth = preferredContentWidth + cellPadding * 2
@@ -936,11 +952,11 @@ private struct Layout {
         cellPadding: Double,
         fontSize: Double,
         header: Bool,
-    ) -> TablePreparedRow {
-        let cellLines = (0 ..< columns).map { column in
+    ) throws -> TablePreparedRow {
+        let cellLines = try (0 ..< columns).map { column in
             let cell = column < cells.count ? cells[column] : []
             let width = column < columnWidths.count ? columnWidths[column] : contentWidth / Double(columns)
-            return wrappedLines(
+            return try wrappedLines(
                 flatten(cell, font: header ? .helveticaBold : .helvetica, size: fontSize),
                 maxWidth: max(1, width - cellPadding * 2),
             )
@@ -957,13 +973,13 @@ private struct Layout {
         lineHeight: Double,
         header: Bool,
         repeatedHeader: TablePreparedRow?,
-    ) {
+    ) throws {
         let cellLines = row.cellLines
         let maxLines = max(1, cellLines.map(\.count).max() ?? 1)
         var lineOffset = 0
 
         while lineOffset < maxLines {
-            ensureTableRowFragmentSpace(
+            try ensureTableRowFragmentSpace(
                 lineHeight + cellPadding * 2,
                 header: repeatedHeader,
                 alignments: alignments,
@@ -976,7 +992,7 @@ private struct Layout {
                 maxLines - lineOffset,
                 tableRowLineCapacity(lineHeight: lineHeight, cellPadding: cellPadding),
             )
-            renderTableRowFragment(
+            try renderTableRowFragment(
                 cellLines: cellLines,
                 alignments: alignments,
                 columnWidths: columnWidths,
@@ -991,7 +1007,7 @@ private struct Layout {
             if lineOffset < maxLines {
                 startNewPage()
                 if let repeatedHeader {
-                    renderPreparedTableRow(
+                    try renderPreparedTableRow(
                         repeatedHeader,
                         alignments: alignments,
                         columnWidths: columnWidths,
@@ -1014,7 +1030,7 @@ private struct Layout {
         cellPadding: Double,
         fontSize: Double,
         lineHeight: Double,
-    ) {
+    ) throws {
         guard y - height < options.margins.bottom else {
             return
         }
@@ -1024,7 +1040,7 @@ private struct Layout {
             return
         }
 
-        renderPreparedTableRow(
+        try renderPreparedTableRow(
             header,
             alignments: alignments,
             columnWidths: columnWidths,
@@ -1048,7 +1064,7 @@ private struct Layout {
         }
 
         if source.hasPrefix("http://") || source.hasPrefix("https://") {
-            drawWrapped(
+            try drawWrapped(
                 [PDFTextRun(text: "[Remote image: \(alt.isEmpty ? source : alt)]", font: .helveticaOblique, size: options.baseFontSize, color: .gray)],
                 x: options.margins.left,
                 maxWidth: contentWidth,
@@ -1166,10 +1182,10 @@ private struct Layout {
         x: Double,
         maxWidth: Double,
         lineHeight: Double,
-    ) {
-        for line in wrappedLines(runs, maxWidth: maxWidth) {
+    ) throws {
+        for line in try wrappedLines(runs, maxWidth: maxWidth) {
             ensureSpace(lineHeight)
-            drawRuns(line, x: x, y: y)
+            try drawRuns(line, x: x, y: y)
             y -= lineHeight
         }
     }
@@ -1179,7 +1195,7 @@ private struct Layout {
         size: Double,
         lineHeight: Double,
         verticalPadding: Double,
-    ) {
+    ) throws {
         let height = Double(lines.count) * lineHeight + verticalPadding
         currentPage.drawRectangle(
             x: options.margins.left - 4,
@@ -1191,7 +1207,7 @@ private struct Layout {
         )
 
         for line in lines {
-            drawRuns(line, x: options.margins.left, y: y - size)
+            try drawRuns(line, x: options.margins.left, y: y - size)
             y -= lineHeight
         }
         y -= verticalPadding
@@ -1214,7 +1230,7 @@ private struct Layout {
         header: Bool,
         lineOffset: Int,
         lineCount: Int,
-    ) {
+    ) throws {
         let rowHeight = Double(lineCount) * lineHeight + cellPadding * 2
         let rowBottom = y - rowHeight
         var x = options.margins.left
@@ -1233,7 +1249,7 @@ private struct Layout {
             let visibleLines = cellLines[column].dropFirst(lineOffset).prefix(lineCount)
             var lineY = y - cellPadding - fontSize
             for line in visibleLines {
-                let width = line.reduce(0) { $0 + $1.width(fontSet: options.fontSet) }
+                let width = try textWidth(Array(line))
                 let alignment = column < alignments.count ? alignments[column] : .leading
                 let textX = switch alignment {
                 case .leading:
@@ -1243,7 +1259,7 @@ private struct Layout {
                 case .trailing:
                     x + columnWidth - cellPadding - width
                 }
-                drawRuns(line, x: textX, y: lineY)
+                try drawRuns(Array(line), x: textX, y: lineY)
                 lineY -= lineHeight
             }
             x += columnWidth
@@ -1261,13 +1277,13 @@ private struct Layout {
     private func wrappedLines(
         _ runs: [PDFTextRun],
         maxWidth: Double,
-    ) -> [[PDFTextRun]] {
+    ) throws -> [[PDFTextRun]] {
         let tokens = tokenize(runs)
         var lines: [[PDFTextRun]] = []
         var current: [PDFTextRun] = []
         var currentWidth = 0.0
 
-        for token in tokens.flatMap({ splitOversizedToken($0, maxWidth: maxWidth) }) {
+        for token in try tokens.flatMap({ try splitOversizedToken($0, maxWidth: maxWidth) }) {
             if token.text == "\n" {
                 lines.append(current)
                 current = []
@@ -1275,7 +1291,7 @@ private struct Layout {
                 continue
             }
 
-            let width = token.width(fontSet: options.fontSet)
+            let width = try textWidth(token)
             if currentWidth + width > maxWidth, !current.isEmpty {
                 lines.append(current)
                 current = [token]
@@ -1296,10 +1312,10 @@ private struct Layout {
     private func splitOversizedToken(
         _ token: PDFTextRun,
         maxWidth: Double,
-    ) -> [PDFTextRun] {
+    ) throws -> [PDFTextRun] {
         guard token.text != "\n",
               maxWidth > 0,
-              token.width(fontSet: options.fontSet) > maxWidth
+              try textWidth(token) > maxWidth
         else {
             return [token]
         }
@@ -1309,7 +1325,7 @@ private struct Layout {
         for character in token.text {
             let candidate = buffer + String(character)
             if !buffer.isEmpty,
-               token.withText(candidate).width(fontSet: options.fontSet) > maxWidth
+               try textWidth(token.withText(candidate)) > maxWidth
             {
                 parts.append(token.withText(buffer))
                 buffer = String(character)
@@ -1356,11 +1372,28 @@ private struct Layout {
         _ runs: [PDFTextRun],
         x: Double,
         y: Double,
-    ) {
+    ) throws {
         var cursor = x
         for run in runs {
-            currentPage.drawTextRun(run, x: cursor, y: y, fontSet: options.fontSet)
-            cursor += run.width(fontSet: options.fontSet)
+            try currentPage.drawTextRun(
+                run,
+                x: cursor,
+                y: y,
+                fontSet: options.fontSet,
+                embeddedFonts: embeddedFonts,
+            )
+            cursor += try textWidth(run)
+        }
+    }
+
+    private func textWidth(_ run: PDFTextRun) throws -> Double {
+        try embeddedFonts.width(of: run, fallbackFontSet: options.fontSet)
+    }
+
+    private func textWidth(_ runs: [PDFTextRun]) throws -> Double {
+        try runs.reduce(0) { partial, run in
+            let width = try textWidth(run)
+            return partial + width
         }
     }
 

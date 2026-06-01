@@ -18,7 +18,7 @@ struct PDFTextRun {
         strikethrough: Bool = false,
         linkDestination: String? = nil,
     ) {
-        self.text = PDFTextEncoding.portableText(for: text)
+        self.text = text
         self.font = font
         self.size = size
         self.color = color
@@ -28,6 +28,10 @@ struct PDFTextRun {
     }
 
     func width(fontSet: PDFOptions.FontSet) -> Double {
-        font.width(of: text, size: size, fontSet: fontSet)
+        font.width(of: portableText, size: size, fontSet: fontSet)
+    }
+
+    var portableText: String {
+        PDFTextEncoding.portableText(for: text)
     }
 }

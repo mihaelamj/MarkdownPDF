@@ -5,6 +5,7 @@ public struct PDFOptions: Equatable, Sendable {
     public var margins: Margins
     public var baseFontSize: Double
     public var fontSet: FontSet
+    public var embeddedFonts: EmbeddedFonts
     public var title: String?
     public var tableOfContents: TableOfContents
 
@@ -13,6 +14,7 @@ public struct PDFOptions: Equatable, Sendable {
         margins: Margins = .standard,
         baseFontSize: Double = 11,
         fontSet: FontSet = .pdfBase,
+        embeddedFonts: EmbeddedFonts = .disabled,
         title: String? = nil,
         tableOfContents: TableOfContents = .disabled,
     ) {
@@ -20,6 +22,7 @@ public struct PDFOptions: Equatable, Sendable {
         self.margins = margins
         self.baseFontSize = baseFontSize
         self.fontSet = fontSet
+        self.embeddedFonts = embeddedFonts
         self.title = title
         self.tableOfContents = tableOfContents
     }
@@ -102,6 +105,62 @@ public struct PDFOptions: Equatable, Sendable {
             monospaced: "Courier",
             subtype: "Type1",
         )
+    }
+
+    /// Caller-provided TrueType font data for one Markdown text role.
+    ///
+    /// MarkdownPDF never discovers system fonts in the portable renderer and
+    /// never bundles font binaries in the public repository. Pass complete
+    /// TrueType font data here when the document should embed that role as a
+    /// subsetted Type 0 / CIDFontType2 font. The caller remains responsible for
+    /// the font license, and rendering rejects fonts whose OS/2 embedding bits
+    /// forbid the subset profile.
+    public struct EmbeddedFontSource: Equatable, Sendable {
+        public var data: Data
+        public var baseName: String?
+
+        public init(data: Data, baseName: String? = nil) {
+            self.data = data
+            self.baseName = baseName
+        }
+    }
+
+    /// Opt-in embedded-font role mapping for the portable renderer.
+    ///
+    /// The default value is ``disabled``, so MarkdownPDF continues to use PDF
+    /// base fonts and emits no font files unless the caller supplies font data.
+    /// Each non-nil role is parsed, validated, subsetted, and written directly
+    /// in Swift on macOS and Linux. Roles left nil fall back to the matching
+    /// standard PDF base-font role. This API does not perform macOS font
+    /// discovery and does not imply iOS support.
+    public struct EmbeddedFonts: Equatable, Sendable {
+        public var regular: EmbeddedFontSource?
+        public var bold: EmbeddedFontSource?
+        public var italic: EmbeddedFontSource?
+        public var monospaced: EmbeddedFontSource?
+
+        public init(
+            regular: EmbeddedFontSource? = nil,
+            bold: EmbeddedFontSource? = nil,
+            italic: EmbeddedFontSource? = nil,
+            monospaced: EmbeddedFontSource? = nil,
+        ) {
+            self.regular = regular
+            self.bold = bold
+            self.italic = italic
+            self.monospaced = monospaced
+        }
+
+        public static let disabled = EmbeddedFonts()
+
+        public static func allRoles(_ source: EmbeddedFontSource) -> EmbeddedFonts {
+            EmbeddedFonts(
+                regular: source,
+                bold: source,
+                italic: source,
+                monospaced: source,
+            )
+        }
     }
 
     /// Controls whether the portable renderer inserts a generated table of contents.

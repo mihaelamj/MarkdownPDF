@@ -42,7 +42,7 @@ Swift source and tests.
 | `markdownpdf-output-profile.md` | The current portable output profile MarkdownPDF emits and validates. |
 | `pdf-type-modeling-policy.md` | Policy for adding internal typed PDF model structures. |
 | `portable-mermaid-flowcharts.md` | Portable Mermaid flowchart subset, unsupported fallback behavior, and validation expectations. |
-| `portable-embedded-fonts-tounicode-plan.md` | Portable embedded-font and ToUnicode implementation plan, including Type 0, CIDFontType2, font input policy, and staged issues. |
+| `portable-embedded-fonts-tounicode-plan.md` | Portable embedded-font and ToUnicode implementation plan and current policy, including Type 0, CIDFontType2, public font input, CI font fixture handling, and staged issues. |
 | `existing-pdf-writer-alignment.md` | Alignment notes between existing writer behavior and research findings. |
 | `pdf-validation-tooling.md` | Open source validation tools and the current CI validation strategy. |
 | `pdf-visual-layout-validation.md` | Visual layout validation strategy using text and render extraction tools. |
