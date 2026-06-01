@@ -325,6 +325,90 @@ struct PDFVisualLayoutValidationTests {
         )
     }
 
+    @Test("Embedded font public API profile passes visual witness stack")
+    func embeddedFontPublicAPIProfilePassesVisualWitnessStack() throws {
+        let data = try embeddedFontPublicAPIPDF()
+        let url = try PDFValidation.temporaryPDF(name: "embedded-font-public-api", data: data)
+        let inspector = PDFInspector(data)
+
+        #expect(inspector.pageCount >= 2)
+        #expect(inspector.text.contains("/Subtype /Type0"))
+        #expect(inspector.text.contains("/Subtype /CIDFontType2"))
+        #expect(inspector.text.contains("/FontFile2"))
+        #expect(inspector.text.contains("/ToUnicode"))
+        #expect(inspector.text.contains("/EF1"))
+        #expect(inspector.text.contains("/EF2"))
+        #expect(inspector.text.contains("/EF3"))
+        #expect(inspector.text.contains("/EF4"))
+        try PDFValidation.writeTextArtifact(Self.artifactManifest, name: "README.txt")
+        try PDFValidation.writeArtifact(data, name: "embedded-font-public-api.pdf")
+
+        let qpdf = try PDFValidation.qpdfCheck(url: url)
+        try #require(qpdf.exitCode == 0, "qpdf --check failed:\n\(qpdf.output)")
+
+        let textResult = try PDFValidation.pdftotext(url: url)
+        try #require(textResult.exitCode == 0, "pdftotext failed:\n\(textResult.output)")
+        try PDFValidation.writeTextArtifact(textResult.output, name: "embedded-font-public-api/text.txt")
+        let normalizedText = normalizedExtractedText(textResult.output)
+        #expect(normalizedText.contains("PUBLIC EMBEDDED FONT PROFILE"))
+        #expect(normalizedText.contains("BOLD ROLE"))
+        #expect(normalizedText.contains("ITALIC ROLE"))
+        #expect(normalizedText.contains("CODE ROLE"))
+
+        let tsvResult = try PDFValidation.pdftotextTSV(url: url)
+        try #require(tsvResult.exitCode == 0, "pdftotext -tsv failed:\n\(tsvResult.output)")
+        try PDFValidation.writeTextArtifact(tsvResult.output, name: "embedded-font-public-api/poppler.tsv")
+        let popplerLayout = try PopplerTextLayout(tsv: tsvResult.output)
+        let popplerIssues = popplerLayout.visualLayoutIssues()
+        #expect(popplerLayout.pages.count == inspector.pageCount)
+        #expect(popplerLayout.words.count > 120)
+        #expect(
+            popplerIssues.isEmpty,
+            "Embedded font public API Poppler layout issues:\n\(popplerIssues.joined(separator: "\n"))",
+        )
+
+        let structuredText = try PDFValidation.mutoolStructuredText(url: url)
+        try #require(structuredText.exitCode == 0, "mutool structured text failed:\n\(structuredText.output)")
+        try PDFValidation.writeTextArtifact(structuredText.output, name: "embedded-font-public-api/mupdf-stext.xml")
+        let mupdfLayout = try MuPDFStructuredText(xml: structuredText.output)
+        let mupdfIssues = mupdfLayout.characterQuadIssues()
+        #expect(mupdfLayout.pages.count == inspector.pageCount)
+        #expect(mupdfLayout.glyphs.count(where: { !$0.isWhitespace }) > 700)
+        #expect(
+            mupdfIssues.isEmpty,
+            "Embedded font public API MuPDF layout issues:\n\(mupdfIssues.joined(separator: "\n"))",
+        )
+
+        let poppler = try PDFValidation.pdftoppmPNMs(url: url, pageCount: inspector.pageCount)
+        let mupdf = try PDFValidation.mutoolPNMs(url: url, pageCount: inspector.pageCount)
+        try #require(poppler.result.exitCode == 0, "pdftoppm PNM failed:\n\(poppler.result.output)")
+        try #require(mupdf.result.exitCode == 0, "mutool PNM failed:\n\(mupdf.result.output)")
+        try PDFValidation.writeTextArtifact(poppler.result.output, name: "embedded-font-public-api/poppler-render.log")
+        try PDFValidation.writeTextArtifact(mupdf.result.output, name: "embedded-font-public-api/mupdf-render.log")
+
+        var rasterIssues: [String] = []
+        for page in 1 ... inspector.pageCount {
+            let popplerImage = try PNMImage(data: Data(contentsOf: poppler.pnmURLs[page - 1]))
+            let mupdfImage = try PNMImage(data: Data(contentsOf: mupdf.pnmURLs[page - 1]))
+            try PDFValidation.copyArtifact(
+                from: poppler.pnmURLs[page - 1],
+                name: "embedded-font-public-api-pages/poppler/page-\(page).ppm",
+            )
+            try PDFValidation.copyArtifact(
+                from: mupdf.pnmURLs[page - 1],
+                name: "embedded-font-public-api-pages/mupdf/page-\(page).pnm",
+            )
+            rasterIssues += rasterComparisonIssues(poppler: popplerImage, mupdf: mupdfImage).map {
+                "page \(page): \($0)"
+            }
+        }
+
+        #expect(
+            rasterIssues.isEmpty,
+            "Embedded font public API raster output diverged:\n\(rasterIssues.joined(separator: "\n"))",
+        )
+    }
+
     @Test("Oversized blocks split or scale inside page bounds")
     func oversizedBlocksSplitOrScaleInsidePageBounds() throws {
         let code = (1 ... 18)
@@ -880,6 +964,53 @@ struct PDFVisualLayoutValidationTests {
         ).data()
     }
 
+    private func embeddedFontPublicAPIPDF() throws -> Data {
+        let fontData = SyntheticTrueTypeFont.data(glyphProfile: .latinWitness, includeGlyphOutlines: true)
+        let source = PDFOptions.EmbeddedFontSource(data: fontData, baseName: "MarkdownPDF Public Fixture")
+        let denseParagraphs = Array(
+            repeating: "WIDE WILLIAM MINIMUM MARGIN ALPHA BETA GAMMA DELTA VECTOR SPACE CID TEXT STAYS ALIGNED",
+            count: 18,
+        ).joined(separator: "\n\n")
+        let markdown = """
+        # PUBLIC EMBEDDED FONT PROFILE
+
+        \(denseParagraphs)
+
+        ## STYLE ROLES
+
+        PLAIN ROLE **BOLD ROLE** *ITALIC ROLE* `CODE ROLE`
+
+        [OPEN FONT](https://example.com/fonts) LINK TEXT STAYS ALIGNED
+
+        | AREA | VALUE |
+        |---|---|
+        | WIDTH | WIDE WILLIAM MINIMUM MARGIN |
+        | CID | TEXT STAYS ALIGNED |
+        | RASTER | WITNESS STACK |
+
+        ```text
+        CODE ROLE WIDE WILLIAM
+        MONO SPACE TEST
+        ```
+
+        ```mermaid
+        flowchart TD
+        A[PUBLIC FONT] --> B[CID TEXT]
+        B --> C[RASTER WITNESS]
+        ```
+        """
+
+        return try MarkdownPDFRenderer(
+            options: PDFOptions(
+                pageSize: PDFOptions.PageSize(width: 260, height: 320),
+                margins: PDFOptions.Margins(top: 24, right: 22, bottom: 24, left: 22),
+                baseFontSize: 10,
+                embeddedFonts: .allRoles(source),
+                title: "Embedded Font Public API Witness",
+            ),
+        ).render(markdown: markdown)
+    }
+
     private func fixture(named name: String) throws -> String {
         let testFile = URL(fileURLWithPath: #filePath)
         let fixtureURL = testFile
@@ -971,6 +1102,15 @@ struct PDFVisualLayoutValidationTests {
 
     embedded-cid-text-pages/
     Poppler and MuPDF page rasters for the embedded CID text fixture.
+
+    embedded-font-public-api.pdf
+    PDF proving the public PDFOptions embedded-font role mapping through MarkdownPDFRenderer.
+
+    embedded-font-public-api/
+    Text, geometry, structured text, and render logs for the public embedded-font fixture.
+
+    embedded-font-public-api-pages/
+    Poppler and MuPDF page rasters for the public embedded-font fixture.
     """
 
     private func tableRectangleWidths(in inspector: PDFInspector) -> [Double] {
@@ -1021,6 +1161,10 @@ struct PDFVisualLayoutValidationTests {
         }
 
         return issues
+    }
+
+    private func normalizedExtractedText(_ text: String) -> String {
+        text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
     }
 
     private func inkOverlapRatio(_ left: PNMImage.InkBox, _ right: PNMImage.InkBox) -> Double {

@@ -1,5 +1,5 @@
 import Foundation
-import MarkdownPDF
+@testable import MarkdownPDF
 import MarkdownPDFLinux
 import Testing
 
@@ -199,6 +199,107 @@ struct MarkdownPDFRendererTests {
         #expect(text.contains("/Widths [278 333 474 556"))
         #expect(text.contains("/Widths [600 600 600 600"))
         #expect(!text.contains("/FontFile"))
+    }
+
+    @Test("Embedded font public API writes CID fonts for supplied roles")
+    func embeddedFontPublicAPIWritesCIDFontsForSuppliedRoles() throws {
+        let fontData = SyntheticTrueTypeFont.data(glyphProfile: .latinWitness, includeGlyphOutlines: true)
+        let source = PDFOptions.EmbeddedFontSource(data: fontData, baseName: "Public Regular")
+        let data = try MarkdownPDFRenderer(
+            options: PDFOptions(
+                pageSize: PDFOptions.PageSize(width: 280, height: 240),
+                margins: PDFOptions.Margins(top: 24, right: 24, bottom: 24, left: 24),
+                baseFontSize: 12,
+                embeddedFonts: PDFOptions.EmbeddedFonts(regular: source),
+            ),
+        ).render(markdown: "WIDE WILLIAM\n\n**BOLD TEXT**\n\n`CODE TEXT`")
+        let inspector = PDFInspector(data)
+
+        #expect(inspector.text.contains("/Font << /F2"))
+        #expect(inspector.text.contains("/EF1"))
+        #expect(inspector.text.contains("/Subtype /Type0"))
+        #expect(inspector.text.contains("/Subtype /CIDFontType2"))
+        #expect(inspector.text.contains("/FontFile2"))
+        #expect(inspector.text.contains("/ToUnicode"))
+        #expect(inspector.streams.contains { $0.body.contains("/EF1 12 Tf") })
+        #expect(inspector.streams.contains { $0.body.contains("/F2 12 Tf") })
+        #expect(inspector.streams.contains { $0.body.contains("/F4 11.400 Tf") })
+    }
+
+    @Test("Embedded font allRoles maps markdown style roles")
+    func embeddedFontAllRolesMapsMarkdownStyleRoles() throws {
+        let fontData = SyntheticTrueTypeFont.data(glyphProfile: .latinWitness, includeGlyphOutlines: true)
+        let source = PDFOptions.EmbeddedFontSource(data: fontData, baseName: "Public All Roles")
+        let data = try MarkdownPDFRenderer(
+            options: PDFOptions(
+                baseFontSize: 12,
+                embeddedFonts: .allRoles(source),
+            ),
+        ).render(markdown: "# WIDE\n\nPLAIN **BOLD** *ITALIC* `CODE`")
+        let streamBodies = PDFInspector(data).streams.map(\.body).joined(separator: "\n")
+        let text = String(decoding: data, as: UTF8.self)
+
+        #expect(streamBodies.contains("/EF2 24 Tf"))
+        #expect(streamBodies.contains("/EF1 12 Tf"))
+        #expect(streamBodies.contains("/EF2 12 Tf"))
+        #expect(streamBodies.contains("/EF3 12 Tf"))
+        #expect(streamBodies.contains("/EF4 11.400 Tf"))
+        #expect(!streamBodies.contains("/F1 12 Tf"))
+        #expect(!streamBodies.contains("/F2 12 Tf"))
+        #expect(text.contains("/EF1"))
+        #expect(text.contains("/EF2"))
+        #expect(text.contains("/EF3"))
+        #expect(text.contains("/EF4"))
+    }
+
+    @Test("Embedded font API rejects fonts that forbid embedding")
+    func embeddedFontAPIRejectsFontsThatForbidEmbedding() throws {
+        let fontData = SyntheticTrueTypeFont.data(fsType: 0x0002)
+        let source = PDFOptions.EmbeddedFontSource(data: fontData)
+
+        do {
+            _ = try MarkdownPDFRenderer(
+                options: PDFOptions(embeddedFonts: PDFOptions.EmbeddedFonts(regular: source)),
+            ).render(markdown: "ABBA")
+            Issue.record("Expected restricted embedding error")
+        } catch let error as TrueTypeFontError {
+            #expect(error == .restrictedEmbedding(fsType: 0x0002))
+            #expect(error.errorDescription != nil)
+            #expect(error.recoverySuggestion != nil)
+        } catch {
+            Issue.record("Expected TrueTypeFontError, got \(error)")
+        }
+    }
+
+    @Test(
+        .enabled(
+            if: OpenTrueTypeFontFixture.isAvailable,
+            OpenTrueTypeFontFixture.skipReason,
+        ),
+    )
+    func embeddedFontPublicAPIRendersOpenFontFixture() throws {
+        let fontURL = try #require(OpenTrueTypeFontFixture.url)
+        let source = try PDFOptions.EmbeddedFontSource(data: Data(contentsOf: fontURL))
+        let data = try MarkdownPDFRenderer(
+            options: PDFOptions(
+                embeddedFonts: .allRoles(source),
+                title: "Open Font Fixture",
+                tableOfContents: .enabled,
+            ),
+        ).render(markdown: "# Open Font\n\n## Café\n\nCafé résumé text uses embedded glyphs.")
+        let inspector = PDFInspector(data)
+
+        #expect(inspector.text.contains("/Subtype /Type0"))
+        #expect(inspector.text.contains("/Subtype /CIDFontType2"))
+        #expect(inspector.text.contains("/FontFile2"))
+        #expect(inspector.text.contains("/ToUnicode"))
+        let qpdf = try PDFValidation.qpdfCheck(data: data, name: "open-font-fixture")
+        try #require(qpdf.exitCode == 0, "qpdf --check failed:\n\(qpdf.output)")
+        let textResult = try PDFValidation.pdftotext(data: data, name: "open-font-fixture-text")
+        try #require(textResult.exitCode == 0, "pdftotext failed:\n\(textResult.output)")
+        let extractedText = normalizedExtractedText(textResult.output)
+        #expect(extractedText.contains("Table of Contents"))
+        #expect(extractedText.contains("Café résumé text uses embedded glyphs."))
     }
 
     @Test("Renders Markdown links as PDF URI annotations")
@@ -602,5 +703,50 @@ struct MarkdownPDFRendererTests {
                 return coordinates.last.map(String.init)
             },
         )
+    }
+
+    private func normalizedExtractedText(_ text: String) -> String {
+        text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+    }
+}
+
+private enum OpenTrueTypeFontFixture {
+    static var isAvailable: Bool {
+        configuredPath != nil || installedURL != nil
+    }
+
+    static let skipReason: Comment = """
+    requires MARKDOWNPDF_OPEN_FONT_PATH or DejaVuSans.ttf at /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf, ~/Library/Fonts/DejaVuSans.ttf, or /Library/Fonts/DejaVuSans.ttf
+    """
+
+    static var url: URL? {
+        if let configuredPath {
+            return URL(fileURLWithPath: configuredPath)
+        }
+
+        return installedURL
+    }
+
+    private static var installedURL: URL? {
+        installedCandidatePaths
+            .map { URL(fileURLWithPath: $0) }
+            .first { FileManager.default.fileExists(atPath: $0.path) }
+    }
+
+    private static var configuredPath: String? {
+        let rawPath = ProcessInfo.processInfo.environment["MARKDOWNPDF_OPEN_FONT_PATH"]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let rawPath, !rawPath.isEmpty else {
+            return nil
+        }
+        return rawPath
+    }
+
+    private static var installedCandidatePaths: [String] {
+        [
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "\(NSHomeDirectory())/Library/Fonts/DejaVuSans.ttf",
+            "/Library/Fonts/DejaVuSans.ttf",
+        ]
     }
 }

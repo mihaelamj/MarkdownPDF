@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   embedded-font profile.
 - Deterministic ToUnicode CMap generation with range compression, chunking, and
   glyph-mapping conflict detection.
+- Opt-in CID text writing, TrueType subsetting, CIDToGIDMap streams, and public
+  `PDFOptions.EmbeddedFonts` role mapping for caller-provided TrueType data.
+- CI-safe embedded-font fixtures using generated Swift TrueType data and an
+  installed DejaVu Sans smoke-test path instead of committed font binaries.
 
 ### Changed
 

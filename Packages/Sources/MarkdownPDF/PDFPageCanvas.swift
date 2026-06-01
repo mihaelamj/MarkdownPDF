@@ -22,42 +22,36 @@ final class PDFPageCanvas {
             .beginText,
             .setFont(PDFSyntax.Name(run.font.rawValue), size: run.size),
             .moveText(x: x, y: y),
-            .showText(PDFSyntax.LiteralString(run.text)),
+            .showText(PDFSyntax.LiteralString(run.portableText)),
             .endText,
         ])
 
         let width = run.width(fontSet: fontSet)
-        if run.underline {
-            drawLine(
-                x1: x,
-                y1: y - 1.5,
-                x2: x + width,
-                y2: y - 1.5,
-                width: 0.5,
-                color: run.color,
-            )
+        drawDecorations(for: run, x: x, y: y, width: width)
+    }
+
+    func drawTextRun(
+        _ run: PDFTextRun,
+        x: Double,
+        y: Double,
+        fontSet: PDFOptions.FontSet,
+        embeddedFonts: PDFEmbeddedFontCatalog,
+    ) throws {
+        guard let entry = embeddedFonts.entry(for: run.font) else {
+            drawTextRun(run, x: x, y: y, fontSet: fontSet)
+            return
         }
-        if run.strikethrough {
-            drawLine(
-                x1: x,
-                y1: y + run.size * 0.32,
-                x2: x + width,
-                y2: y + run.size * 0.32,
-                width: 0.5,
-                color: run.color,
-            )
-        }
-        if let destination = run.linkDestination, !destination.isEmpty, width > 0 {
-            linkAnnotations.append(
-                PDFLinkAnnotation(
-                    x: x,
-                    y: y - run.size * 0.25,
-                    width: width,
-                    height: run.size * 1.15,
-                    destination: destination,
-                ),
-            )
-        }
+
+        let mapping = try embeddedFonts.mapping(for: run, entry: entry)
+        try drawCIDText(
+            mapping: mapping,
+            fontResource: entry.resource,
+            fontSize: run.size,
+            x: x,
+            y: y,
+            color: run.color,
+        )
+        drawDecorations(for: run, x: x, y: y, width: mapping.totalWidth)
     }
 
     func drawCIDText(
@@ -151,5 +145,44 @@ final class PDFPageCanvas {
 
     private func setStrokeColor(_ color: PDFColor) {
         contentStream.append(.setStrokeColor(color))
+    }
+
+    private func drawDecorations(
+        for run: PDFTextRun,
+        x: Double,
+        y: Double,
+        width: Double,
+    ) {
+        if run.underline {
+            drawLine(
+                x1: x,
+                y1: y - 1.5,
+                x2: x + width,
+                y2: y - 1.5,
+                width: 0.5,
+                color: run.color,
+            )
+        }
+        if run.strikethrough {
+            drawLine(
+                x1: x,
+                y1: y + run.size * 0.32,
+                x2: x + width,
+                y2: y + run.size * 0.32,
+                width: 0.5,
+                color: run.color,
+            )
+        }
+        if let destination = run.linkDestination, !destination.isEmpty, width > 0 {
+            linkAnnotations.append(
+                PDFLinkAnnotation(
+                    x: x,
+                    y: y - run.size * 0.25,
+                    width: width,
+                    height: run.size * 1.15,
+                    destination: destination,
+                ),
+            )
+        }
     }
 }
