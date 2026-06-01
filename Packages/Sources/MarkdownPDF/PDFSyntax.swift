@@ -240,6 +240,99 @@ enum PDFSyntax {
         }
     }
 
+    struct XrefTable {
+        struct Entry: Equatable {
+            var objectNumber: Int
+            var offset: Int
+            var generation: Int
+            var inUse: Bool
+
+            static let freeObjectZero = Entry(
+                objectNumber: 0,
+                offset: 0,
+                generation: 65535,
+                inUse: false,
+            )
+
+            var serialized: String {
+                let marker = inUse ? "n" : "f"
+                return String(
+                    format: "%010d %05d \(marker) \n",
+                    locale: PDFSyntax.serializationLocale,
+                    offset,
+                    generation,
+                )
+            }
+        }
+
+        private(set) var entries: [Entry]
+
+        init(objectOffsets: [(reference: Reference, offset: Int)]) {
+            entries = [.freeObjectZero]
+            entries += objectOffsets.map { object in
+                Entry(
+                    objectNumber: object.reference.objectNumber,
+                    offset: object.offset,
+                    generation: object.reference.generation,
+                    inUse: true,
+                )
+            }
+            precondition(
+                entries.map(\.objectNumber) == Swift.Array(0 ..< entries.count),
+                "PDF xref entries must be consecutive from object 0",
+            )
+        }
+
+        var serialized: String {
+            var output = "xref\n0 \(entries.count)\n"
+            for entry in entries {
+                output += entry.serialized
+            }
+            return output
+        }
+    }
+
+    struct Trailer {
+        var size: Int
+        var root: Reference
+
+        var serialized: String {
+            """
+            trailer
+            \(Dictionary([
+                .init("Size", .int(size)),
+                .init("Root", .reference(root)),
+            ]).serialized())
+            """
+        }
+    }
+
+    struct FileEnvelope {
+        var objects: [IndirectObject]
+        var root: Reference
+
+        var serialized: Data {
+            let objectReferences = Set(objects.map(\.reference))
+            precondition(objectReferences.contains(root), "PDF root reference must point to an emitted object")
+
+            var output = Data()
+            output.appendString("%PDF-1.4\n%\u{00E2}\u{00E3}\u{00CF}\u{00D3}\n")
+
+            var objectOffsets: [(reference: Reference, offset: Int)] = []
+            for object in objects {
+                objectOffsets.append((reference: object.reference, offset: output.count))
+                output.append(object.serialized)
+            }
+
+            let xrefStart = output.count
+            let xref = XrefTable(objectOffsets: objectOffsets)
+            output.appendString(xref.serialized)
+            output.appendString(Trailer(size: xref.entries.count, root: root).serialized)
+            output.appendString("\nstartxref\n\(xrefStart)\n%%EOF")
+            return output
+        }
+    }
+
     private static let serializationLocale = Locale(identifier: "en_US_POSIX")
 }
 

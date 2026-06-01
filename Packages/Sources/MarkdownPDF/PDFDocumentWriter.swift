@@ -136,11 +136,10 @@ struct PDFDocumentWriter {
     }
 
     private struct Builder {
-        private var objects: [Data?] = []
+        private var registry = PDFObjectRegistry()
 
         mutating func reserve() -> PDFSyntax.Reference {
-            objects.append(nil)
-            return PDFSyntax.Reference(objectNumber: objects.count)
+            registry.reserve()
         }
 
         mutating func set(_ ref: PDFSyntax.Reference, _ value: PDFSyntax.Value) {
@@ -148,7 +147,7 @@ struct PDFDocumentWriter {
         }
 
         mutating func set(_ ref: PDFSyntax.Reference, _ value: Data) {
-            objects[ref.objectNumber - 1] = value
+            registry.set(ref, body: value)
         }
 
         mutating func addDictionary(
@@ -263,43 +262,11 @@ struct PDFDocumentWriter {
         }
 
         func build(root: PDFSyntax.Reference) -> Data {
-            var output = Data()
-            output.appendString("%PDF-1.4\n%\u{00E2}\u{00E3}\u{00CF}\u{00D3}\n")
-            var offsets = [0]
-
-            for (offset, object) in objects.enumerated() {
-                let reference = PDFSyntax.Reference(objectNumber: offset + 1)
-                let indirectObject = PDFSyntax.IndirectObject(
-                    reference: reference,
-                    body: object ?? Data(PDFSyntax.Dictionary().serialized().utf8),
-                )
-                offsets.append(output.count)
-                output.append(indirectObject.serialized)
-            }
-
-            let xrefStart = output.count
-            output.appendString("xref\n0 \(objects.count + 1)\n")
-            output.appendString("0000000000 65535 f \n")
-            for offset in offsets.dropFirst() {
-                output.appendString(String(format: "%010d 00000 n \n", offset))
-            }
-            output.appendString("""
-            trailer
-            \(PDFSyntax.Dictionary([
-                .init("Size", .int(objects.count + 1)),
-                .init("Root", .reference(root)),
-            ]).serialized())
-            startxref
-            \(xrefStart)
-            %%EOF
-            """)
-
-            return output
+            registry.serializedFile(root: root)
         }
 
         private mutating func addData(_ data: Data) -> PDFSyntax.Reference {
-            objects.append(data)
-            return PDFSyntax.Reference(objectNumber: objects.count)
+            registry.add(data)
         }
     }
 }
