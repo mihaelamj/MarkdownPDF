@@ -1,6 +1,6 @@
 # Complex script shaping and bidi roadmap
 
-Status: in review for #81 through PR #89 on 2026-06-01.
+Status: in review for #82 through PR #90 on 2026-06-01.
 
 Scope: this note defines the next epic after the Latin-first embedded-font
 foundation. It is portable macOS and Linux research. It is not a macOS-only
@@ -149,8 +149,8 @@ and shaped clusters.
 ```mermaid
 flowchart TD
     S0["Phase 0<br/>#80 Standards and boundary<br/>Done"]
-    S1["Phase 1<br/>#81 Fixtures and witnesses<br/>Review and CI"]
-    S2["Phase 2<br/>#82 Shaped cluster model<br/>Planned"]
+    S1["Phase 1<br/>#81 Fixtures and witnesses<br/>Done"]
+    S2["Phase 2<br/>#82 Shaped cluster model<br/>Review and CI"]
     S3["Phase 3<br/>#83 Line-break opportunities<br/>Planned"]
     S4["Phase 4<br/>#84 Bidi ordering<br/>Planned"]
     S5["Phase 5<br/>#85 Pure Swift shaping increments<br/>Planned"]
@@ -163,9 +163,9 @@ flowchart TD
     classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
     classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
-    class S0 done;
-    class S1 review;
-    class S2,S3,S4,S5,S6 todo;
+    class S0,S1 done;
+    class S2 review;
+    class S3,S4,S5,S6 todo;
 ```
 
 ## Witness policy
