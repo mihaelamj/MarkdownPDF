@@ -36,6 +36,10 @@ The generic renderer currently covers:
   hints, using direct DeviceRGB text operators.
 - Configurable `PDFOptions.Theme` styling with built-in default, dark, and print
   themes plus a code-syntax color surface.
+- Opt-in TeX-style math parsing through `PDFOptions.MathTypesetting`, with an
+  initial Pure Swift subset for inline math, display math, scripts, fractions,
+  roots, symbols, extraction text, and visible fallback for unsupported
+  commands.
 - Opt-in Pure Swift `/FlateDecode` compression for page content streams and
   embedded FontFile2 streams when the encoded bytes are smaller than raw bytes.
 - Opt-in tagged PDF structure output with `/MarkInfo`, `/StructTreeRoot`,
@@ -569,7 +573,7 @@ flowchart TD
     H4C["#128<br/>Tagged PDF and PDF/A<br/>Done"]
     H4D["#129<br/>Footnotes and tasks<br/>Done"]
     H4E["#130<br/>Theming model<br/>Done"]
-    H4F["#131<br/>Math typesetting<br/>Active"]
+    H4F["#131<br/>Math subset merged<br/>Active"]
     H4G["#138<br/>Apple and custom fonts<br/>Todo"]
     H3["#100<br/>Named page sizes<br/>Todo"]
 
