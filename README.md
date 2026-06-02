@@ -37,8 +37,10 @@ The generic renderer currently covers:
 - Opt-in Pure Swift `/FlateDecode` compression for page content streams and
   embedded FontFile2 streams when the encoded bytes are smaller than raw bytes.
 - Opt-in tagged PDF structure output with `/MarkInfo`, `/StructTreeRoot`,
-  `/ParentTree`, page `/StructParents`, and marked-content IDs. This does not
-  claim PDF/UA or PDF/A conformance yet.
+  `/ParentTree`, page `/StructParents`, and marked-content IDs.
+- Opt-in PDF/UA-1 conformance identification through
+  `PDFOptions.Conformance.pdfUA1`, verified with veraPDF on the profile fixture.
+  PDF/A conformance is not claimed yet.
 
 The compatibility target is CommonMark plus GitHub Flavored Markdown tables and
 images. The generated PDF profile is intentionally small, typed, and documented
@@ -123,6 +125,24 @@ let options = PDFOptions(
 )
 
 let markdown = "# Tagged\n\nA PDF with a logical structure spine."
+let data = try MarkdownPDFRenderer(options: options).render(markdown: markdown)
+```
+
+Enable the veraPDF-checked PDF/UA-1 profile:
+
+```swift
+import Foundation
+import MarkdownPDF
+
+let fontData = try Data(contentsOf: URL(fileURLWithPath: "OpenFont.ttf"))
+let source = PDFOptions.EmbeddedFontSource(data: fontData)
+let options = PDFOptions(
+    embeddedFonts: .allRoles(source),
+    title: "Accessible Draft",
+    conformance: .pdfUA1,
+)
+
+let markdown = "# Tagged\n\nA PDF with embedded fonts and logical structure."
 let data = try MarkdownPDFRenderer(options: options).render(markdown: markdown)
 ```
 
@@ -526,7 +546,7 @@ flowchart TD
     H4["#145<br/>Staged-research shortlist epic<br/>Active"]
     H4A["#126<br/>Native charts<br/>Done"]
     H4B["#127<br/>Pure-Swift DEFLATE<br/>Done"]
-    H4C["#128<br/>Tagged PDF and PDF/A<br/>Active"]
+    H4C["#128<br/>Tagged PDF and PDF/A<br/>Review"]
     H4D["#129<br/>Footnotes and tasks<br/>Next"]
     H4E["#130<br/>Theming model<br/>Todo"]
     H4F["#131<br/>Math typesetting<br/>Todo"]
@@ -551,7 +571,7 @@ flowchart TD
     class H4 active;
     class H4A done;
     class H4B done;
-    class H4C active;
+    class H4C review;
     class H4D next;
     class H4E,H4F,H4G todo;
     class H3 todo;
