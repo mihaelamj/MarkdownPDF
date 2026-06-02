@@ -40,6 +40,35 @@ struct LineBreakOpportunityDetectorTests {
         #expect(detector.segments(in: "កខគ") == ["ក", "ខ", "គ"])
     }
 
+    @Test("Adds CJK ID-class break opportunities")
+    func addsCJKIDClassBreakOpportunities() {
+        let detector = LineBreakOpportunityDetector()
+
+        #expect(detector.segments(in: "漢字仮名") == ["漢", "字", "仮", "名"])
+        #expect(detector.opportunities(in: "漢字仮名") == [
+            LineBreakOpportunityDetector.Opportunity(scalarOffset: 1, kind: .allowed),
+            LineBreakOpportunityDetector.Opportunity(scalarOffset: 2, kind: .allowed),
+            LineBreakOpportunityDetector.Opportunity(scalarOffset: 3, kind: .allowed),
+        ])
+        #expect(detector.segments(in: "かなカナ") == ["か", "な", "カ", "ナ"])
+        #expect(detector.segments(in: "한글") == ["한", "글"])
+        #expect(detector.segments(in: "\u{2EBF0}\u{2EBF1}") == ["\u{2EBF0}", "\u{2EBF1}"])
+        #expect(detector.segments(in: "\u{2F800}\u{2F801}") == ["\u{2F800}", "\u{2F801}"])
+        #expect(detector.segments(in: "\u{31350}\u{31351}") == ["\u{31350}", "\u{31351}"])
+    }
+
+    @Test("Protects CJK opening and closing punctuation boundaries")
+    func protectsCJKOpeningAndClosingPunctuationBoundaries() {
+        let detector = LineBreakOpportunityDetector()
+
+        #expect(detector.segments(in: "「漢字」仮") == ["「漢", "字」", "仮"])
+        #expect(detector.opportunities(in: "「漢字」仮") == [
+            LineBreakOpportunityDetector.Opportunity(scalarOffset: 2, kind: .allowed),
+            LineBreakOpportunityDetector.Opportunity(scalarOffset: 4, kind: .allowed),
+        ])
+        #expect(detector.segments(in: "漢。字") == ["漢。", "字"])
+    }
+
     @Test("Does not split combining mark clusters")
     func doesNotSplitCombiningMarkClusters() {
         let detector = LineBreakOpportunityDetector()
