@@ -390,7 +390,8 @@ swiftlint --config .swiftlint.yml
   `MARKDOWNPDF_LARGE_FIXTURE_TESTS=1 swift test --filter FixtureTests/wwdcLargeFixtureRendersSelectedOversizedAssetsWhenEnabled`
   from `Packages/`.
 - Issue [#99](https://github.com/mihaelamj/MarkdownPDF/issues/99) tracks
-  source-code formatting research and implementation.
+  source-code formatting research and implementation, including the reported
+  quote-stroke, crammed-layout, glyph-overlap, and image-presence regressions.
 - Issue [#100](https://github.com/mihaelamj/MarkdownPDF/issues/100) tracks
   named PDF page sizes, including A1, A3, A4, and A5.
 - Apple system font names remain available through
@@ -422,15 +423,17 @@ flowchart TD
     H2["#99<br/>Source-code formatting epic<br/>Active"]
     H2A["#101<br/>Literature research<br/>Done"]
     H2B["#102<br/>Compare with renderer<br/>Done"]
-    H2C["#103<br/>Portable code model<br/>Active"]
-    H2D["#104<br/>Formatting baseline<br/>Next"]
-    H2E["#105<br/>Visual witnesses<br/>Next"]
-    H2F["#106<br/>Syntax coloring study<br/>Later"]
+    H2C["#103<br/>Portable code model<br/>Done"]
+    H2D["#112<br/>Remove quote strokes<br/>Active"]
+    H2E["#104<br/>Formatting baseline<br/>Next"]
+    H2F["#105<br/>Visual witnesses<br/>Next"]
+    H2G["#113<br/>Image inclusion audit<br/>Next"]
+    H2H["#106<br/>Syntax coloring study<br/>Later"]
     H3["#100<br/>Named page sizes<br/>Next"]
 
     H0 --> H1
     H1 --> H2
-    H2 --> H2A --> H2B --> H2C --> H2D --> H2E --> H2F
+    H2 --> H2A --> H2B --> H2C --> H2D --> H2E --> H2F --> H2G --> H2H
     H1 --> H3
 
     classDef done fill:#e8f5e9,stroke:#2e7d32,color:#111;
@@ -440,10 +443,10 @@ flowchart TD
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
     class H0 done;
     class H1 done;
-    class H2,H2C active;
-    class H2A,H2B done;
-    class H2D,H2E next;
-    class H2F todo;
+    class H2,H2D active;
+    class H2A,H2B,H2C done;
+    class H2E,H2F,H2G next;
+    class H2H todo;
     class H3 next;
 ```
 
