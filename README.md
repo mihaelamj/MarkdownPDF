@@ -416,8 +416,8 @@ flowchart TD
     H0["#95<br/>Hard Markdown fixture corpus<br/>Done"]
     H1["#97/#98<br/>A4 and external fixtures<br/>Done"]
     H2["#99<br/>Source-code formatting epic<br/>Active"]
-    H2A["#101<br/>Literature research<br/>Active"]
-    H2B["#102<br/>Compare with renderer<br/>Next"]
+    H2A["#101<br/>Literature research<br/>Done"]
+    H2B["#102<br/>Compare with renderer<br/>Active"]
     H2C["#103<br/>Portable code model<br/>Next"]
     H2D["#104<br/>Formatting baseline<br/>Next"]
     H2E["#105<br/>Visual witnesses<br/>Next"]
@@ -436,8 +436,9 @@ flowchart TD
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
     class H0 done;
     class H1 done;
-    class H2,H2A active;
-    class H2B,H2C,H2D,H2E next;
+    class H2,H2B active;
+    class H2A done;
+    class H2C,H2D,H2E next;
     class H2F todo;
     class H3 next;
 ```
