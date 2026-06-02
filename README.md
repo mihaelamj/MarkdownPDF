@@ -575,7 +575,7 @@ flowchart TD
     H4C["#128<br/>Tagged PDF and PDF/A<br/>Done"]
     H4D["#129<br/>Footnotes and tasks<br/>Done"]
     H4E["#130<br/>Theming model<br/>Done"]
-    H4F["#131<br/>Font-backed MATH profile merged<br/>Active"]
+    H4F["#131<br/>Fixed delimiters merged<br/>Active"]
     H4G["#138<br/>Apple and custom fonts<br/>Todo"]
     H3["#100<br/>Named page sizes<br/>Todo"]
 
