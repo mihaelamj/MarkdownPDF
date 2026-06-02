@@ -249,6 +249,44 @@ flowchart TD
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
 ```
 
+## Epics overview
+
+Every epic is shown here with its status color, so the whole set is legible at
+a glance: what is in progress, what is done, and what exists but has not
+started. In-progress epics also have a detailed roadmap further down. Finished
+epics keep only their node here. Update a node's color when an epic opens,
+starts, or closes.
+
+```mermaid
+flowchart TD
+    E17["#17 Canonical PDF structure (research)"]
+    E27["#27 Canonical PDF document structure"]
+    E48["#48 Portable fidelity hardening"]
+    E63["#63 Embedded font foundation"]
+    E79["#79 Complex-script shaping and bidi"]
+    E99["#99 Source-code formatting"]
+    E126["#126 Native data charts"]
+    E127["#127 Pure-Swift DEFLATE"]
+    E128["#128 Tagged PDF and PDF/A"]
+    E130["#130 Theming and stylesheets"]
+    E145["#145 Staged-research shortlist"]
+    E131["#131 Math typesetting"]
+    E10["#10 macOS article-grade renderer"]
+
+    E17 --> E27 --> E48 --> E63 --> E79 --> E99 --> E126 --> E127 --> E128 --> E130
+    E145 --> E131
+    E10
+
+    classDef done fill:#e8f5e9,stroke:#2e7d32,color:#111;
+    classDef active fill:#e3f2fd,stroke:#1565c0,color:#111;
+    classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
+    classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
+    classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
+    class E17,E27,E48,E63,E79,E99,E126,E127,E128,E130 done;
+    class E145,E131 active;
+    class E10 next;
+```
+
 ## Completed epics
 
 These epics are fully landed and their child issues all closed, so their phase
