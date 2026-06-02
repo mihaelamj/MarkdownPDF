@@ -34,6 +34,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   installed DejaVu Sans smoke-test path instead of committed font binaries.
 - Opt-in portable syntax coloring for supported fenced code block language
   hints, with extraction, geometry, and raster witnesses.
+- Opt-in TeX-style math typesetting through `PDFOptions.MathTypesetting`: a Pure
+  Swift box-and-glue subset for inline and display math, scripts, fractions and
+  radicals (typeset as 2D boxes inline and in display), big operators with
+  limits, accents, `matrix`/`pmatrix`/`cases` environments, `\big`-style scaling
+  delimiters, `\operatorname`, a broad symbol and Greek set, readable extraction
+  text, and visible fallback for unsupported commands, with an optional
+  font-backed mode that reads an embedded OpenType `MATH` table.
+- Configurable `PDFOptions.Theme` styling with built-in default, dark, and print
+  themes and a code-syntax color surface.
+- GFM footnotes and task-list checkboxes.
+- Native data-chart rendering for pie, bar, line, and xy charts.
+- Opt-in Pure Swift `/FlateDecode` compression for page content streams and
+  embedded FontFile2 streams.
+- Opt-in tagged PDF structure output and PDF/UA-1 and PDF/A-2a conformance
+  profiles verified with veraPDF on profile fixtures.
+- Complex-script support: Unicode line-break opportunities (UAX #14),
+  bidirectional ordering (UAX #9), shaped glyph clusters, and multi-scalar
+  ToUnicode cluster mappings.
+- Named page sizes through `PDFOptions.PageSize`: the A-series A0 through A6 plus
+  `letter`, `legal`, and `tabloid`.
+- Font outline and container format detection from the SFNT table directory,
+  with typed, actionable rejection of OpenType CFF, WOFF, WOFF2, collections,
+  CFF2, and variable fonts; `FontSet.appleSystem` documented as names-only and
+  never embedded.
+- A Swift-DocC documentation catalog as the single source of truth for project
+  documentation.
+- Multilingual (diacritic Latin, Cyrillic, Greek), CJK, and large-document test
+  corpora rendered across the named page sizes.
+- Study-only vendored algorithm references under `researchcode/` for DEFLATE,
+  UAX #9 bidi, and UAX #14 line breaking.
 
 ### Changed
 

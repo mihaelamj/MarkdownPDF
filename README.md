@@ -36,12 +36,16 @@ The generic renderer currently covers:
   hints, using direct DeviceRGB text operators.
 - Configurable `PDFOptions.Theme` styling with built-in default, dark, and print
   themes plus a code-syntax color surface.
-- Opt-in TeX-style math parsing through `PDFOptions.MathTypesetting`, with an
-  initial Pure Swift subset for inline math, display math, scripts, fractions,
-  roots, fixed delimiters, symbols, extraction text, and visible fallback for
-  unsupported commands. `PDFOptions.MathTypesetting.fontBacked` additionally
-  requires the styled math role to use an embedded OpenType font with a `MATH`
-  table.
+- Opt-in TeX-style math typesetting through `PDFOptions.MathTypesetting`, a Pure
+  Swift box-and-glue subset covering inline and display math, scripts, fractions
+  and radicals (typeset as 2D boxes inline and in display), big operators with
+  limits, accents, `matrix`/`pmatrix`/`cases` environments, `\big`-style scaling
+  delimiters, `\operatorname`, a broad symbol and Greek set, readable extraction
+  text, and visible fallback for unsupported commands.
+  `PDFOptions.MathTypesetting.fontBacked` additionally requires the styled math
+  role to use an embedded OpenType font with a `MATH` table.
+- Named page sizes through `PDFOptions.PageSize`: the A-series A0 through A6 plus
+  `letter`, `legal`, and `tabloid`.
 - Opt-in Pure Swift `/FlateDecode` compression for page content streams and
   embedded FontFile2 streams when the encoded bytes are smaller than raw bytes.
 - Opt-in tagged PDF structure output with `/MarkInfo`, `/StructTreeRoot`,
@@ -541,10 +545,10 @@ flowchart TD
     M0["#158<br/>Opt-in math subset entry point<br/>Done"]
     M1["#159<br/>OpenType MATH font tables<br/>Done"]
     M2["Scope 1<br/>Parse inline/display, visible-source fallback<br/>Done"]
-    M3["Scope 3+4<br/>Box-and-glue layout on font-backed metrics<br/>Active"]
-    M4["Scope 2<br/>Symbol coverage: scripts, fractions, radicals, big ops, delimiters, Greek, relations, arrows, functions<br/>Active"]
+    M3["Scope 3+4<br/>Box-and-glue layout inline and display, accents, matrices, scaling delimiters<br/>Done"]
+    M4["Scope 2<br/>Symbol coverage: scripts, fractions, radicals, big ops, delimiters, Greek, relations, arrows, functions, operatorname<br/>Done"]
     M5["Scope 5<br/>Readable pdftotext linearization<br/>Done"]
-    M6["Acceptance<br/>qpdf, pdftotext, MuPDF quads, raster witnesses<br/>Active"]
+    M6["Acceptance<br/>qpdf, pdftotext, MuPDF quads, raster witnesses<br/>Done"]
 
     M0 --> M1 --> M2 --> M3 --> M4 --> M5 --> M6
 
@@ -553,8 +557,7 @@ flowchart TD
     classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
     classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
-    class M0,M1,M2,M5 done;
-    class M3,M4,M6 active;
+    class M0,M1,M2,M3,M4,M5,M6 done;
 ```
 
 ## macOS article-grade renderer roadmap
