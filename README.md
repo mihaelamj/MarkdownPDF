@@ -496,9 +496,9 @@ flowchart TD
     H4D["#129<br/>Footnotes and tasks<br/>Done"]
     H4E["#130<br/>Theming model<br/>Done"]
     H4F["#131<br/>Fixed delimiters merged<br/>Active"]
-    H4G["#138<br/>Apple and custom fonts<br/>Todo"]
+    H4G["#138<br/>Apple and custom fonts<br/>Done"]
     H3["#100<br/>Named page sizes<br/>Done"]
-    H4H["#137<br/>Vendor canonical references<br/>Todo"]
+    H4H["#137<br/>Vendor canonical references<br/>Done"]
 
     H0 --> H1
     H1 --> H2
@@ -522,8 +522,8 @@ flowchart TD
     class H4D done;
     class H4E done;
     class H4F active;
-    class H4G todo;
-    class H4H todo;
+    class H4G done;
+    class H4H done;
     class H3 done;
 ```
 
