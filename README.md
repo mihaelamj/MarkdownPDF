@@ -34,6 +34,8 @@ The generic renderer currently covers:
   Type 0 / CIDFontType2 fonts, ToUnicode maps, and subsetted FontFile2 streams.
 - Opt-in portable syntax coloring for supported fenced code-block language
   hints, using direct DeviceRGB text operators.
+- Configurable `PDFOptions.Theme` styling with built-in default, dark, and print
+  themes plus a code-syntax color surface.
 - Opt-in Pure Swift `/FlateDecode` compression for page content streams and
   embedded FontFile2 streams when the encoded bytes are smaller than raw bytes.
 - Opt-in tagged PDF structure output with `/MarkInfo`, `/StructTreeRoot`,
@@ -566,8 +568,8 @@ flowchart TD
     H4B["#127<br/>Pure-Swift DEFLATE<br/>Done"]
     H4C["#128<br/>Tagged PDF and PDF/A<br/>Done"]
     H4D["#129<br/>Footnotes and tasks<br/>Done"]
-    H4E["#130<br/>Theming model<br/>Active"]
-    H4F["#131<br/>Math typesetting<br/>Todo"]
+    H4E["#130<br/>Theming model<br/>Done"]
+    H4F["#131<br/>Math typesetting<br/>Active"]
     H4G["#138<br/>Apple and custom fonts<br/>Todo"]
     H3["#100<br/>Named page sizes<br/>Todo"]
 
@@ -591,8 +593,9 @@ flowchart TD
     class H4B done;
     class H4C done;
     class H4D done;
-    class H4E active;
-    class H4F,H4G todo;
+    class H4E done;
+    class H4F active;
+    class H4G todo;
     class H3 todo;
 ```
 
