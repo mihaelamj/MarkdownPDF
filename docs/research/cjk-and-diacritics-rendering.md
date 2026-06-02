@@ -95,11 +95,11 @@ Reuse the complex-script witness stack:
 
 ## Font fixture policy
 
-The public repo stores no font binaries. Use generated Swift TrueType fixtures
-for deterministic parser / subset / writer tests, and a CI-installed or
-environment-provided open font that covers CJK and combining marks through an
-`MARKDOWNPDF_OPEN_FONT_PATH`-style variable. Tests that need such a font may skip
-only when the path is absent, naming the missing path in the skip reason.
+The public repo stores no font binaries. Current tests use generated Swift
+TrueType fixtures for deterministic parser, subset, writer, and visual witness
+coverage. If future work needs a real open font corpus, it should add an
+explicit opt-in environment variable and skip only when the path is absent,
+naming the missing path in the skip reason.
 
 ## Ordered work
 
@@ -111,6 +111,82 @@ only when the path is absent, naming the missing path in the skip reason.
    fallback) with geometry witnesses.
 6. Add manuscript-scale CJK + diacritics fixtures and full witness coverage.
 7. Add negative tests for missing glyphs and unsupported scalars.
+
+## Implementation notes
+
+- #122 implements the first CJK line-breaking increment in
+  `LineBreakOpportunityDetector`: Han, kana, hangul, CJK Extension A,
+  compatibility ideographs, and supplementary CJK ranges are treated as
+  no-space script scalars.
+- The detector now protects CJK opening and closing punctuation boundaries and
+  unit-tests breaks between ideographs, kana, hangul syllables, and CJK
+  punctuation runs.
+- The synthetic TrueType test fixture now has a CJK format 12 profile. Parser,
+  mapper, and renderer tests prove 1000-unit `hmtx` advances for ideographs,
+  CID width emission, ToUnicode extraction, and narrow-page wrapping without
+  committing a real font file.
+- A committed `cjk-diacritics-manuscript.md` fixture now runs through the visual
+  witness stack with an embedded synthetic font. It covers CJK line breaking,
+  Latin text, ordered lists, Latin `e` plus U+0301, CJK plus U+0301, qpdf,
+  Poppler extraction and geometry, MuPDF character quads, and Poppler/MuPDF
+  raster comparison.
+- Missing CJK glyphs are covered by a typed negative test. Remaining work is
+  limited to any East Asian Width fallback policy for text rendered without an
+  embedded font.
+
+## Reference implementations
+
+The following vendored sources under `researchcode/` are study-only references.
+They must be reimplemented in the pure Swift embedded-font and shaped-cluster
+path. Do not add HarfBuzz, ICU, Pango, Skia, or other C/C++ runtime dependencies.
+
+HarfBuzz:
+
+- `researchcode/harfbuzz/src/hb-ot-shape.cc`: `hb_ot_position_plan`,
+  `_hb_ot_shape_fallback_mark_position`, and `fallback_mark_positioning` show the
+  GPOS-or-fallback decision for combining diacritics. The Swift path should use
+  embedded-font GPOS mark-to-base data when present, else keep a visible
+  zero-advance fallback.
+- `researchcode/harfbuzz/src/hb-buffer.cc`: `merge_clusters_impl` and
+  `hb_buffer_set_cluster_level` show how source scalars stay attached to ligated
+  glyph runs for multi-scalar ToUnicode.
+- `researchcode/harfbuzz/src/hb-font.cc`:
+  `hb_font_get_nominal_glyphs_default`,
+  `hb_font_get_variation_glyph_default`, and
+  `hb_font_get_glyph_h_advance_default` describe the consumer contract for
+  `cmap` format 4 and 12 lookup plus horizontal advances.
+
+Pango:
+
+- `researchcode/pango/pango/shape.c`: `pango_hb_shape` writes `log_clusters`
+  and `is_cluster_start`, which is the cluster-to-source-character back-map
+  needed by ToUnicode.
+- `researchcode/pango/tests/LineBreakTest.txt` and
+  `researchcode/pango/tests/validate-log-attrs.c`: Unicode UAX #14 conformance
+  vectors and validation shape for a future complete line-break implementation.
+- `researchcode/pango/pango/pango-layout.c`: `can_break_at` and `process_line`
+  show how computed break attributes drive greedy wrapping.
+- `researchcode/pango/pango/fonts.c`: `g_unichar_iswide` is a reference point
+  for East Asian Width behavior when a fallback width policy is added.
+
+Skia:
+
+- `researchcode/skia/src/pdf/SkClusterator.cpp`: `next()` groups glyphs that
+  share a cluster id and finds each cluster's UTF-8 source span.
+- `researchcode/skia/src/pdf/SkPDFDevice.cpp`: PDF text emission uses clusters
+  for ToUnicode, records multi-scalar source text when needed, and falls back to
+  ActualText spans for true many-glyph clusters.
+- `researchcode/skia/src/pdf/SkPDFMakeToUnicodeCmap.cpp`:
+  `SkPDFAppendCmapSections` and `append_bfchar_section_ex` show CMap section
+  coalescing and multi-scalar UTF-16BE targets.
+
+Future vendoring candidate:
+
+- `unicode-linebreak` (`src/lib.rs`, Rust, Apache-2.0) is a useful reference for
+  the complete UAX #14 rule engine. Track vendoring separately through #137.
+
+Spec anchors remain Unicode UAX #14, UAX #11, UAX #15, OpenType `cmap` format
+4/12, and OpenType GPOS mark attachment.
 
 ## Platform notes
 

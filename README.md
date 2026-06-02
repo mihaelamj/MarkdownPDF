@@ -411,7 +411,9 @@ swiftlint --config .swiftlint.yml
 - Issue [#99](https://github.com/mihaelamj/MarkdownPDF/issues/99) tracks
   source-code formatting research and implementation, including the reported
   quote-stroke, crammed-layout, glyph-overlap, and image-presence regressions.
-  Issue [#122](https://github.com/mihaelamj/MarkdownPDF/issues/122) is in review
+  Issue [#120](https://github.com/mihaelamj/MarkdownPDF/issues/120) landed the
+  portable syntax-coloring implementation. Issue
+  [#122](https://github.com/mihaelamj/MarkdownPDF/issues/122) is in review
   for Unicode combining diacritics and CJK / kanji coverage. Issue
   [#135](https://github.com/mihaelamj/MarkdownPDF/issues/135) is in review for
   screenshot-reported source-code layout regressions across code, quotes,
