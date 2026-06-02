@@ -1030,6 +1030,7 @@ struct MarkdownPDFRendererTests {
         let data = try MarkdownPDFRenderer(
             options: PDFOptions(embeddedFonts: .allRoles(source), title: "Multilingual corpus"),
         ).render(markdown: markdown)
+        try PDFValidation.writeArtifact(data, name: "multilingual-corpus.pdf")
         let inspector = PDFInspector(data)
 
         #expect(inspector.text.contains("/Subtype /Type0"))
