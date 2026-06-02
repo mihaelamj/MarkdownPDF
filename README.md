@@ -424,8 +424,8 @@ flowchart TD
     H2A["#101<br/>Literature research<br/>Done"]
     H2B["#102<br/>Compare with renderer<br/>Done"]
     H2C["#103<br/>Portable code model<br/>Done"]
-    H2D["#112<br/>Remove quote strokes<br/>Active"]
-    H2E["#104<br/>Formatting baseline<br/>Next"]
+    H2D["#112<br/>Remove quote strokes<br/>Done"]
+    H2E["#104<br/>Formatting baseline<br/>Active"]
     H2F["#105<br/>Visual witnesses<br/>Next"]
     H2G["#113<br/>Image inclusion audit<br/>Next"]
     H2H["#106<br/>Syntax coloring study<br/>Later"]
@@ -443,9 +443,9 @@ flowchart TD
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
     class H0 done;
     class H1 done;
-    class H2,H2D active;
-    class H2A,H2B,H2C done;
-    class H2E,H2F,H2G next;
+    class H2,H2E active;
+    class H2A,H2B,H2C,H2D done;
+    class H2F,H2G next;
     class H2H todo;
     class H3 next;
 ```
