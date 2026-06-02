@@ -233,7 +233,7 @@ shape and journal inputs behind it.
 The first Mermaid diagram is the shared legend for roadmap status colors.
 
 ```mermaid
-flowchart LR
+flowchart TD
     L0["Done"]:::done
     L1["Active"]:::active
     L2["Review"]:::review
@@ -249,40 +249,16 @@ flowchart LR
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
 ```
 
-## Canonical PDF roadmap
+## Completed epics
 
-Epic [#27](https://github.com/mihaelamj/MarkdownPDF/issues/27) tracks the
-ordered path from the current byte writer to a fully typed canonical PDF
-document structure.
+These epics are fully landed and their child issues all closed, so their phase
+diagrams have been retired to keep the roadmap focused on active work. The work
+itself is described in the sections below and under `docs/research/`.
 
-Portable Mermaid diagrams and generated ToC are explicit phases because they
-affect pagination and must work on Linux without Node or Apple-only rendering.
-The epic issue and this diagram should be updated at every child issue transition:
-implementation start, PR open, merge, or scope change.
-
-```mermaid
-flowchart TD
-    P0["Phase 0<br/>#28 Minimal canonical PDF<br/>Done"]
-    P1["Phase 1<br/>#29 Tool validation<br/>#25 Structural validation<br/>Done"]
-    P2["Phase 2<br/>#22 PDF syntax<br/>#30 Object registry, xref, trailer<br/>Done"]
-    P3["Phase 3<br/>#18 Catalog, page tree, page dictionaries<br/>Done"]
-    P4["Phase 4<br/>#19 Page resources Done<br/>#20 Font objects Done<br/>#23 Image XObjects Done"]
-    P5["Phase 5<br/>#21 Typed content streams Done"]
-    P6["Phase 6<br/>#26 Metadata, outlines, destinations Done"]
-    P7["Phase 7<br/>#37 Mermaid diagrams Done"]
-    P8["Phase 8<br/>#36 Generated ToC Done"]
-    P9["Phase 9<br/>#24 Output profile documentation Done"]
-
-    P0 --> P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9
-
-    classDef done fill:#e8f5e9,stroke:#2e7d32,color:#111;
-    classDef active fill:#e3f2fd,stroke:#1565c0,color:#111;
-    classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
-    classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
-    classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
-    class P0,P1,P2,P3,P4,P5,P6,P7,P8 done;
-    class P9 done;
-```
+- [#27](https://github.com/mihaelamj/MarkdownPDF/issues/27): canonical PDF document structure.
+- [#48](https://github.com/mihaelamj/MarkdownPDF/issues/48): portable article-grade fidelity hardening.
+- [#63](https://github.com/mihaelamj/MarkdownPDF/issues/63): portable embedded-font foundation.
+- [#79](https://github.com/mihaelamj/MarkdownPDF/issues/79): complex-script shaping and bidi.
 
 ## Validation
 
@@ -331,94 +307,6 @@ and [docs/research/pdf-visual-layout-validation.md](docs/research/pdf-visual-lay
 for the validation rationale. See
 [docs/rules/pdf-witness-gate.md](docs/rules/pdf-witness-gate.md) for the policy
 future PDF features must satisfy.
-
-## Portable fidelity roadmap
-
-Epic [#48](https://github.com/mihaelamj/MarkdownPDF/issues/48) tracks the next
-portable hardening round after the canonical PDF structure epic. It focuses on
-reviewable witness artifacts, realistic fixtures, text encoding boundaries,
-oversized block behavior, tables, diagrams, charts, and future font planning
-without adding Apple-only dependencies.
-
-```mermaid
-flowchart TD
-    F0["Phase 0<br/>#49 Witness artifacts Done"]
-    F1["Phase 1<br/>#50 Article fixtures Done"]
-    F2["Phase 2<br/>#51 Text encoding Done"]
-    F3["Phase 3<br/>#52 Oversized blocks Done"]
-    F4["Phase 4<br/>#53 Tables Done"]
-    F5["Phase 5<br/>#54 Diagrams and charts Done"]
-    F6["Phase 6<br/>#55 Fonts and ToUnicode plan Done"]
-
-    F0 --> F1 --> F2 --> F3 --> F4 --> F5 --> F6
-
-    classDef done fill:#e8f5e9,stroke:#2e7d32,color:#111;
-    classDef active fill:#e3f2fd,stroke:#1565c0,color:#111;
-    classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
-    classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
-    classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
-    class F0,F1 done;
-    class F2 done;
-    class F3,F4,F5 done;
-    class F6 done;
-```
-
-## Embedded font foundation roadmap
-
-Epic [#63](https://github.com/mihaelamj/MarkdownPDF/issues/63) tracked the
-portable embedded-font implementation after the #55 research plan and is now
-complete. This round is strictly macOS and Linux portable: the core remains
-Swift-only, does not use Apple-only rendering APIs, does not commit font
-binaries, and does not claim iOS support.
-
-```mermaid
-flowchart TD
-    E0["Phase 0<br/>#64 Type 0 object model<br/>Done"]
-    E1["Phase 1<br/>#65 TrueType parser gates<br/>Done"]
-    E2["Phase 2<br/>#66 Glyph mapping and widths<br/>Done"]
-    E3["Phase 3<br/>#67 ToUnicode CMaps<br/>Done"]
-    E4["Phase 4<br/>#68 CID text writer witnesses<br/>Done"]
-    E5["Phase 5<br/>#69 TrueType subsetting<br/>Done"]
-    E6["Phase 6<br/>#70 Public API and CI font policy<br/>Done"]
-    E7["Phase 7<br/>#71 Complex-script follow-up epic<br/>Done"]
-
-    E0 --> E1 --> E2 --> E3 --> E4 --> E5 --> E6 --> E7
-
-    classDef done fill:#e8f5e9,stroke:#2e7d32,color:#111;
-    classDef active fill:#e3f2fd,stroke:#1565c0,color:#111;
-    classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
-    classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
-    classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
-    class E0,E1,E2,E3,E4,E5,E6,E7 done;
-```
-
-## Complex script shaping roadmap
-
-Epic [#79](https://github.com/mihaelamj/MarkdownPDF/issues/79) tracks the
-follow-up work for Unicode line breaking, bidirectional text, shaped glyph
-clusters, and multi-scalar ToUnicode mappings. This roadmap is still portable
-macOS and Linux work: the shared renderer remains Swift-only, does not depend on
-Apple-only APIs or C shaping libraries, and does not claim iOS support.
-
-```mermaid
-flowchart TD
-    S0["Phase 0<br/>#80 Standards and boundary<br/>Done"]
-    S1["Phase 1<br/>#81 Fixtures and witnesses<br/>Done"]
-    S2["Phase 2<br/>#82 Shaped cluster model<br/>Done"]
-    S3["Phase 3<br/>#83 Line-break opportunities<br/>Done"]
-    S4["Phase 4<br/>#84 Bidi ordering<br/>Done"]
-    S5["Phase 5<br/>#85 Pure Swift shaping increments<br/>Done"]
-    S6["Phase 6<br/>#86 PDF emission and ToUnicode clusters<br/>Done"]
-
-    S0 --> S1 --> S2 --> S3 --> S4 --> S5 --> S6
-
-    classDef done fill:#e8f5e9,stroke:#2e7d32,color:#111;
-    classDef active fill:#e3f2fd,stroke:#1565c0,color:#111;
-    classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
-    classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
-    classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
-    class S0,S1,S2,S3,S4,S5,S6 done;
-```
 
 ## Build and Test
 
@@ -603,6 +491,67 @@ flowchart TD
     class H4F active;
     class H4G todo;
     class H3 todo;
+```
+
+## Math typesetting roadmap
+
+Epic [#131](https://github.com/mihaelamj/MarkdownPDF/issues/131) is the
+standalone pure-Swift TeX-math subset. LaTeX is banned by the project boundary,
+so inline `$...$` and display `$$...$$` are parsed, laid out by a box-and-glue
+engine, and emitted as ordinary PDF text and rule drawing; unsupported
+constructs render as visible source. Update this diagram after every child PR
+merge.
+
+```mermaid
+flowchart TD
+    M0["#158<br/>Opt-in math subset entry point<br/>Done"]
+    M1["#159<br/>OpenType MATH font tables<br/>Done"]
+    M2["Scope 1<br/>Parse inline/display, visible-source fallback<br/>Active"]
+    M3["Scope 3+4<br/>Box-and-glue layout on font-backed metrics<br/>Active"]
+    M4["Scope 2<br/>Symbol coverage: scripts, fractions, radicals, big ops, delimiters, Greek<br/>Active"]
+    M5["Scope 5<br/>Readable pdftotext linearization<br/>Todo"]
+    M6["Acceptance<br/>qpdf, pdftotext, MuPDF quads, raster witnesses<br/>Todo"]
+
+    M0 --> M1 --> M2 --> M3 --> M4 --> M5 --> M6
+
+    classDef done fill:#e8f5e9,stroke:#2e7d32,color:#111;
+    classDef active fill:#e3f2fd,stroke:#1565c0,color:#111;
+    classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
+    classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
+    classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
+    class M0,M1 done;
+    class M2,M3,M4 active;
+    class M5,M6 todo;
+```
+
+## macOS article-grade renderer roadmap
+
+Epic [#10](https://github.com/mihaelamj/MarkdownPDF/issues/10) makes
+`MarkdownPDFMac` the high-quality macOS product for scientific and technical
+articles while keeping the portable core Linux-buildable. The mac product may
+use Apple-native APIs such as CoreGraphics, CoreText, and ImageIO; the core
+package and Linux product must not import Apple-only frameworks. No child issue
+has started yet.
+
+```mermaid
+flowchart TD
+    A0["#3 / #11<br/>Research macOS PDF stack and Quartz books<br/>Next"]
+    A1["#9<br/>Scientific article fixtures and validation<br/>Todo"]
+    A2["#4<br/>Embedded fonts and CoreText path<br/>Todo"]
+    A3["#6<br/>Article-grade table layout<br/>Todo"]
+    A4["#7<br/>Native chart and graph primitives<br/>Todo"]
+    A5["#8<br/>Mermaid conversion for macOS<br/>Todo"]
+    A6["#5<br/>Document table of contents<br/>Todo"]
+
+    A0 --> A1 --> A2 --> A3 --> A4 --> A5 --> A6
+
+    classDef done fill:#e8f5e9,stroke:#2e7d32,color:#111;
+    classDef active fill:#e3f2fd,stroke:#1565c0,color:#111;
+    classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
+    classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
+    classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
+    class A0 next;
+    class A1,A2,A3,A4,A5,A6 todo;
 ```
 
 ## License
