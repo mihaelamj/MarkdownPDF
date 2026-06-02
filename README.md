@@ -504,12 +504,13 @@ flowchart TD
     H4F["#131<br/>Fixed delimiters merged<br/>Active"]
     H4G["#138<br/>Apple and custom fonts<br/>Todo"]
     H3["#100<br/>Named page sizes<br/>Todo"]
+    H4H["#137<br/>Vendor canonical references<br/>Todo"]
 
     H0 --> H1
     H1 --> H2
     H2 --> H2A --> H2B --> H2C --> H2D --> H2E --> H2F --> H2G --> H2H --> H2I --> H2J --> H2K --> H2L --> H2M --> H2N --> H2O --> H2R --> H2P --> H2Q
-    H2Q --> H4 --> H4A --> H4B --> H4C --> H4D --> H4E --> H4F --> H4G
-    H1 --> H3
+    H2Q --> H4 --> H4A --> H4B --> H4C --> H4D --> H4E --> H4F --> H4G --> H4H
+    H4 --> H3
 
     classDef done fill:#e8f5e9,stroke:#2e7d32,color:#111;
     classDef active fill:#e3f2fd,stroke:#1565c0,color:#111;
@@ -528,6 +529,7 @@ flowchart TD
     class H4E done;
     class H4F active;
     class H4G todo;
+    class H4H todo;
     class H3 todo;
 ```
 
