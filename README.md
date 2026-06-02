@@ -565,8 +565,8 @@ flowchart TD
     H4A["#126<br/>Native charts<br/>Done"]
     H4B["#127<br/>Pure-Swift DEFLATE<br/>Done"]
     H4C["#128<br/>Tagged PDF and PDF/A<br/>Done"]
-    H4D["#129<br/>Footnotes and tasks<br/>Active"]
-    H4E["#130<br/>Theming model<br/>Todo"]
+    H4D["#129<br/>Footnotes and tasks<br/>Done"]
+    H4E["#130<br/>Theming model<br/>Active"]
     H4F["#131<br/>Math typesetting<br/>Todo"]
     H4G["#138<br/>Apple and custom fonts<br/>Todo"]
     H3["#100<br/>Named page sizes<br/>Todo"]
@@ -590,8 +590,9 @@ flowchart TD
     class H4A done;
     class H4B done;
     class H4C done;
-    class H4D active;
-    class H4E,H4F,H4G todo;
+    class H4D done;
+    class H4E active;
+    class H4F,H4G todo;
     class H3 todo;
 ```
 
