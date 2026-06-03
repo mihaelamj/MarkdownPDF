@@ -217,6 +217,59 @@ struct MarkdownPDFRendererTests {
         #expect(inspector.streamLengthsMatch())
     }
 
+    @Test("Math spacing commands typeset in display and inline math without falling back")
+    func mathSpacingCommandsTypeset() throws {
+        let data = try MarkdownPDFRenderer(
+            options: PDFOptions(mathTypesetting: .enabled),
+        ).render(markdown: """
+        Inline $a \\quad b \\, c$ stays in the paragraph.
+
+        $$
+        x \\quad y \\qquad z \\, p \\: q \\; r \\! s
+        $$
+        """)
+        let inspector = PDFInspector(data)
+        let qpdf = try PDFValidation.qpdfCheck(data: data, name: "math-spacing")
+        let textResult = try PDFValidation.pdftotext(data: data, name: "math-spacing-text")
+        let mupdf = try PDFValidation.mutoolStructuredText(data: data, name: "math-spacing-mupdf")
+        try #require(textResult.exitCode == 0, "pdftotext failed:\n\(textResult.output)")
+        try #require(mupdf.exitCode == 0, "mutool failed:\n\(mupdf.output)")
+        let extracted = normalizedExtractedText(textResult.output)
+        let structured = try MuPDFStructuredText(xml: mupdf.output)
+
+        #expect(qpdf.exitCode == 0, "qpdf --check failed:\n\(qpdf.output)")
+        // No spacing command leaked as visible LaTeX source (no formula fallback).
+        #expect(!extracted.contains("quad"), "Spacing fell back to source:\n\(textResult.output)")
+        #expect(extracted.contains("stays in the paragraph"))
+        // The negative thin space (\!) and the positive spaces produce no corrupt
+        // or flipped character quads.
+        #expect(
+            structured.characterQuadIssues().isEmpty,
+            "spacing produced bad quads:\n\(structured.characterQuadIssues().joined(separator: "\n"))",
+        )
+        #expect(inspector.hasValidXrefOffsets())
+    }
+
+    @Test("A larger math space pushes following content further right")
+    func mathSpacingWidensOutput() throws {
+        func rightmostGlyphX(_ markdown: String, name: String) throws -> Double {
+            let data = try MarkdownPDFRenderer(options: PDFOptions(mathTypesetting: .enabled))
+                .render(markdown: markdown)
+            let mupdf = try PDFValidation.mutoolStructuredText(data: data, name: name)
+            try #require(mupdf.exitCode == 0, "mutool failed:\n\(mupdf.output)")
+            let structured = try MuPDFStructuredText(xml: mupdf.output)
+            return structured.pages.flatMap(\.lines).flatMap(\.glyphs)
+                .filter { !$0.isWhitespace }
+                .map(\.box.right)
+                .max() ?? 0
+        }
+
+        // The same formula with a wider gap pushes its trailing glyph further right.
+        let quad = try rightmostGlyphX("$$a \\quad b$$", name: "math-space-quad")
+        let qquad = try rightmostGlyphX("$$a \\qquad b$$", name: "math-space-qquad")
+        #expect(qquad > quad + 1, "qquad (\(qquad)) should exceed quad (\(quad)) by at least the extra em")
+    }
+
     @Test("Inline fractions and radicals typeset as 2D boxes in the text flow")
     func inlineFractionsTypesetAsBoxes() throws {
         let data = try MarkdownPDFRenderer(
