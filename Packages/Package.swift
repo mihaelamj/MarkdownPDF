@@ -96,7 +96,7 @@ let package = Package(
     products: coreProducts + macProducts,
     dependencies: [
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.4.3"),
-        .package(url: "https://github.com/mihaelamj/MathTypeset.git", from: "0.2.1"),
+        .package(url: "https://github.com/mihaelamj/MathTypeset.git", from: "0.4.0"),
     ],
     targets: coreTargets + macTargets,
 )

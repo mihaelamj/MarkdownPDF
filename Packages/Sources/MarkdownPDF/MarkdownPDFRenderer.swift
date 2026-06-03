@@ -892,6 +892,15 @@ private struct Layout {
                     stroke: nil,
                     fill: color.pdfColor,
                 )
+            case let .line(x1, y1, x2, y2, thickness, color):
+                currentPage.drawLine(
+                    x1: x + x1,
+                    y1: baselineY + y1,
+                    x2: x + x2,
+                    y2: baselineY + y2,
+                    width: thickness,
+                    color: color.pdfColor,
+                )
             }
         }
     }
@@ -2507,9 +2516,12 @@ private struct Layout {
                 strikethrough: strikethrough,
                 linkDestination: linkDestination,
             )]
-        case let .symbol(display, _, _):
+        case let .symbol(_, linearized, _):
+            // Portable inline math draws with base-14 / open CI fonts, which do
+            // not cover the Unicode math block, so use the ASCII transliteration
+            // (matching `symbolStyle: .asciiFallback` on the box path).
             return [inlineMathTextRun(
-                display,
+                linearized,
                 size: size,
                 inheritedColor: inheritedColor,
                 underline: underline,
@@ -3197,6 +3209,11 @@ private struct Layout {
             color: MathColor(style.color),
             measureText: { try textWidth(PDFTextRun($0)) },
             metrics: mathMetrics(for: style),
+            // The portable profile draws math symbols with the PDF base-14 fonts
+            // (and the open CI fonts), which do not cover the Unicode math block,
+            // so use the ASCII transliteration. The radical sign is drawn as
+            // vector strokes regardless. See MathTypeset SymbolStyle.
+            symbolStyle: .asciiFallback,
         )
     }
 
