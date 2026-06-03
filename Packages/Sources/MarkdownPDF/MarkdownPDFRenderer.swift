@@ -2530,7 +2530,7 @@ private struct Layout {
                 strikethrough: strikethrough,
                 linkDestination: linkDestination,
             )]
-        case .fraction, .radical:
+        case .fraction, .radical, .space:
             if let run = inlineMathBoxRun(
                 for: node,
                 size: size,

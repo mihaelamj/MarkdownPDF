@@ -107,8 +107,14 @@ struct MuPDFStructuredText {
         allowRightToLeftRuns: Bool,
         issues: inout [String],
     ) {
+        // A line made only of legitimately tiny sub/superscript glyphs (a deeply
+        // nested script like a_{i,j}^{n+1} or 2^{2^{x}}) can have a zero-height
+        // quad, just as those glyphs do individually. Tolerate a zero-height line
+        // the same way the per-glyph check does; only a clearly negative (flipped)
+        // height is a corrupt quad. Zero or negative width stays a real defect
+        // (text would pile up). See #197.
         let hasVisibleGlyphs = line.glyphs.contains { !$0.isWhitespace }
-        if hasVisibleGlyphs, line.box.height <= 0 || (!allowRightToLeftRuns && line.box.width <= 0) {
+        if hasVisibleGlyphs, line.box.height < -tolerance || (!allowRightToLeftRuns && line.box.width <= 0) {
             issues.append("page \(page.number) line \(line.index) has non-positive size")
         }
 
