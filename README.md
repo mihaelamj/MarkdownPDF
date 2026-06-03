@@ -469,7 +469,7 @@ flowchart TD
     classDef active fill:#e3f2fd,stroke:#1565c0,color:#111;
     classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
     classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
-    classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
+    classDef todo fill:#ececec,stroke:#9e9e9e,color:#111;
 ```
 
 ## Epics overview
@@ -494,10 +494,9 @@ flowchart TD
     classDef active fill:#e3f2fd,stroke:#1565c0,color:#111;
     classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
     classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
-    classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
-    class E145,E131 active;
-    class E10 next;
-    class E210 todo;
+    classDef todo fill:#ececec,stroke:#9e9e9e,color:#111;
+    class E145,E131,E210 active;
+    class E10 todo;
 ```
 
 ## Completed epics
@@ -530,7 +529,7 @@ flowchart TD
     classDef active fill:#e3f2fd,stroke:#1565c0,color:#111;
     classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
     classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
-    classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
+    classDef todo fill:#ececec,stroke:#9e9e9e,color:#111;
     class H4 active;
     class H10 next;
 ```
@@ -558,7 +557,7 @@ flowchart TD
     classDef active fill:#e3f2fd,stroke:#1565c0,color:#111;
     classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
     classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
-    classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
+    classDef todo fill:#ececec,stroke:#9e9e9e,color:#111;
     class M3,M4,M6 active;
 ```
 
@@ -587,7 +586,7 @@ flowchart TD
     classDef active fill:#e3f2fd,stroke:#1565c0,color:#111;
     classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
     classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
-    classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
+    classDef todo fill:#ececec,stroke:#9e9e9e,color:#111;
     class A0 next;
     class A1,A2,A3,A4,A5,A6 todo;
 ```
