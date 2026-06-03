@@ -13,6 +13,14 @@ The core renderer is built for macOS and Linux. It does not use PDFKit,
 CoreGraphics, WebKit, wkhtmltopdf, Chromium, LaTeX, browser renderers,
 JavaScript, Python, shell renderers, or C Markdown/PDF libraries.
 
+> **Text coverage and help wanted.** ASCII and the full WinAnsi (Western
+> European) set render with no embedded font; Central European, Cyrillic, Greek,
+> and CJK render with an embedded font. Full Unicode is in progress and
+> **contributions are very welcome**: Arabic and Hebrew shaping, CJK by default,
+> coverage-driven font fallback, and color emoji. See
+> [Help Wanted: International Text](#help-wanted-international-text) and epic
+> [#210](https://github.com/mihaelamj/MarkdownPDF/issues/210).
+
 <p align="center">
   <img src="Docs/images/hero.png" alt="Example pages rendered by MarkdownPDF: multilingual text, native charts, and a mixed-content handbook" width="100%">
 </p>
@@ -104,38 +112,19 @@ under `Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Research/`
 
 ## Not Yet Supported
 
-The default profile now renders the full WinAnsi (Western European) set without
-an embedded font. The following are the remaining gaps, tracked by epic
+The default profile renders ASCII and the full WinAnsi (Western European) set
+with no embedded font (advances for the rarer symbols are approximate pending
+exact Core14 AFM metrics). Central European Latin, Cyrillic, Greek, and CJK
+render with a caller-supplied embedded font through `PDFOptions.EmbeddedFonts`.
+
+Not yet handled: base-14 `Symbol`/`ZapfDingbats` pictograph routing, CJK by
+default, complex-script shaping (Arabic joining, Hebrew niqqud), full
+coverage-driven font fallback, and color emoji. Each has a per-item issue and a
+how-to-contribute note under [Help Wanted: International
+Text](#help-wanted-international-text) and epic
 [#210](https://github.com/mihaelamj/MarkdownPDF/issues/210). The guiding
-principle is to render every character the active fonts can represent and to
+principle throughout: render every character the active fonts can represent, and
 degrade visibly and recoverably, never with a silent `?`.
-
-- **Western European, default profile: done.** Accented Latin (`é`, `ñ`, `ü`,
-  `ç`, ...), the CP1252 punctuation block (curly quotes, en/em dashes, NBSP,
-  bullet), and common symbols (`€`, `£`, `¢`, `©`, `®`, `™`, `°`, `±`) render
-  through `/WinAnsiEncoding` with no embedded font. Glyph advances for the rarer
-  symbols are approximate pending exact Core14 AFM metrics.
-- **Central European Latin (Croatian, Serbian, Czech, Polish, Hungarian, ...).**
-  `č`, `ć`, `đ`, `ą`, `ę`, `ł`, `ń`, `ő`, `ű`, ... are beyond WinAnsi and are not
-  in the base-14 fonts at all, so they need a caller-supplied embedded font (they
-  render correctly with one today). `š` and `ž` are the exception (in CP1252).
-- **Symbol and dingbat pictographs.** The base-14 `Symbol` and `ZapfDingbats`
-  fonts are not yet routed, so Greek, math, and dingbat glyphs they could draw
-  fall back instead of rendering.
-- **Chinese and Japanese (CJK).** Render with a caller-supplied CJK font (TrueType
-  subsetting and CJK line breaking already exist); the default profile shows `?`.
-- **Arabic and Hebrew (and other complex scripts: Indic, Thai, Khmer).** Not yet
-  rendered. They require OpenType shaping, GSUB contextual joining and ligatures
-  (Arabic) and GPOS mark positioning (Arabic harakat, Hebrew niqqud), which is
-  not implemented. Bidirectional ordering exists; shaping does not, so these
-  scripts are currently refused with a typed error rather than mis-rendered.
-- **Color emoji.** Not supported, and last on the roadmap: COLR/CPAL, sbix/CBDT,
-  and OpenType-SVG color tables, plus grapheme clustering for ZWJ sequences,
-  skin-tone modifiers, flags, and presentation selectors.
-
-To render any of the above today, supply an embedded font that covers the script
-through `PDFOptions.EmbeddedFonts` (CJK, Cyrillic, Greek, and math all work this
-way); complex-script shaping and color emoji remain pending per the epic.
 
 ## Package Products
 
@@ -602,6 +591,43 @@ flowchart TD
     class A0 next;
     class A1,A2,A3,A4,A5,A6 todo;
 ```
+
+## Help Wanted: International Text
+
+MarkdownPDF renders Western European text out of the box, and any script a
+supplied embedded font covers (Central European Latin, Cyrillic, Greek, CJK)
+renders today. Reaching correct, default international coverage is a focused body
+of work, and external contributions are very welcome. Each item below is a
+self-contained, documented issue under epic
+[#210](https://github.com/mihaelamj/MarkdownPDF/issues/210); the design write-up
+is in `Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Research/InternationalTextRendering.md`.
+
+What is shipped:
+
+- **ASCII and WinAnsi (Western European)** in the default base-14 profile, with no
+  embedded font: accented Latin, curly quotes, dashes, and common symbols.
+- **Embedded fonts** render anything they cover, including Central European Latin
+  (Croatian, Serbian, Czech, Polish, Hungarian), Cyrillic, Greek, and CJK.
+
+What is not there yet (help wanted):
+
+- [#212](https://github.com/mihaelamj/MarkdownPDF/issues/212) **Coverage-driven
+  font fallback** (the keystone): route each grapheme to a covering font
+  (including the base-14 `Symbol`/`ZapfDingbats` faces), fall back recoverably,
+  never with a silent `?`. Includes variable-font instancing and TrueType
+  Collection (`.ttc`) face selection.
+- [#215](https://github.com/mihaelamj/MarkdownPDF/issues/215) **Chinese and
+  Japanese (CJK)** by default with an embedded font.
+- [#213](https://github.com/mihaelamj/MarkdownPDF/issues/213) **Hebrew**: RTL with
+  an embedded font plus GPOS niqqud positioning.
+- [#214](https://github.com/mihaelamj/MarkdownPDF/issues/214) **Arabic**: a
+  pure-Swift OpenType GSUB/GPOS shaping engine (contextual joining, ligatures,
+  marks). The largest single piece.
+- [#216](https://github.com/mihaelamj/MarkdownPDF/issues/216) **Color emoji**:
+  COLR/CPAL, sbix/CBDT, OpenType-SVG, and grapheme clustering.
+
+The constraint throughout: Pure Swift, Linux-buildable, no C libraries and no
+CoreText in the core. See [CONTRIBUTING.md](CONTRIBUTING.md) to get started.
 
 ## License
 
