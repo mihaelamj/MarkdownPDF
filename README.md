@@ -508,82 +508,25 @@ itself is described in the sections below and under `Packages/Sources/MarkdownPD
 
 ## Current Hardening
 
-For issue #145, update this diagram after every child PR merge before starting
-the next child issue.
+Epic [#145](https://github.com/mihaelamj/MarkdownPDF/issues/145) gathered the
+staged-research shortlist (charts, DEFLATE, tagged PDF, footnotes, theming,
+fonts) plus the embedded-font and multilingual-showcase hardening that followed.
+Those child issues have all landed, so they are retired from this diagram; only
+the remaining work is shown. Update it after every child PR merge.
 
 ```mermaid
 flowchart TD
-    H0["#95<br/>Hard Markdown fixture corpus<br/>Done"]
-    H1["#97/#98<br/>A4 and external fixtures<br/>Done"]
-    H2["#99<br/>Source-code formatting epic<br/>Done"]
-    H2A["#101<br/>Literature research<br/>Done"]
-    H2B["#102<br/>Compare with renderer<br/>Done"]
-    H2C["#103<br/>Portable code model<br/>Done"]
-    H2D["#112<br/>Remove quote strokes<br/>Done"]
-    H2E["#104<br/>Formatting baseline<br/>Done"]
-    H2F["#105<br/>Visual witnesses<br/>Done"]
-    H2G["#113<br/>Image inclusion audit<br/>Done"]
-    H2H["#106<br/>Syntax coloring study<br/>Done"]
-    H2I["#118<br/>Roadmap colors<br/>Done"]
-    H2J["#119<br/>Crazy markdown fixtures<br/>Done"]
-    H2K["#120<br/>Portable syntax coloring<br/>Done"]
-    H2L["#122<br/>CJK + diacritics<br/>Done"]
-    H2M["#135<br/>Screenshot layout regressions<br/>Done"]
-    H2N["#123<br/>RTL manuscript<br/>Done"]
-    H2O["#141<br/>Prove #135 witness<br/>Done"]
-    H2R["#146<br/>Preserve staged research<br/>Done"]
-    H2P["#142<br/>Line-break correctness<br/>Done"]
-    H2Q["#143<br/>More syntax languages<br/>Done"]
     H4["#145<br/>Staged-research shortlist epic<br/>Active"]
-    H4A["#126<br/>Native charts<br/>Done"]
-    H4B["#127<br/>Pure-Swift DEFLATE<br/>Done"]
-    H4C["#128<br/>Tagged PDF and PDF/A<br/>Done"]
-    H4D["#129<br/>Footnotes and tasks<br/>Done"]
-    H4E["#130<br/>Theming model<br/>Done"]
-    H4F["#131<br/>Fixed delimiters merged<br/>Active"]
-    H4G["#138<br/>Apple and custom fonts<br/>Done"]
-    H3["#100<br/>Named page sizes<br/>Done"]
-    H4H["#137<br/>Vendor canonical references<br/>Done"]
-    H5["#194<br/>Fix embedded /W width scaling<br/>Done"]
-    H6["#195<br/>Full witness battery on font fixtures<br/>Done"]
-    H7["#197<br/>Tolerate tiny math glyphs<br/>Done"]
-    H8["#198<br/>Diverse multilingual showcase corpus<br/>Done"]
-    H9["#199<br/>Showcase across popular page formats<br/>Done"]
-    H11["#203<br/>Extract TeX-math engine to shared MathTypeset package<br/>Done"]
     H10["#200<br/>Expand line height for tall inline math<br/>Next"]
 
-    H0 --> H1
-    H1 --> H2
-    H2 --> H2A --> H2B --> H2C --> H2D --> H2E --> H2F --> H2G --> H2H --> H2I --> H2J --> H2K --> H2L --> H2M --> H2N --> H2O --> H2R --> H2P --> H2Q
-    H2Q --> H4 --> H4A --> H4B --> H4C --> H4D --> H4E --> H4F --> H4G --> H4H
-    H4G --> H5 --> H6 --> H7 --> H8 --> H9 --> H11 --> H10
-    H4 --> H3
+    H4 --> H10
 
     classDef done fill:#e8f5e9,stroke:#2e7d32,color:#111;
     classDef active fill:#e3f2fd,stroke:#1565c0,color:#111;
     classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
     classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
-    class H0,H1,H2 done;
-    class H2A,H2B,H2C,H2D,H2E,H2F,H2G,H2H,H2I,H2J,H2K,H2L,H2M,H2N,H2O done;
-    class H2P,H2R done;
-    class H2Q done;
     class H4 active;
-    class H4A done;
-    class H4B done;
-    class H4C done;
-    class H4D done;
-    class H4E done;
-    class H4F active;
-    class H4G done;
-    class H4H done;
-    class H3 done;
-    class H5 done;
-    class H6 done;
-    class H7 done;
-    class H8 done;
-    class H9 done;
-    class H11 done;
     class H10 next;
 ```
 
@@ -593,27 +536,24 @@ Epic [#131](https://github.com/mihaelamj/MarkdownPDF/issues/131) is the
 standalone pure-Swift TeX-math subset. LaTeX is banned by the project boundary,
 so inline `$...$` and display `$$...$$` are parsed, laid out by a box-and-glue
 engine, and emitted as ordinary PDF text and rule drawing; unsupported
-constructs render as visible source. Update this diagram after every child PR
-merge.
+constructs render as visible source. The entry point, OpenType MATH table
+reader, delimiter parsing, and pdftotext linearization have landed and are
+retired from this diagram; only the remaining work is shown. Update it after
+every child PR merge.
 
 ```mermaid
 flowchart TD
-    M0["#158<br/>Opt-in math subset entry point<br/>Done"]
-    M1["#159<br/>OpenType MATH font tables<br/>Done"]
-    M2["Scope 1<br/>Parse inline/display, visible-source fallback<br/>Done"]
     M3["Scope 3+4<br/>Box-and-glue layout on font-backed metrics<br/>Active"]
     M4["Scope 2<br/>Symbol coverage: scripts, fractions, radicals, big ops, delimiters, Greek, relations, arrows, functions<br/>Active"]
-    M5["Scope 5<br/>Readable pdftotext linearization<br/>Done"]
     M6["Acceptance<br/>qpdf, pdftotext, MuPDF quads, raster witnesses<br/>Active"]
 
-    M0 --> M1 --> M2 --> M3 --> M4 --> M5 --> M6
+    M3 --> M4 --> M6
 
     classDef done fill:#e8f5e9,stroke:#2e7d32,color:#111;
     classDef active fill:#e3f2fd,stroke:#1565c0,color:#111;
     classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
     classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
-    class M0,M1,M2,M5 done;
     class M3,M4,M6 active;
 ```
 

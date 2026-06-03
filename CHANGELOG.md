@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- README gallery of real rendered PDF pages, a four-panel hero banner
+  (multilingual text, native charts, a Mermaid diagram, and mathematics), and a
+  dedicated Mathematics showcase cell drawn from the scientific-article fixture.
+
+### Changed
+
+- Retire the completed child issues from the in-progress roadmap diagrams
+  (Current Hardening and Math typesetting), keeping each diagram focused on the
+  work that remains. Every epic stays visible as a node in the Epics overview.
+
 ## [0.1.0] - 2026-06-03
 
 ### Added
@@ -36,6 +48,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   installed DejaVu Sans smoke-test path instead of committed font binaries.
 - Opt-in portable syntax coloring for supported fenced code block language
   hints, with extraction, geometry, and raster witnesses.
+- Opt-in TeX-math parsing for inline `$...$`, display `$$...$$`, and fixed
+  `\(...\)` and `\[...\]` delimiters, including nested forms, laid out by a Pure
+  Swift box-and-glue subset with visible source fallback for unsupported
+  commands.
+- `PDFOptions.MathTypesetting.fontBacked` profile that requires an embedded
+  OpenType `MATH` font for the styled math role and uses its constants for
+  display-math layout.
 - Diverse multilingual showcase corpus combining prose, TeX math, native charts,
   Mermaid diagrams, and mixed-script tables, including a large multi-chapter
   handbook, rendered with embedded fonts under the full visual witness battery
