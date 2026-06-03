@@ -13,6 +13,46 @@ The core renderer is built for macOS and Linux. It does not use PDFKit,
 CoreGraphics, WebKit, wkhtmltopdf, Chromium, LaTeX, browser renderers,
 JavaScript, Python, shell renderers, or C Markdown/PDF libraries.
 
+## Gallery
+
+Real PDF pages produced by MarkdownPDF, rendered here as images. Output is
+deterministic: the same Markdown produces the same geometry on macOS, Linux, and
+iOS, and embedded fonts travel inside the file so every viewer draws the same
+glyphs. Each page is validated by a Poppler + MuPDF witness battery.
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="Docs/images/multilingual.png" alt="Multilingual prose rendered to PDF" width="100%"><br>
+      <sub><b>Multilingual text</b>: diacritic Latin, Cyrillic, and Greek with embedded TrueType fonts and correct width scaling.</sub>
+    </td>
+    <td width="50%" valign="top">
+      <img src="Docs/images/charts.png" alt="Native vector bar chart" width="100%"><br>
+      <sub><b>Native vector charts</b>: bar, line, and pie drawn with PDF path operators, not rasterized images.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <img src="Docs/images/handbook.png" alt="Mixed content page with chart and math" width="100%"><br>
+      <sub><b>Mixed content</b>: prose, TeX math, charts, Mermaid diagrams, and tables on shared pages.</sub>
+    </td>
+    <td valign="top">
+      <img src="Docs/images/code.png" alt="Code blocks and tables" width="100%"><br>
+      <sub><b>Code and specs</b>: fenced code blocks across languages, tables, and a portable Mermaid subset.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <img src="Docs/images/tables.png" alt="Mixed-script tables" width="100%"><br>
+      <sub><b>Mixed-script tables</b>: alignment, column measurement, wrapping, and empty cells across scripts.</sub>
+    </td>
+    <td valign="top">
+      <img src="Docs/images/combined.png" alt="Combined showcase page" width="100%"><br>
+      <sub><b>Everything at once</b>: multilingual prose, display math with scaling radicals, and charts in one document.</sub>
+    </td>
+  </tr>
+</table>
+
 ## What Works Today
 
 MarkdownPDF is early, but it already emits inspectable PDF 1.4 files with
@@ -229,76 +269,6 @@ swift run resumepdf input.json output.pdf
 See [Packages/Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/ResumeTemplate.md](Packages/Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/ResumeTemplate.md) for the resume JSON
 shape and journal inputs behind it.
 
-## Roadmap Legend
-
-The first Mermaid diagram is the shared legend for roadmap status colors.
-
-```mermaid
-flowchart TD
-    L0["Done"]:::done
-    L1["Active"]:::active
-    L2["Review"]:::review
-    L3["Next"]:::next
-    L4["Todo"]:::todo
-
-    L0 --> L1 --> L2 --> L3 --> L4
-
-    classDef done fill:#e8f5e9,stroke:#2e7d32,color:#111;
-    classDef active fill:#e3f2fd,stroke:#1565c0,color:#111;
-    classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
-    classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
-    classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
-```
-
-## Epics overview
-
-Every epic is shown here with its status color, so the whole set is legible at
-a glance: what is in progress, what is done, and what exists but has not
-started. In-progress epics also have a detailed roadmap further down. Finished
-epics keep only their node here. Update a node's color when an epic opens,
-starts, or closes.
-
-```mermaid
-flowchart TD
-    E17["#17 Canonical PDF structure (research)"]
-    E27["#27 Canonical PDF document structure"]
-    E48["#48 Portable fidelity hardening"]
-    E63["#63 Embedded font foundation"]
-    E79["#79 Complex-script shaping and bidi"]
-    E99["#99 Source-code formatting"]
-    E126["#126 Native data charts"]
-    E127["#127 Pure-Swift DEFLATE"]
-    E128["#128 Tagged PDF and PDF/A"]
-    E130["#130 Theming and stylesheets"]
-    E145["#145 Staged-research shortlist"]
-    E131["#131 Math typesetting"]
-    E10["#10 macOS article-grade renderer"]
-
-    E17 --> E27 --> E48 --> E63 --> E79 --> E99 --> E126 --> E127 --> E128 --> E130
-    E145 --> E131
-    E10
-
-    classDef done fill:#e8f5e9,stroke:#2e7d32,color:#111;
-    classDef active fill:#e3f2fd,stroke:#1565c0,color:#111;
-    classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
-    classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
-    classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
-    class E17,E27,E48,E63,E79,E99,E126,E127,E128,E130 done;
-    class E145,E131 active;
-    class E10 next;
-```
-
-## Completed epics
-
-These epics are fully landed and their child issues all closed, so their phase
-diagrams have been retired to keep the roadmap focused on active work. The work
-itself is described in the sections below and under `Packages/Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Research/`.
-
-- [#27](https://github.com/mihaelamj/MarkdownPDF/issues/27): canonical PDF document structure.
-- [#48](https://github.com/mihaelamj/MarkdownPDF/issues/48): portable article-grade fidelity hardening.
-- [#63](https://github.com/mihaelamj/MarkdownPDF/issues/63): portable embedded-font foundation.
-- [#79](https://github.com/mihaelamj/MarkdownPDF/issues/79): complex-script shaping and bidi.
-
 ## Validation
 
 The test suite validates generated PDFs in five layers:
@@ -461,6 +431,76 @@ The catalog landing page groups every article under Topics.
   through `PDFOptions.FontSet.appleSystem`.
 - Linux generation support through Foundation and byte-level PDF serialization.
 - Small, testable public API.
+
+## Roadmap Legend
+
+The first Mermaid diagram is the shared legend for roadmap status colors.
+
+```mermaid
+flowchart TD
+    L0["Done"]:::done
+    L1["Active"]:::active
+    L2["Review"]:::review
+    L3["Next"]:::next
+    L4["Todo"]:::todo
+
+    L0 --> L1 --> L2 --> L3 --> L4
+
+    classDef done fill:#e8f5e9,stroke:#2e7d32,color:#111;
+    classDef active fill:#e3f2fd,stroke:#1565c0,color:#111;
+    classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
+    classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
+    classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
+```
+
+## Epics overview
+
+Every epic is shown here with its status color, so the whole set is legible at
+a glance: what is in progress, what is done, and what exists but has not
+started. In-progress epics also have a detailed roadmap further down. Finished
+epics keep only their node here. Update a node's color when an epic opens,
+starts, or closes.
+
+```mermaid
+flowchart TD
+    E17["#17 Canonical PDF structure (research)"]
+    E27["#27 Canonical PDF document structure"]
+    E48["#48 Portable fidelity hardening"]
+    E63["#63 Embedded font foundation"]
+    E79["#79 Complex-script shaping and bidi"]
+    E99["#99 Source-code formatting"]
+    E126["#126 Native data charts"]
+    E127["#127 Pure-Swift DEFLATE"]
+    E128["#128 Tagged PDF and PDF/A"]
+    E130["#130 Theming and stylesheets"]
+    E145["#145 Staged-research shortlist"]
+    E131["#131 Math typesetting"]
+    E10["#10 macOS article-grade renderer"]
+
+    E17 --> E27 --> E48 --> E63 --> E79 --> E99 --> E126 --> E127 --> E128 --> E130
+    E145 --> E131
+    E10
+
+    classDef done fill:#e8f5e9,stroke:#2e7d32,color:#111;
+    classDef active fill:#e3f2fd,stroke:#1565c0,color:#111;
+    classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
+    classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
+    classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
+    class E17,E27,E48,E63,E79,E99,E126,E127,E128,E130 done;
+    class E145,E131 active;
+    class E10 next;
+```
+
+## Completed epics
+
+These epics are fully landed and their child issues all closed, so their phase
+diagrams have been retired to keep the roadmap focused on active work. The work
+itself is described in the sections below and under `Packages/Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Research/`.
+
+- [#27](https://github.com/mihaelamj/MarkdownPDF/issues/27): canonical PDF document structure.
+- [#48](https://github.com/mihaelamj/MarkdownPDF/issues/48): portable article-grade fidelity hardening.
+- [#63](https://github.com/mihaelamj/MarkdownPDF/issues/63): portable embedded-font foundation.
+- [#79](https://github.com/mihaelamj/MarkdownPDF/issues/79): complex-script shaping and bidi.
 
 ## Current Hardening
 
