@@ -7,8 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Parse TeX horizontal spacing commands in math (`\quad`, `\qquad`, `\,`, `\:`,
+  `\;`, `\!`, and `\ `) through MathTypeset 0.6.0. Previously any of these forced
+  the whole formula to fall back to visible source; the math-handbook showcase
+  rows that use `\qquad` now typeset.
+
 ### Changed
 
+- Tolerate a zero-height MuPDF line in the character-quad witness the same way
+  the per-glyph check already does (#197): a line made only of legitimately tiny
+  nested sub/superscript glyphs (`a_{i,j}^{n+1}`, `2^{2^{x}}`) can report a
+  zero-height quad. Only a clearly negative (flipped) line height is a defect;
+  zero or negative width still fails.
 - Draw math symbols (operators, relations, Greek, arrows: `\sum` -> ∑, `\pm` ->
   ±, `\sigma` -> σ, and so on) with their real Unicode glyphs when the active
   embedded font covers them, falling back to the ASCII transliteration per
