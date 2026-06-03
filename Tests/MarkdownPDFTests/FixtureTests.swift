@@ -370,21 +370,25 @@ struct FixtureTests {
         #expect(wwdcEntries.count { $0.policy == .intentionallyOmitted } == 351)
     }
 
-    @Test("Local image failures are deterministic")
-    func localImageFailuresAreDeterministic() throws {
+    @Test("Local image failures degrade to a placeholder, deterministically")
+    func localImageFailuresDegradeDeterministically() throws {
         let directory = try PDFValidation.temporaryDirectory()
         try Data("not an image".utf8).write(to: directory.appendingPathComponent("unsupported.gif"))
 
-        try expectImageError(
-            .unreadableImage("missing.png"),
-            markdown: "![missing](missing.png)",
-            assetsBaseURL: directory,
-        )
-        try expectImageError(
-            .unsupportedImage("unsupported.gif"),
-            markdown: "![unsupported](unsupported.gif)",
-            assetsBaseURL: directory,
-        )
+        // A missing file and an undecodable file must each degrade to a visible
+        // placeholder and still produce a PDF, not throw (issue #211), and the
+        // same input must produce byte-identical output.
+        for (markdown, label) in [
+            ("![missing](missing.png)", "missing"),
+            ("![unsupported](unsupported.gif)", "unsupported"),
+        ] {
+            let first = try MarkdownPDFRenderer().render(markdown: markdown, assetsBaseURL: directory)
+            let second = try MarkdownPDFRenderer().render(markdown: markdown, assetsBaseURL: directory)
+            #expect(!first.isEmpty)
+            #expect(Array(first) == Array(second), "render of \(label) image is non-deterministic")
+            let text = try PDFValidation.pdftotext(data: first, name: "image-degrade-\(label)")
+            #expect(text.output.contains("[Image: \(label)]"), "expected placeholder for \(label):\n\(text.output)")
+        }
     }
 
     @Test("Formidabble fixture renders code-heavy manuscript")
@@ -908,21 +912,6 @@ struct FixtureTests {
 
         return (["MarkdownPDF fixture image reference audit", ""] + summaryLines + [""] + entryLines)
             .joined(separator: "\n")
-    }
-
-    private func expectImageError(
-        _ expected: MarkdownPDFError,
-        markdown: String,
-        assetsBaseURL: URL,
-    ) throws {
-        do {
-            _ = try MarkdownPDFRenderer().render(markdown: markdown, assetsBaseURL: assetsBaseURL)
-            Issue.record("Expected \(expected), but render succeeded")
-        } catch let error as MarkdownPDFError {
-            #expect(error == expected)
-        } catch {
-            Issue.record("Expected \(expected), but got \(error)")
-        }
     }
 
     private func localAssetFileCount(directory: String) throws -> Int {

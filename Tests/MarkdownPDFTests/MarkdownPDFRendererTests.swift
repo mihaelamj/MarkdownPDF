@@ -217,6 +217,33 @@ struct MarkdownPDFRendererTests {
         #expect(inspector.streamLengthsMatch())
     }
 
+    @Test("Unresolvable image degrades to a placeholder instead of failing the document")
+    func unresolvableImageDegradesInsteadOfThrowing() throws {
+        // A site-absolute path with no asset root, and an undecodable format
+        // (SVG), must not fail the whole render. See issue #211.
+        let markdown = """
+        # Heading
+
+        ![hero](/assets/hero.svg)
+
+        Body text after the image.
+        """
+        let data = try MarkdownPDFRenderer().render(markdown: markdown)
+        let inspector = PDFInspector(data)
+        let qpdf = try PDFValidation.qpdfCheck(data: data, name: "unresolvable-image")
+        let textResult = try PDFValidation.pdftotext(data: data, name: "unresolvable-image-text")
+        try #require(textResult.exitCode == 0, "pdftotext failed:\n\(textResult.output)")
+        let extracted = normalizedExtractedText(textResult.output)
+
+        #expect(qpdf.exitCode == 0, "qpdf --check failed:\n\(qpdf.output)")
+        // The document still renders: heading and body survive.
+        #expect(extracted.contains("Heading"))
+        #expect(extracted.contains("Body text after the image"))
+        // The image degraded to a visible placeholder rather than throwing.
+        #expect(extracted.contains("[Image: hero]"))
+        #expect(inspector.hasValidXrefOffsets())
+    }
+
     @Test("Math spacing commands typeset in display and inline math without falling back")
     func mathSpacingCommandsTypeset() throws {
         let data = try MarkdownPDFRenderer(

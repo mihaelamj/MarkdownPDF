@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-06-03
+
+### Fixed
+
+- A standalone image whose target cannot be resolved or decoded (a missing file,
+  a site-absolute `/assets/...` path with no asset root, or an unsupported format
+  such as SVG) no longer throws from `render(markdown:)` and fails the whole
+  document. It now degrades to a visible `[Image: alt]` placeholder, the same way
+  a remote image does, and the document still renders. Fixes #211.
+
 ## [0.4.0] - 2026-06-03
 
 ### Changed

@@ -2277,26 +2277,22 @@ private struct Layout {
         }
 
         if source.hasPrefix("http://") || source.hasPrefix("https://") {
-            let element = beginStructureElement(.paragraph)
-            defer { endStructureElement(element) }
-            let imageStyle = style(for: .imagePlaceholder)
-            try drawWrapped(
-                [
-                    PDFTextRun(
-                        text: "[Remote image: \(alt.isEmpty ? source : alt)]",
-                        font: standardFont(for: imageStyle.fontRole),
-                        size: fontSize(for: .imagePlaceholder),
-                        color: imageStyle.color,
-                    ),
-                ],
-                x: options.margins.left,
-                maxWidth: contentWidth,
-                lineHeight: options.baseFontSize * 1.35,
-            )
+            try drawImagePlaceholder(text: "[Remote image: \(alt.isEmpty ? source : alt)]")
             return true
         }
 
-        let image = try loadImage(source: source)
+        let image: PDFImage
+        do {
+            image = try loadImage(source: source)
+        } catch {
+            // An image we cannot resolve or decode (a missing file, a
+            // site-absolute path with no matching asset root, or an unsupported
+            // format such as SVG) must not fail the whole document. Degrade to a
+            // visible placeholder, the same way a remote image does, and keep
+            // rendering. See issue #211.
+            try drawImagePlaceholder(text: "[Image: \(alt.isEmpty ? source : alt)]")
+            return true
+        }
 
         let maxWidth = contentWidth
         let maxHeight = max(1, min(contentHeight, options.pageSize.height * 0.45))
@@ -2325,6 +2321,25 @@ private struct Layout {
         endStructureElement(figureElement)
         y -= drawHeight
         return true
+    }
+
+    private mutating func drawImagePlaceholder(text: String) throws {
+        let element = beginStructureElement(.paragraph)
+        defer { endStructureElement(element) }
+        let imageStyle = style(for: .imagePlaceholder)
+        try drawWrapped(
+            [
+                PDFTextRun(
+                    text: text,
+                    font: standardFont(for: imageStyle.fontRole),
+                    size: fontSize(for: .imagePlaceholder),
+                    color: imageStyle.color,
+                ),
+            ],
+            x: options.margins.left,
+            maxWidth: contentWidth,
+            lineHeight: options.baseFontSize * 1.35,
+        )
     }
 
     private mutating func loadImage(source: String) throws -> PDFImage {
