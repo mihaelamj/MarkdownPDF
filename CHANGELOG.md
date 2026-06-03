@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-06-03
+
 ### Added
 
 - Initial Pure Swift Markdown parser, PDF renderer, and `markdownpdf` CLI.
@@ -57,11 +59,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Consume the shared `MathTypeset` package for the TeX-math engine (parser,
-  layout, metrics, OpenType MATH reader) instead of in-tree copies. The renderer
-  bridges the package's neutral `MathRun`/`MathColor` output to PDF text and
-  rules through a thin adapter; behavior and the math witness corpus are
-  unchanged. The engine is now shared with the Tiledown project.
+- Consume the shared `MathTypeset` package (0.4.0) for the TeX-math engine
+  (parser, layout, metrics, OpenType MATH reader) instead of in-tree copies. The
+  renderer bridges the package's neutral `MathRun`/`MathColor` output to PDF text
+  and rules through a thin adapter; the math witness corpus is unchanged. The
+  engine is now shared with the Tiledown project.
+- Draw the `\sqrt` radical sign as scaling vector strokes that grow with the
+  radicand, instead of the literal word `sqrt`. Math symbols keep their ASCII
+  transliteration in the portable profile, since the base-14 and open CI fonts
+  do not cover the Unicode math block.
 - Move the full study-only source snapshot corpus (33 third-party projects) out
   of `researchcode/` into the private companion repository `MarkdownPDFResearch`,
   keeping only a small high-signal subset (`pydyf`, `unicode-linebreak`,

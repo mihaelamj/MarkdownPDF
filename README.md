@@ -36,12 +36,13 @@ The generic renderer currently covers:
   hints, using direct DeviceRGB text operators.
 - Configurable `PDFOptions.Theme` styling with built-in default, dark, and print
   themes plus a code-syntax color surface.
-- Opt-in TeX-style math parsing through `PDFOptions.MathTypesetting`, with an
-  initial Pure Swift subset for inline math, display math, scripts, fractions,
-  roots, fixed delimiters, symbols, extraction text, and visible fallback for
-  unsupported commands. `PDFOptions.MathTypesetting.fontBacked` additionally
-  requires the styled math role to use an embedded OpenType font with a `MATH`
-  table.
+- Opt-in TeX-style math parsing through `PDFOptions.MathTypesetting`, with a
+  Pure Swift subset for inline math, display math, scripts, fractions, scaling
+  stroke radicals, fixed delimiters, symbols, extraction text, and visible
+  fallback for unsupported commands. The math engine lives in the shared,
+  dependency-free [MathTypeset](https://github.com/mihaelamj/MathTypeset)
+  package. `PDFOptions.MathTypesetting.fontBacked` additionally requires the
+  styled math role to use an embedded OpenType font with a `MATH` table.
 - Opt-in Pure Swift `/FlateDecode` compression for page content streams and
   embedded FontFile2 streams when the encoded bytes are smaller than raw bytes.
 - Opt-in tagged PDF structure output with `/MarkInfo`, `/StructTreeRoot`,
@@ -504,13 +505,14 @@ flowchart TD
     H7["#197<br/>Tolerate tiny math glyphs<br/>Done"]
     H8["#198<br/>Diverse multilingual showcase corpus<br/>Done"]
     H9["#199<br/>Showcase across popular page formats<br/>Done"]
+    H11["#203<br/>Extract TeX-math engine to shared MathTypeset package<br/>Done"]
     H10["#200<br/>Expand line height for tall inline math<br/>Next"]
 
     H0 --> H1
     H1 --> H2
     H2 --> H2A --> H2B --> H2C --> H2D --> H2E --> H2F --> H2G --> H2H --> H2I --> H2J --> H2K --> H2L --> H2M --> H2N --> H2O --> H2R --> H2P --> H2Q
     H2Q --> H4 --> H4A --> H4B --> H4C --> H4D --> H4E --> H4F --> H4G --> H4H
-    H4G --> H5 --> H6 --> H7 --> H8 --> H9 --> H10
+    H4G --> H5 --> H6 --> H7 --> H8 --> H9 --> H11 --> H10
     H4 --> H3
 
     classDef done fill:#e8f5e9,stroke:#2e7d32,color:#111;
@@ -537,6 +539,7 @@ flowchart TD
     class H7 done;
     class H8 done;
     class H9 done;
+    class H11 done;
     class H10 next;
 ```
 
