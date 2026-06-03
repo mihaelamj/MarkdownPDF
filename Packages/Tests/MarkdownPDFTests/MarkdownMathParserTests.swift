@@ -1,11 +1,11 @@
-@testable import MarkdownPDF
+import MathTypeset
 import Testing
 
 @Suite("Markdown math parser")
-struct MarkdownMathParserTests {
+struct MathParserTests {
     @Test("Parses fixed left right delimiters")
     func parsesFixedLeftRightDelimiters() throws {
-        let parser = MarkdownMathParser()
+        let parser = MathParser()
 
         #expect(try parser.parse(#"\left (\frac{x}{y}\right )"#).linearizedText == "(frac(x, y))")
         #expect(try parser.parse(#"\left\langle{x}\right\rangle"#).linearizedText == "<x>")
@@ -17,24 +17,24 @@ struct MarkdownMathParserTests {
 
     @Test("Parses nested fixed left right delimiters")
     func parsesNestedFixedLeftRightDelimiters() throws {
-        let parsed = try MarkdownMathParser().parse(#"\left(\left[x\right]\right)"#)
+        let parsed = try MathParser().parse(#"\left(\left[x\right]\right)"#)
 
         #expect(parsed.linearizedText == "([x])")
     }
 
     @Test("Rejects malformed left right delimiters")
     func rejectsMalformedLeftRightDelimiters() throws {
-        #expect(throws: MarkdownMathParser.ParseError.missingRightDelimiter) {
-            try MarkdownMathParser().parse(#"\left(x"#)
+        #expect(throws: MathParser.ParseError.missingRightDelimiter) {
+            try MathParser().parse(#"\left(x"#)
         }
-        #expect(throws: MarkdownMathParser.ParseError.missingDelimiter("right")) {
-            try MarkdownMathParser().parse(#"\left(x\right"#)
+        #expect(throws: MathParser.ParseError.missingDelimiter("right")) {
+            try MathParser().parse(#"\left(x\right"#)
         }
     }
 
     @Test("Parses and linearizes the expanded symbol set")
     func parsesExpandedSymbolSet() throws {
-        let parser = MarkdownMathParser()
+        let parser = MathParser()
 
         #expect(try parser.parse(#"\forall x \in S"#).linearizedText == "forall x in S")
         #expect(try parser.parse(#"a \approx b"#).linearizedText == "a ~= b")
@@ -46,12 +46,12 @@ struct MarkdownMathParserTests {
 
     @Test("Treats limit-style operators as big operators with scripts")
     func treatsLimitOperatorsAsBigOperators() throws {
-        #expect(try MarkdownMathParser().parse(#"\lim_{x \to 0} f"#).linearizedText == "lim_{x -> 0} f")
+        #expect(try MathParser().parse(#"\lim_{x \to 0} f"#).linearizedText == "lim_{x -> 0} f")
     }
 
     @Test("Parses and linearizes math accents")
     func parsesMathAccents() throws {
-        let parser = MarkdownMathParser()
+        let parser = MathParser()
 
         #expect(try parser.parse(#"\hat{x}"#).linearizedText == "hat(x)")
         #expect(try parser.parse(#"\overline{AB}"#).linearizedText == "overline(AB)")
@@ -61,7 +61,7 @@ struct MarkdownMathParserTests {
 
     @Test("Parses operatorname as an upright multi-character operator")
     func parsesOperatorname() throws {
-        let parser = MarkdownMathParser()
+        let parser = MathParser()
 
         #expect(try parser.parse(#"\operatorname{argmax}_x f"#).linearizedText == "argmax_{x} f")
         #expect(try parser.parse(#"\operatorname{Var}(X)"#).linearizedText == "Var(X)")
@@ -69,7 +69,7 @@ struct MarkdownMathParserTests {
 
     @Test("Parses matrix and cases environments")
     func parsesMatrixEnvironments() throws {
-        let parser = MarkdownMathParser()
+        let parser = MathParser()
 
         #expect(try parser.parse(#"\begin{pmatrix} a & b \\ c & d \end{pmatrix}"#).linearizedText == "(a, b; c, d)")
         #expect(try parser.parse(#"\begin{matrix} 1 & 0 \\ 0 & 1 \end{matrix}"#).linearizedText == "matrix(1, 0; 0, 1)")
@@ -81,7 +81,7 @@ struct MarkdownMathParserTests {
 
     @Test("Parses scaling delimiters")
     func parsesScalingDelimiters() throws {
-        let parser = MarkdownMathParser()
+        let parser = MathParser()
 
         #expect(try parser.parse(#"\big( x \big)"#).linearizedText == "( x )")
         #expect(try parser.parse(#"\Big[ y \Big]"#).linearizedText == "[ y ]")

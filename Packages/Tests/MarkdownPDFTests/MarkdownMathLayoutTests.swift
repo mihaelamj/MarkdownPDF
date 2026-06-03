@@ -1,8 +1,8 @@
-@testable import MarkdownPDF
+import MathTypeset
 import Testing
 
 @Suite("Markdown math layout")
-struct MarkdownMathLayoutTests {
+struct MathLayoutTests {
     @Test("Default metrics preserve fraction geometry")
     func defaultMetricsPreserveFractionGeometry() throws {
         let box = try makeLayout().layout(
@@ -181,7 +181,7 @@ struct MarkdownMathLayoutTests {
 
     @Test("OpenType metrics influence radical and display limit spacing")
     func openTypeMetricsInfluenceRadicalAndDisplayLimitSpacing() throws {
-        let metrics = MarkdownMathLayoutMetrics.openType(constants: mathConstants(), unitsPerEm: 1000)
+        let metrics = MathLayoutMetrics.openType(constants: mathConstants(), unitsPerEm: 1000)
         let radical = try makeLayout(metrics: metrics).layout(
             .radical(radicand: .text("x")),
             size: 10,
@@ -211,9 +211,9 @@ struct MarkdownMathLayoutTests {
         #expect(abs(limits.depth - 13.27) < 0.0001)
     }
 
-    private func makeLayout(metrics: MarkdownMathLayoutMetrics = .default) -> MarkdownMathLayout {
-        MarkdownMathLayout(
-            font: .helvetica,
+    private func makeLayout(metrics: MathLayoutMetrics = .default) -> MathLayout {
+        MathLayout(
+            font: .regular,
             color: .black,
             measureText: { run in Double(run.text.count) * run.size * 0.6 },
             metrics: metrics,
@@ -253,9 +253,9 @@ struct MarkdownMathLayoutTests {
     }
 }
 
-private extension MarkdownMathLayoutBox {
+private extension MathBox {
     typealias RuleElement = (x: Double, y: Double, width: Double, height: Double)
-    typealias TextElement = (run: PDFTextRun, x: Double, y: Double)
+    typealias TextElement = (run: MathRun, x: Double, y: Double)
 
     var ruleElements: [RuleElement] {
         var rules: [RuleElement] = []
