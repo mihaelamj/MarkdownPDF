@@ -61,6 +61,7 @@ The rules articles define the conventions for source layout, witness gates, cros
 - <doc:DeepPortablePDFSourceStudy>
 - <doc:ExistingPDFProductsSourceStudy>
 - <doc:ExistingPDFWriterAlignment>
+- <doc:InternationalTextRendering>
 - <doc:GFMFootnotesAndTaskLists>
 - <doc:MacPDFRendererResearch>
 - <doc:MarkdownpdfOutputProfile>
