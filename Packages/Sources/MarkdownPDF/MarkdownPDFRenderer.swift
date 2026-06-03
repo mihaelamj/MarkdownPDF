@@ -2516,12 +2516,14 @@ private struct Layout {
                 strikethrough: strikethrough,
                 linkDestination: linkDestination,
             )]
-        case let .symbol(_, linearized, _):
-            // Portable inline math draws with base-14 / open CI fonts, which do
-            // not cover the Unicode math block, so use the ASCII transliteration
-            // (matching `symbolStyle: .asciiFallback` on the box path).
+        case let .symbol(display, linearized, _):
+            // Draw the Unicode glyph when the active font covers it, else the
+            // ASCII transliteration (matching `.unicodeWhereCovered` on the box
+            // path). The base-14 portable profile covers no math glyphs.
+            let font = standardFont(for: style(for: .inlineMath).fontRole)
+            let text = embeddedFonts.covers(display, font: font) ? display : linearized
             return [inlineMathTextRun(
-                linearized,
+                text,
                 size: size,
                 inheritedColor: inheritedColor,
                 underline: underline,
@@ -3209,11 +3211,14 @@ private struct Layout {
             color: MathColor(style.color),
             measureText: { try textWidth(PDFTextRun($0)) },
             metrics: mathMetrics(for: style),
-            // The portable profile draws math symbols with the PDF base-14 fonts
-            // (and the open CI fonts), which do not cover the Unicode math block,
-            // so use the ASCII transliteration. The radical sign is drawn as
-            // vector strokes regardless. See MathTypeset SymbolStyle.
-            symbolStyle: .asciiFallback,
+            // Draw each math symbol with its Unicode glyph when the active font
+            // covers it, and fall back to the ASCII transliteration when it does
+            // not. The portable base-14 profile covers no math glyphs (all ASCII),
+            // an embedded math font covers them all (all glyphs), and a partial
+            // font gets glyphs where it can. The radical sign is drawn as vector
+            // strokes regardless. See MathTypeset SymbolStyle.
+            symbolStyle: .unicodeWhereCovered,
+            symbolCoverage: { embeddedFonts.covers($0, font: font) },
         )
     }
 

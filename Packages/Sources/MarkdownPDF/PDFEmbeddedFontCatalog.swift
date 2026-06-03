@@ -30,6 +30,17 @@ struct PDFEmbeddedFontCatalog {
         entriesByFont[font]
     }
 
+    /// Whether the embedded font bound to `font` can draw every scalar in `text`.
+    /// Used to decide, per math symbol, between the Unicode glyph and an ASCII
+    /// transliteration. A font with no embedded entry (the base-14 portable
+    /// profile) covers no math glyphs, so this returns `false`.
+    func covers(_ text: String, font: StandardFont) -> Bool {
+        guard let entry = entry(for: font) else {
+            return false
+        }
+        return (try? entry.mapper.map(text: text, fontSize: 1)) != nil
+    }
+
     func width(of run: PDFTextRun, fallbackFontSet: PDFOptions.FontSet) throws -> Double {
         guard let entry = entry(for: run.font) else {
             return run.width(fontSet: fallbackFontSet)

@@ -745,6 +745,54 @@ struct MarkdownPDFRendererTests {
         #expect(inspector.streams.contains { $0.body.contains("/F4 11.400 Tf") })
     }
 
+    @Test("Math symbol coverage: a Latin-only embedded font reports no math glyphs")
+    func mathSymbolCoverageFallsBackForLatinOnlyFont() throws {
+        let fontData = SyntheticTrueTypeFont.data(glyphProfile: .latinWitness, includeGlyphOutlines: true)
+        let source = PDFOptions.EmbeddedFontSource(data: fontData, baseName: "Latin Only")
+        let catalog = try PDFEmbeddedFontCatalog(fonts: PDFOptions.EmbeddedFonts(regular: source))
+
+        // A capital letter the witness font draws is covered; the Unicode math
+        // block it lacks is not, so those symbols fall back to ASCII.
+        #expect(catalog.covers("A", font: .helvetica))
+        #expect(!catalog.covers("\u{2211}", font: .helvetica)) // summation
+        #expect(!catalog.covers("\u{00B1}", font: .helvetica)) // plus-minus
+        #expect(!catalog.covers("\u{03C3}", font: .helvetica)) // sigma
+
+        // The base-14 portable profile has no embedded entry, so it covers nothing.
+        let portable = try PDFEmbeddedFontCatalog(fonts: PDFOptions.EmbeddedFonts())
+        #expect(!portable.covers("A", font: .helvetica))
+        #expect(!portable.covers("\u{2211}", font: .helvetica))
+    }
+
+    @Test(
+        "Math symbols render as Unicode glyphs when the embedded font covers them",
+        .enabled(if: OpenTrueTypeFontFixture.isAvailable, OpenTrueTypeFontFixture.skipReason),
+    )
+    func mathSymbolsRenderAsUnicodeWhenCovered() throws {
+        let fontURL = try #require(OpenTrueTypeFontFixture.url)
+        let source = try PDFOptions.EmbeddedFontSource(data: Data(contentsOf: fontURL), baseName: "Open Math")
+
+        // DejaVu Sans and Liberation Sans both cover these symbols.
+        let catalog = try PDFEmbeddedFontCatalog(fonts: PDFOptions.EmbeddedFonts(regular: source))
+        #expect(catalog.covers("\u{2211}", font: .helvetica)) // ∑
+        #expect(catalog.covers("\u{00B1}", font: .helvetica)) // ±
+
+        let data = try MarkdownPDFRenderer(
+            options: PDFOptions(
+                embeddedFonts: PDFOptions.EmbeddedFonts(regular: source),
+                mathTypesetting: .enabled,
+            ),
+        ).render(markdown: "$$\\sum_{i=1}^{n} i \\pm c$$")
+
+        // The drawn summation glyph carries a ToUnicode mapping back to U+2211,
+        // proving the symbol reached the page as a real glyph rather than "sum".
+        let inspector = PDFInspector(data)
+        let streamText = inspector.streams.map(\.body).joined(separator: "\n")
+        #expect(streamText.contains("2211"), "Expected a ToUnicode entry for U+2211 (summation)")
+        let qpdf = try PDFValidation.qpdfCheck(data: data, name: "math-unicode-coverage")
+        #expect(qpdf.exitCode == 0, "qpdf --check failed:\n\(qpdf.output)")
+    }
+
     @Test("Embedded font renderer uses CJK format 12 advances for wrapping")
     func embeddedFontRendererUsesCJKFormat12AdvancesForWrapping() throws {
         let fontData = SyntheticTrueTypeFont.data(
