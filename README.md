@@ -13,6 +13,10 @@ The core renderer is built for macOS and Linux. It does not use PDFKit,
 CoreGraphics, WebKit, wkhtmltopdf, Chromium, LaTeX, browser renderers,
 JavaScript, Python, shell renderers, or C Markdown/PDF libraries.
 
+<p align="center">
+  <img src="Docs/images/hero.png" alt="Example pages rendered by MarkdownPDF: multilingual text, native charts, and a mixed-content handbook" width="100%">
+</p>
+
 ## Gallery
 
 Real PDF pages produced by MarkdownPDF, rendered here as images. Output is
