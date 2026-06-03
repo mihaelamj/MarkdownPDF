@@ -5,9 +5,10 @@ Guidance for coding agents working in this repository.
 ## Project
 
 MarkdownPDF is a Pure Swift Markdown to PDF renderer. It owns its parser, layout,
-and PDF serialization code. The engine library is `MarkdownPDF`, the CLI is
-`markdownpdf`, and the repository is `MarkdownPDF`. The engine targets macOS and
-Linux.
+and PDF serialization code. This repository is the pure engine package
+(`MarkdownPDF`); the `markdownpdf` and `resumepdf` command-line tools live in the
+separate [MarkdownPDFCli](https://github.com/mihaelamj/MarkdownPDFCli) repo, which
+consumes this package. The engine targets macOS and Linux.
 
 ## Read First
 
@@ -34,5 +35,4 @@ Linux.
 ```sh
 swift build
 swift test
-swift run markdownpdf input.md output.pdf
 ```

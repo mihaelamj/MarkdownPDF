@@ -22,20 +22,20 @@ PDF 1.4 files with deterministic object order, xref offsets, trailer data, page
 resources, text, images, links, and a small CommonMark/GFM surface. The current
 working surface, package products, validation strategy, and roadmap are listed
 in [`README.md`](README.md), and the architecture is in
-[`Packages/Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Design.md`](Packages/Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Design.md).
+[`Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Design.md`](Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Design.md).
 
 ## Getting started
 
-Requires a recent Swift toolchain. MarkdownPDF is a monorepo: a workspace at the
-root, a single `Package.swift` under `Packages/`, and package products for the
-portable renderer, platform entry points, and CLIs.
+Requires a recent Swift toolchain. MarkdownPDF is a pure Swift package:
+`Package.swift`, `Sources/`, and `Tests/` at the repo root, with library products
+for the portable renderer and the platform entry points. The `markdownpdf` and
+`resumepdf` CLIs live in the separate
+[MarkdownPDFCli](https://github.com/mihaelamj/MarkdownPDFCli) repo.
 
 ```sh
 git config core.hooksPath .githooks
-cd Packages
 swift build
 swift test
-swift run markdownpdf input.md output.pdf
 ```
 
 The hook command wires three checks: `commit-msg` and `pre-commit` reject
@@ -49,7 +49,7 @@ scripts/check-style.sh
 scripts/check-namespacing.sh
 swiftformat . --config .swiftformat --lint
 swiftlint --config .swiftlint.yml --strict
-( cd Packages && swift build && swift test )
+( swift build && swift test )
 ```
 
 The CI workflows run the style gate, macOS Swift gate, and Linux Swift gate.
@@ -57,7 +57,7 @@ The CI workflows run the style gate, macOS Swift gate, and Linux Swift gate.
 ## Constraints
 
 MarkdownPDF follows the conventions documented in
-[`Packages/Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Conventions.md`](Packages/Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Conventions.md). The short version:
+[`Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Conventions.md`](Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Conventions.md). The short version:
 
 - Pure Swift source, tests, and tooling.
 - Direct PDF byte generation. Rendering does not shell out to another renderer.
@@ -99,7 +99,7 @@ Naming: `fix/<issue>-<topic>`, `feat/<topic>`, `chore/<topic>`,
 
 - Keep one focused change per PR.
 - Add tests for behavior changes and validation-sensitive PDF output changes.
-- Run `swift build` and `swift test` from `Packages/` and confirm both pass.
+- Run `swift build` and `swift test` from the repo root and confirm both pass.
 - Add a `CHANGELOG.md` entry under `Unreleased` for any change touching shipping
   source. Docs, tests, and config changes do not need an entry.
 - Do a self-review pass on your own diff and fix what a reviewer would flag.

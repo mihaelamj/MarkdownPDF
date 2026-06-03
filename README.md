@@ -100,7 +100,7 @@ The generic renderer currently covers:
 
 The compatibility target is CommonMark plus GitHub Flavored Markdown tables and
 images. The generated PDF profile is intentionally small, typed, and documented
-under `Packages/Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Research/`.
+under `Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Research/`.
 
 ## Package Products
 
@@ -259,21 +259,11 @@ let markdown = "# macOS\n\nCurrently delegates to the portable renderer."
 let data = try MarkdownPDFMacRenderer().render(markdown: markdown)
 ```
 
-Run the Markdown CLI:
+The `markdownpdf` and `resumepdf` command-line tools live in the
+[MarkdownPDFCli](https://github.com/mihaelamj/MarkdownPDFCli) repository, which
+consumes this package.
 
-```sh
-cd Packages
-swift run markdownpdf input.md output.pdf
-```
-
-Run the resume template CLI:
-
-```sh
-cd Packages
-swift run resumepdf input.json output.pdf
-```
-
-See [Packages/Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/ResumeTemplate.md](Packages/Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/ResumeTemplate.md) for the resume JSON
+See [Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/ResumeTemplate.md](Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/ResumeTemplate.md) for the resume JSON
 shape and journal inputs behind it.
 
 ## Validation
@@ -318,16 +308,15 @@ DejaVu Sans, macOS CI uses Liberation Sans, and both pass the chosen font path
 through `MARKDOWNPDF_OPEN_FONT_PATH`; the public repository does not commit font
 binaries.
 
-See [Packages/Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Research/PDFValidationTooling.md](Packages/Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Research/PDFValidationTooling.md)
-and [Packages/Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Research/PDFVisualLayoutValidation.md](Packages/Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Research/PDFVisualLayoutValidation.md)
+See [Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Research/PDFValidationTooling.md](Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Research/PDFValidationTooling.md)
+and [Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Research/PDFVisualLayoutValidation.md](Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Research/PDFVisualLayoutValidation.md)
 for the validation rationale. See
-[Packages/Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Rules/PDFWitnessGate.md](Packages/Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Rules/PDFWitnessGate.md) for the policy
+[Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Rules/PDFWitnessGate.md](Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Rules/PDFWitnessGate.md) for the policy
 future PDF features must satisfy.
 
 ## Build and Test
 
 ```sh
-cd Packages
 swift build
 swift test
 ```
@@ -346,22 +335,21 @@ swiftlint --config .swiftlint.yml
 ## Documentation
 
 All project documentation lives in a Swift-DocC catalog at
-`Packages/Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/`, the single source of truth for architecture, conventions, the research
+`Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/`, the single source of truth for architecture, conventions, the research
 record, and the coding rules. Build it locally:
 
 ```sh
-cd Packages
 swift package --allow-writing-to-directory ./docs-archive \
   generate-documentation --target MarkdownPDFDocumentation
 ```
 
 Entry points into the catalog:
 
-- [Design](Packages/Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Design.md): implementation architecture and constraints.
-- [Conventions](Packages/Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Conventions.md): project conventions.
-- [Resume template](Packages/Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/ResumeTemplate.md): resume JSON and template behavior.
-- [Research overview](Packages/Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Research/ResearchOverview.md): map of the research record behind each feature.
-- [Coding rules](Packages/Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Rules/RulesOverview.md): the conventions contributors and tooling follow.
+- [Design](Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Design.md): implementation architecture and constraints.
+- [Conventions](Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Conventions.md): project conventions.
+- [Resume template](Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/ResumeTemplate.md): resume JSON and template behavior.
+- [Research overview](Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Research/ResearchOverview.md): map of the research record behind each feature.
+- [Coding rules](Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Rules/RulesOverview.md): the conventions contributors and tooling follow.
 - [CONTRIBUTING.md](CONTRIBUTING.md): contributor setup, branches, commits, and pull requests.
 - [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md): community standards and enforcement.
 
@@ -392,7 +380,7 @@ The catalog landing page groups every article under Topics.
   the A4 manuscript.
 - The full WWDC fixture is committed for special stress coverage. Run it with
   `MARKDOWNPDF_LARGE_FIXTURE_TESTS=1 swift test --filter FixtureTests/wwdcLargeFixtureRendersSelectedOversizedAssetsWhenEnabled`
-  from `Packages/`.
+  from the repo root.
 - Issue [#99](https://github.com/mihaelamj/MarkdownPDF/issues/99) completed
   source-code formatting research and implementation, including the reported
   quote-stroke, crammed-layout, glyph-overlap, and image-presence regressions.
@@ -424,7 +412,7 @@ The catalog landing page groups every article under Topics.
   files.
 - Research source snapshots, when present, are evidence only. They are not
   package dependencies. See
-  [Packages/Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Research/SourceSnapshotPolicy.md](Packages/Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Research/SourceSnapshotPolicy.md).
+  [Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Research/SourceSnapshotPolicy.md](Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Research/SourceSnapshotPolicy.md).
 
 ## Design Constraints
 
@@ -489,7 +477,7 @@ flowchart TD
 
 These epics are fully landed and their child issues all closed, so their phase
 diagrams have been retired to keep the roadmap focused on active work. The work
-itself is described in the sections below and under `Packages/Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Research/`.
+itself is described in the sections below and under `Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Research/`.
 
 - [#27](https://github.com/mihaelamj/MarkdownPDF/issues/27): canonical PDF document structure.
 - [#48](https://github.com/mihaelamj/MarkdownPDF/issues/48): portable article-grade fidelity hardening.

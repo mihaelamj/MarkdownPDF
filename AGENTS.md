@@ -6,7 +6,10 @@ Guidance for anyone writing code in MarkdownPDF.
 
 MarkdownPDF is a Pure Swift Markdown to PDF renderer. The library parses
 Markdown into an AST, lays the document out, and serializes a PDF file by hand.
-The CLI is `markdownpdf`. The code must build on macOS and Linux.
+This repository is the pure engine package; the `markdownpdf` and `resumepdf`
+command-line tools live in the separate
+[MarkdownPDFCli](https://github.com/mihaelamj/MarkdownPDFCli) repo. The code must
+build on macOS and Linux.
 
 ## Rule Loading
 
@@ -33,8 +36,8 @@ or PDF libraries.
 
 ## Workflow
 
-- Verify before claiming done: run `swift build` and `swift test` from
-  `Packages/` and cite the output.
+- Verify before claiming done: run `swift build` and `swift test` from the repo
+  root and cite the output.
 - Commits follow Conventional Commits.
 - No AI attribution and no em dashes in any committed text. Enable hooks with
   `git config core.hooksPath .githooks`.
@@ -44,5 +47,4 @@ or PDF libraries.
 ```sh
 swift build
 swift test
-swift run markdownpdf input.md output.pdf
 ```
