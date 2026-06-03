@@ -50,6 +50,9 @@ let coreProducts: [Product] = [
 let coreTargets: [Target] = [
     .target(
         name: "MarkdownPDF",
+        dependencies: [
+            .product(name: "MathTypeset", package: "MathTypeset"),
+        ],
     ),
     .target(
         name: "MarkdownPDFDocumentation",
@@ -71,7 +74,11 @@ let coreTargets: [Target] = [
     ),
     .testTarget(
         name: "MarkdownPDFTests",
-        dependencies: ["MarkdownPDF", "MarkdownPDFLinux"] + macTestDependencies,
+        dependencies: [
+            "MarkdownPDF",
+            "MarkdownPDFLinux",
+            .product(name: "MathTypeset", package: "MathTypeset"),
+        ] + macTestDependencies,
         exclude: ["Fixtures"],
     ),
     .testTarget(
@@ -89,6 +96,7 @@ let package = Package(
     products: coreProducts + macProducts,
     dependencies: [
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.4.3"),
+        .package(url: "https://github.com/mihaelamj/MathTypeset.git", from: "0.2.1"),
     ],
     targets: coreTargets + macTargets,
 )

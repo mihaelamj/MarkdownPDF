@@ -1,4 +1,5 @@
 import Foundation
+import MathTypeset
 
 struct PDFTextRun {
     var text: String
@@ -15,7 +16,7 @@ struct PDFTextRun {
     /// radical, or similar 2D construct) rather than as text. The run's `text`
     /// holds the readable linearization used as the box's ActualText for
     /// extraction, and its advance width is the box width.
-    var inlineMathBox: MarkdownMathLayoutBox?
+    var inlineMathBox: MathBox?
 
     init(
         text: String,
@@ -27,7 +28,7 @@ struct PDFTextRun {
         linkDestination: String? = nil,
         baselineOffset: Double = 0,
         namedDestination: String? = nil,
-        inlineMathBox: MarkdownMathLayoutBox? = nil,
+        inlineMathBox: MathBox? = nil,
     ) {
         self.text = text
         self.font = font

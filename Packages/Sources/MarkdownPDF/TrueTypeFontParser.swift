@@ -1,4 +1,5 @@
 import Foundation
+import MathTypeset
 
 struct TrueTypeFontParser {
     enum EmbeddingPolicy: Equatable {
@@ -171,10 +172,16 @@ struct TrueTypeFontParser {
         let post = try parsePostScriptTable(table(named: "post", recordsByTag: recordsByTag, bytes: bytes))
         let math: TrueTypeMathTable? = if parseMathTable {
             try recordsByTag["MATH"].map { record in
-                try TrueTypeMathTableParser(
-                    bytes: tableBytes(record, in: bytes),
-                    numGlyphs: maxp.numGlyphs,
-                ).parse()
+                let bytes = try tableBytes(record, in: bytes)
+                do {
+                    return try TrueTypeMathTableParser(bytes: bytes, numGlyphs: maxp.numGlyphs).parse()
+                } catch let error as TrueTypeFontError {
+                    throw error
+                } catch {
+                    // The shared MATH reader throws its own error type; rewrap it
+                    // into this parser's error contract.
+                    throw TrueTypeFontError.malformedTable(tag: "MATH", reason: error.localizedDescription)
+                }
             }
         } else {
             nil

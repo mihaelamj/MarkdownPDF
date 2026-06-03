@@ -1,4 +1,5 @@
 import Foundation
+import MathTypeset
 
 public struct MarkdownPDFRenderer: Sendable {
     public var options: PDFOptions
@@ -831,7 +832,7 @@ private struct Layout {
         let bottomSpacing = options.baseFontSize * style.spacingAfterMultiplier
 
         do {
-            let parsed = try MarkdownMathParser().parse(math.source)
+            let parsed = try MathParser().parse(math.source)
             let layout = try mathLayout(for: style)
             let box = try layout.layout(parsed.root, size: size, displayStyle: true)
             let totalHeight = topSpacing + box.height + box.depth + bottomSpacing
@@ -865,7 +866,7 @@ private struct Layout {
     }
 
     private mutating func drawMathBox(
-        _ box: MarkdownMathLayoutBox,
+        _ box: MathBox,
         x: Double,
         baselineY: Double,
     ) throws {
@@ -876,7 +877,7 @@ private struct Layout {
             switch element {
             case let .text(run, offsetX, offsetY):
                 try currentPage.drawTextRun(
-                    run,
+                    PDFTextRun(run),
                     x: x + offsetX,
                     y: baselineY + offsetY,
                     fontSet: options.fontSet,
@@ -889,7 +890,7 @@ private struct Layout {
                     width: width,
                     height: height,
                     stroke: nil,
-                    fill: color,
+                    fill: color.pdfColor,
                 )
             }
         }
@@ -2454,7 +2455,7 @@ private struct Layout {
     ) throws -> [PDFTextRun] {
         try requireEmbeddedMathFont(for: style(for: .inlineMath))
         do {
-            let parsed = try MarkdownMathParser().parse(math.source)
+            let parsed = try MathParser().parse(math.source)
             return inlineMathRuns(
                 for: parsed.root,
                 size: size,
@@ -2478,7 +2479,7 @@ private struct Layout {
     }
 
     private func inlineMathRuns(
-        for node: MarkdownMathNode,
+        for node: MathNode,
         size: Double,
         inheritedColor: PDFColor,
         underline: Bool,
@@ -2527,7 +2528,7 @@ private struct Layout {
                 return [run]
             }
             return [inlineMathTextRun(
-                MarkdownMathLinearizer().linearize(node),
+                MathLinearizer().linearize(node),
                 size: size,
                 inheritedColor: inheritedColor,
                 underline: underline,
@@ -2536,7 +2537,7 @@ private struct Layout {
             )]
         case .accent, .matrix, .scaledDelimiter:
             return [inlineMathTextRun(
-                MarkdownMathLinearizer().linearize(node),
+                MathLinearizer().linearize(node),
                 size: size,
                 inheritedColor: inheritedColor,
                 underline: underline,
@@ -2626,7 +2627,7 @@ private struct Layout {
     /// profile lacks an embedded math table), so the caller can fall back to the
     /// readable linearization.
     private func inlineMathBoxRun(
-        for node: MarkdownMathNode,
+        for node: MathNode,
         size: Double,
         inheritedColor: PDFColor,
         underline: Bool,
@@ -2642,7 +2643,7 @@ private struct Layout {
             return nil
         }
         return PDFTextRun(
-            text: MarkdownMathLinearizer().linearize(node),
+            text: MathLinearizer().linearize(node),
             font: standardFont(for: mathStyle.fontRole),
             size: boxSize,
             color: inheritedColor == style(for: .body).color ? mathStyle.color : inheritedColor,
@@ -3189,17 +3190,17 @@ private struct Layout {
         }
     }
 
-    private func mathLayout(for style: PDFOptions.ElementStyle) throws -> MarkdownMathLayout {
+    private func mathLayout(for style: PDFOptions.ElementStyle) throws -> MathLayout {
         let font = standardFont(for: style.fontRole)
-        return try MarkdownMathLayout(
-            font: font,
-            color: style.color,
-            measureText: textWidth,
+        return try MathLayout(
+            font: MathFontStyle(font),
+            color: MathColor(style.color),
+            measureText: { try textWidth(PDFTextRun($0)) },
             metrics: mathMetrics(for: style),
         )
     }
 
-    private func mathMetrics(for style: PDFOptions.ElementStyle) throws -> MarkdownMathLayoutMetrics {
+    private func mathMetrics(for style: PDFOptions.ElementStyle) throws -> MathLayoutMetrics {
         let font = standardFont(for: style.fontRole)
         if let metrics = embeddedFonts.entry(for: font)?.mathMetrics {
             return metrics
@@ -3338,7 +3339,7 @@ private struct Layout {
         case let .text(text), let .code(text):
             text
         case let .inlineMath(math):
-            (try? MarkdownMathParser().parse(math.source))?.linearizedText ?? math.delimitedSource
+            (try? MathParser().parse(math.source))?.linearizedText ?? math.delimitedSource
         case .softBreak, .lineBreak:
             " "
         case let .emphasis(children), let .strong(children), let .strikethrough(children):
@@ -3363,7 +3364,7 @@ private struct Layout {
         case let .codeBlock(_, code):
             code
         case let .displayMath(math):
-            (try? MarkdownMathParser().parse(math.source))?.linearizedText ?? math.delimitedSource
+            (try? MathParser().parse(math.source))?.linearizedText ?? math.delimitedSource
         case let .table(table):
             (table.headers + table.rows.flatMap(\.self)).map { plainText($0) }.joined(separator: " ")
         case .thematicBreak:

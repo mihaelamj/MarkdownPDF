@@ -1,11 +1,12 @@
 import Foundation
+import MathTypeset
 
 struct PDFEmbeddedFontCatalog {
     struct Entry {
         var resource: PDFEmbeddedFontResource
         var mapper: TrueTypeGlyphMapper
         var shaper: OpenTypeShaper
-        var mathMetrics: MarkdownMathLayoutMetrics?
+        var mathMetrics: MathLayoutMetrics?
     }
 
     private var entriesByFont: [StandardFont: Entry]
@@ -74,7 +75,7 @@ struct PDFEmbeddedFontCatalog {
             mapper: TrueTypeGlyphMapper(data: source.data, metadata: metadata),
             shaper: OpenTypeShaper(data: source.data, metadata: metadata),
             mathMetrics: metadata.math.map {
-                MarkdownMathLayoutMetrics.openType(constants: $0.constants, unitsPerEm: metadata.head.unitsPerEm)
+                MathLayoutMetrics.openType(constants: $0.constants, unitsPerEm: metadata.head.unitsPerEm)
             },
         )
     }

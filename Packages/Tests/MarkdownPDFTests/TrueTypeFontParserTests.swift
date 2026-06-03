@@ -1,5 +1,6 @@
 import Foundation
 @testable import MarkdownPDF
+import MathTypeset
 import Testing
 
 @Suite("TrueType font parser")
