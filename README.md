@@ -102,6 +102,38 @@ The compatibility target is CommonMark plus GitHub Flavored Markdown tables and
 images. The generated PDF profile is intentionally small, typed, and documented
 under `Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Research/`.
 
+## Not Yet Supported
+
+Text rendering currently targets a portable ASCII baseline. The following are
+known gaps, tracked by epic
+[#210](https://github.com/mihaelamj/MarkdownPDF/issues/210). The guiding
+principle is to render every character the active fonts can represent and to
+degrade visibly and recoverably, never with a silent `?`.
+
+- **Non-ASCII in the default (base-14) profile.** Without a caller-supplied
+  embedded font, only ASCII renders today; other characters (accented Latin such
+  as `é`/`ñ`, smart quotes, en/em dashes, NBSP) currently come out as `?`.
+  Base-14 fonts can draw all of Latin-1 / CP1252 through `/WinAnsiEncoding`; that
+  fix is planned first and needs no embedded font.
+- **Symbol and dingbat pictographs.** The base-14 `Symbol` and `ZapfDingbats`
+  fonts are not yet routed, so Greek, math, and dingbat glyphs they could draw
+  fall back instead of rendering.
+- **Chinese and Japanese (CJK).** Render only with a caller-supplied CJK font;
+  the default profile shows `?`. TrueType subsetting and CJK line breaking
+  already exist; the default-path wiring does not.
+- **Arabic and Hebrew (and other complex scripts: Indic, Thai, Khmer).** Not yet
+  rendered. They require OpenType shaping, GSUB contextual joining and ligatures
+  (Arabic) and GPOS mark positioning (Arabic harakat, Hebrew niqqud), which is
+  not implemented. Bidirectional ordering exists; shaping does not, so these
+  scripts are currently refused with a typed error rather than mis-rendered.
+- **Color emoji.** Not supported, and last on the roadmap: COLR/CPAL, sbix/CBDT,
+  and OpenType-SVG color tables, plus grapheme clustering for ZWJ sequences,
+  skin-tone modifiers, flags, and presentation selectors.
+
+To render any of the above today, supply an embedded font that covers the script
+through `PDFOptions.EmbeddedFonts` (CJK, Cyrillic, Greek, and math all work this
+way); complex-script shaping and color emoji remain pending per the epic.
+
 ## Package Products
 
 | Product | Kind | Purpose |
@@ -459,9 +491,11 @@ below. Update a node's color when an epic opens, starts, or closes.
 flowchart TD
     E145["#145 Staged-research shortlist"]
     E131["#131 Math typesetting"]
+    E210["#210 International text rendering"]
     E10["#10 macOS article-grade renderer"]
 
     E145 --> E131
+    E210
     E10
 
     classDef done fill:#e8f5e9,stroke:#2e7d32,color:#111;
@@ -471,6 +505,7 @@ flowchart TD
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
     class E145,E131 active;
     class E10 next;
+    class E210 todo;
 ```
 
 ## Completed epics
