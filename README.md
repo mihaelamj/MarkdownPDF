@@ -104,23 +104,26 @@ under `Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Research/`
 
 ## Not Yet Supported
 
-Text rendering currently targets a portable ASCII baseline. The following are
-known gaps, tracked by epic
+The default profile now renders the full WinAnsi (Western European) set without
+an embedded font. The following are the remaining gaps, tracked by epic
 [#210](https://github.com/mihaelamj/MarkdownPDF/issues/210). The guiding
 principle is to render every character the active fonts can represent and to
 degrade visibly and recoverably, never with a silent `?`.
 
-- **Non-ASCII in the default (base-14) profile.** Without a caller-supplied
-  embedded font, only ASCII renders today; other characters (accented Latin such
-  as `é`/`ñ`, smart quotes, en/em dashes, NBSP) currently come out as `?`.
-  Base-14 fonts can draw all of Latin-1 / CP1252 through `/WinAnsiEncoding`; that
-  fix is planned first and needs no embedded font.
+- **Western European, default profile: done.** Accented Latin (`é`, `ñ`, `ü`,
+  `ç`, ...), the CP1252 punctuation block (curly quotes, en/em dashes, NBSP,
+  bullet), and common symbols (`€`, `£`, `¢`, `©`, `®`, `™`, `°`, `±`) render
+  through `/WinAnsiEncoding` with no embedded font. Glyph advances for the rarer
+  symbols are approximate pending exact Core14 AFM metrics.
+- **Central European Latin (Croatian, Serbian, Czech, Polish, Hungarian, ...).**
+  `č`, `ć`, `đ`, `ą`, `ę`, `ł`, `ń`, `ő`, `ű`, ... are beyond WinAnsi and are not
+  in the base-14 fonts at all, so they need a caller-supplied embedded font (they
+  render correctly with one today). `š` and `ž` are the exception (in CP1252).
 - **Symbol and dingbat pictographs.** The base-14 `Symbol` and `ZapfDingbats`
   fonts are not yet routed, so Greek, math, and dingbat glyphs they could draw
   fall back instead of rendering.
-- **Chinese and Japanese (CJK).** Render only with a caller-supplied CJK font;
-  the default profile shows `?`. TrueType subsetting and CJK line breaking
-  already exist; the default-path wiring does not.
+- **Chinese and Japanese (CJK).** Render with a caller-supplied CJK font (TrueType
+  subsetting and CJK line breaking already exist); the default profile shows `?`.
 - **Arabic and Hebrew (and other complex scripts: Indic, Thai, Khmer).** Not yet
   rendered. They require OpenType shaping, GSUB contextual joining and ligatures
   (Arabic) and GPOS mark positioning (Arabic harakat, Hebrew niqqud), which is
