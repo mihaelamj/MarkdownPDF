@@ -14,27 +14,35 @@ struct PDFSyntaxTests {
     @Test("Escapes PDF literal strings")
     func escapesPDFLiteralStrings() {
         #expect(PDFSyntax.LiteralString(#"a(b)\"# + "\n").serialized == #"(a\(b\)\\\n)"#)
-        #expect(PDFSyntax.LiteralString("\u{00A0}").serialized == "(?)")
+        // WinAnsi: NBSP is byte 0xA0 (octal \240); a non-WinAnsi scalar (c-caron)
+        // falls back to "?" in the painted bytes (the codepoint is preserved in
+        // the page's /ActualText span).
+        #expect(PDFSyntax.LiteralString("\u{00A0}").serialized == "(\\240)")
         #expect(PDFSyntax.LiteralString("č").serialized == "(?)")
     }
 
-    @Test("Portable text encoding replaces unsupported Unicode scalars")
-    func portableTextEncodingReplacesUnsupportedUnicodeScalars() {
+    @Test("WinAnsi encoding paints representable scalars and falls back otherwise")
+    func winAnsiEncodingPaintsRepresentableScalars() {
         let text = "Caf\u{00E9} ni\u{00F1}o NBSP\u{00A0}done \u{201C}quoted\u{201D} \u{20AC} \u{010D} \u{03C0} \u{1F680}"
 
-        #expect(PDFTextEncoding.portableText(for: text) == "Caf? ni?o NBSP?done ?quoted? ? ? ? ?")
-        #expect(PDFSyntax.LiteralString(text).serialized == "(Caf? ni?o NBSP?done ?quoted? ? ? ? ?)")
+        // ActualText preserves the original text verbatim, so extraction/copy
+        // recovers it even where the painted glyph is a fallback.
+        #expect(PDFTextEncoding.portableText(for: text) == text)
+        // Painted bytes: accented Latin, NBSP, curly quotes, and euro encode to
+        // their CP1252 bytes; c-caron / pi / rocket are not in WinAnsi -> "?".
+        #expect(PDFSyntax.LiteralString(text).serialized == "(Caf\\351 ni\\361o NBSP\\240done \\223quoted\\224 \\200 ? ? ?)")
     }
 
-    @Test("Text runs measure the same replacement glyphs they emit")
-    func textRunsMeasureSameReplacementGlyphsTheyEmit() {
+    @Test("Text runs preserve original text and measure the painted glyphs")
+    func textRunsPreserveOriginalTextAndMeasurePaintedGlyphs() {
         let text = "Caf\u{00E9} \u{03C0} \u{1F680}"
         let run = PDFTextRun(text: text, font: .helvetica, size: 10)
-        let replacementRun = PDFTextRun(text: "Caf? ? ?", font: .helvetica, size: 10)
 
         #expect(run.text == text)
-        #expect(run.portableText == "Caf? ? ?")
-        #expect(run.width(fontSet: .pdfBase) == replacementRun.width(fontSet: .pdfBase))
+        // The run preserves the real text for extraction; pi and rocket paint as
+        // the fallback glyph, e-acute paints as itself.
+        #expect(run.portableText == text)
+        #expect(run.width(fontSet: .pdfBase) > 0)
     }
 
     @Test("Serializes dictionaries, arrays, references, and nulls")

@@ -194,8 +194,10 @@ struct FixtureTests {
         #expect(normalizedText.contains("Reference-style chart placeholder"))
         #expect(!extractedText.contains("Unsupported Mermaid diagram:"))
         #expect(normalizedText.contains("Crazy chart"))
-        #expect(normalizedText.contains("Caf?"))
-        #expect(normalizedText.contains("na?ve"))
+        // WinAnsi renders accented Latin (Café, naïve); CJK and combining marks
+        // are beyond WinAnsi and still fall back to "?" until a font is embedded.
+        #expect(normalizedText.contains("Café"))
+        #expect(normalizedText.contains("naïve"))
         #expect(normalizedText.contains("??"))
         #expect(normalizedText.contains("cafe?"))
         #expect(normalizedText.contains("Crazy Torture Exit Marker"))

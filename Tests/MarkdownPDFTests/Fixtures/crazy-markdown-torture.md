@@ -176,8 +176,9 @@ feature set.
 
 ## 11. Non-ASCII Replacement
 
-The base PDF font profile is printable ASCII. Unsupported scalars must become
-question marks deterministically: Cafe sample is Café, naive sample is naïve,
+The base PDF font profile uses WinAnsi. Accented Latin and common punctuation
+render with no embedded font; scalars beyond WinAnsi fall back to a question
+mark until a font is embedded: Cafe sample is Café, naive sample is naïve,
 kanji sample is 漢字, and combining sample is café.
 
 The replacement sentence above is intentionally small but important. It keeps

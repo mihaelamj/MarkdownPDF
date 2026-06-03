@@ -47,8 +47,11 @@ enum StandardFont: String, CaseIterable {
 
     func widthsForPDF(in fontSet: PDFOptions.FontSet) -> [Int] {
         let widths = widthTable(in: fontSet)
-        return (32 ... 126).compactMap(UnicodeScalar.init).map {
-            widths.width(for: $0)
+        // Emit widths across the full WinAnsi byte range (32-255), so accented
+        // Latin and the CP1252 punctuation block paint at the right advance.
+        // Codes 32-126 are unchanged from before.
+        return (32 ... 255).map { byte in
+            widths.width(for: PDFTextEncoding.winAnsiScalar(for: UInt8(byte)))
         }
     }
 
@@ -106,7 +109,33 @@ private struct WidthTable {
         if let width = widths[scalar] {
             return width
         }
-
+        // Accented Latin letters share the advance of their unaccented base in
+        // these fonts (Helvetica/Courier AFM), so derive e.g. e-acute from "e".
+        if scalar.value > 0x7F {
+            if let width = WidthTable.winAnsiPunctuation[scalar] {
+                return width
+            }
+            let base = String(scalar).decomposedStringWithCanonicalMapping.unicodeScalars.first
+            if let base, base.value <= 0x7F, let width = widths[base] {
+                return width
+            }
+        }
         return widths["?"] ?? defaultWidth
     }
+
+    /// AFM advances for the WinAnsi punctuation/symbol glyphs that do not derive
+    /// from an ASCII base (Helvetica metrics; close enough for the bold face,
+    /// which differs only slightly, and exact for the monospace Courier 600).
+    static let winAnsiPunctuation: [UnicodeScalar: Int] = [
+        "\u{00A0}": 278, // no-break space
+        "\u{00A1}": 333, "\u{00A2}": 556, "\u{00A3}": 556, "\u{00A4}": 556, "\u{00A5}": 556,
+        "\u{00A7}": 556, "\u{00A9}": 737, "\u{00AB}": 556, "\u{00AC}": 584, "\u{00AE}": 737,
+        "\u{00B0}": 400, "\u{00B1}": 584, "\u{00B5}": 556, "\u{00B6}": 537, "\u{00B7}": 278,
+        "\u{00BB}": 556, "\u{00BF}": 611, "\u{00D7}": 584, "\u{00F7}": 584,
+        "\u{2013}": 556, "\u{2014}": 1000, "\u{2018}": 222, "\u{2019}": 222,
+        "\u{201C}": 333, "\u{201D}": 333, "\u{201A}": 222, "\u{201E}": 333,
+        "\u{2020}": 556, "\u{2021}": 556, "\u{2022}": 350, "\u{2026}": 1000,
+        "\u{2030}": 1000, "\u{2039}": 333, "\u{203A}": 333, "\u{20AC}": 556,
+        "\u{2122}": 1000, "\u{0152}": 1000, "\u{0153}": 944, "\u{0192}": 556,
+    ]
 }

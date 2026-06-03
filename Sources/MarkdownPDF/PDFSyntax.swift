@@ -68,7 +68,12 @@ enum PDFSyntax {
                 case 32 ... 126:
                     output += String(decoding: [byte], as: UTF8.self)
                 default:
-                    output += "?"
+                    // High bytes (0x80-0xFF, e.g. WinAnsi accented Latin and the
+                    // CP1252 punctuation block) and other non-printables are
+                    // emitted as three-digit octal escapes, the portable literal
+                    // string form. Previously these were dropped to "?".
+                    let octal = String(byte, radix: 8)
+                    output += "\\" + String(repeating: "0", count: 3 - octal.count) + octal
                 }
             }
             output += ")"

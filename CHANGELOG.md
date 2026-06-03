@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Render the full WinAnsi (Windows-1252) character set in the default base-14
+  profile, with no embedded font. Accented Latin (`é`, `ñ`, `ü`, `ç`, ...), the
+  CP1252 punctuation block (curly quotes, en/em dashes, NBSP, bullet), and
+  common symbols (`€`, `£`, `¢`, `©`, `®`, `™`, `°`, `±`) now paint as their real
+  glyphs instead of `?`. Previously only printable ASCII (`0x20-0x7E`) rendered
+  and everything else was replaced with a question mark. Content-stream literal
+  strings now emit high bytes as octal escapes, the font `/Widths` cover the full
+  `32-255` range with AFM-derived advances, and the page `/ActualText` carries
+  the original text. Characters beyond WinAnsi (CJK, complex scripts, color
+  emoji) still fall back pending epic #210. First phase of #210.
+
 ## [0.3.0] - 2026-06-03
 
 ### Changed

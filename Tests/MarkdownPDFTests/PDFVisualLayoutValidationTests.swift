@@ -499,7 +499,9 @@ struct PDFVisualLayoutValidationTests {
         #expect(normalizedText.contains("DeepListLevelThreeMarker"))
         #expect(normalizedText.contains("QuoteBulletTwoMarker"))
         #expect(normalizedText.contains("Crazy Torture Exit Marker"))
-        #expect(normalizedText.contains("Caf?"))
+        // Accented Latin renders via WinAnsi; the combining-mark sample still
+        // falls back (the combining acute is not a WinAnsi scalar).
+        #expect(normalizedText.contains("Café"))
         #expect(normalizedText.contains("cafe?"))
 
         let tsvResult = try PDFValidation.pdftotextTSV(url: url)
@@ -672,8 +674,12 @@ struct PDFVisualLayoutValidationTests {
         try #require(textResult.exitCode == 0, "pdftotext failed:\n\(textResult.output)")
         try PDFValidation.writeTextArtifact(textResult.output, name: "text-encoding/text.txt")
         #expect(textResult.output.contains("ASCII: The quick brown fox stays portable."))
-        #expect(textResult.output.contains("Latin: Caf? ni?o NBSP?done."))
-        #expect(textResult.output.contains("WinAnsi: ?quoted? ?."))
+        // Accented Latin, NBSP, curly quotes, and the euro sign now render
+        // through the base-14 WinAnsi encoding with no embedded font.
+        #expect(textResult.output.contains("Latin: Café niño NBSP done."))
+        #expect(textResult.output.contains("WinAnsi: \u{201C}quoted\u{201D} \u{20AC}."))
+        // The "Unicode" line holds scalars beyond WinAnsi; they still fall back
+        // until an embedded font is supplied (epic #210).
         #expect(textResult.output.contains("Unicode: ? ? ?."))
 
         let tsvResult = try PDFValidation.pdftotextTSV(url: url)
@@ -713,6 +719,37 @@ struct PDFVisualLayoutValidationTests {
             rasterIssues.isEmpty,
             "Text encoding raster output diverged:\n\(rasterIssues.joined(separator: "\n"))",
         )
+    }
+
+    @Test("WinAnsi base-14 renders Western text without a question-mark fallback")
+    func winAnsiBase14RendersWesternTextWithoutFallback() throws {
+        // No embedded font: this is the default base-14 profile. Every character
+        // here is WinAnsi-representable, so none may degrade to "?".
+        let markdown = """
+        Accents: Café résumé naïve Zürich señor garçon.
+        Punctuation: \u{201C}smart\u{201D} \u{2018}quotes\u{2019} en\u{2013}dash em\u{2014}dash.
+        Symbols: \u{20AC}5 \u{00A3}3 \u{00A2}50 \u{00A9} \u{00AE} \u{2122} \u{00B0}C \u{00B1}1.
+        """
+        let data = try MarkdownPDFRenderer().render(markdown: markdown)
+
+        let qpdf = try PDFValidation.qpdfCheck(data: data, name: "winansi-western")
+        let textResult = try PDFValidation.pdftotext(data: data, name: "winansi-western-text")
+        try #require(textResult.exitCode == 0, "pdftotext failed:\n\(textResult.output)")
+        let extracted = textResult.output
+
+        #expect(qpdf.exitCode == 0, "qpdf --check failed:\n\(qpdf.output)")
+        // The representable characters extract as themselves, not "?".
+        for token in [
+            "Café", "résumé", "naïve", "Zürich", "señor", "garçon",
+            "\u{201C}smart\u{201D}", "\u{2018}quotes\u{2019}", "en\u{2013}dash", "em\u{2014}dash",
+            "\u{20AC}5", "\u{00A3}3", "\u{00A2}50", "\u{00A9}", "\u{00AE}", "\u{2122}", "\u{00B0}C", "\u{00B1}1",
+        ] {
+            #expect(extracted.contains(token), "WinAnsi text degraded; missing \(token) in:\n\(extracted)")
+        }
+        // And none of those lines fell back to a question mark.
+        for line in extracted.split(separator: "\n") where line.contains("Café") || line.contains("smart") || line.contains("\u{20AC}5") {
+            #expect(!line.contains("?"), "Unexpected '?' fallback in WinAnsi line: \(line)")
+        }
     }
 
     @Test("Embedded CID text profile passes visual witness stack")
