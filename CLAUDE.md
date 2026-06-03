@@ -12,8 +12,8 @@ Linux.
 ## Read First
 
 - [AGENTS.md](AGENTS.md) - language policy, product rules, workflow, commands.
-- [Packages/Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Design.md](Packages/Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Design.md) - architecture and constraints.
-- [Packages/Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Rules/](Packages/Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Rules/) - coding conventions.
+- [Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Design.md](Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Design.md) - architecture and constraints.
+- [Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Rules/](Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Rules/) - coding conventions.
 - [CONTRIBUTING.md](CONTRIBUTING.md) - contributor workflow.
 
 ## Non-Negotiables
@@ -32,7 +32,6 @@ Linux.
 ## Commands
 
 ```sh
-cd Packages
 swift build
 swift test
 swift run markdownpdf input.md output.pdf

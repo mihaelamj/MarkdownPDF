@@ -10,7 +10,7 @@ The CLI is `markdownpdf`. The code must build on macOS and Linux.
 
 ## Rule Loading
 
-At the start of a session, read [Packages/Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Rules/RulesOverview.md](Packages/Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Rules/RulesOverview.md) and
+At the start of a session, read [Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Rules/RulesOverview.md](Sources/MarkdownPDFDocumentation/MarkdownPDFDocumentation.docc/Rules/RulesOverview.md) and
 the rules it marks as always relevant. Name the rule files that apply to the
 task at hand.
 
@@ -42,7 +42,6 @@ or PDF libraries.
 ## Commands
 
 ```sh
-cd Packages
 swift build
 swift test
 swift run markdownpdf input.md output.pdf

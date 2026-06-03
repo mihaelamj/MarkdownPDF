@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Restructure the repository as a pure, git-resolvable SwiftPM package, mirroring
+  the MathTypeset layout: `Package.swift` at the repo root, `Sources/`, and
+  `Tests/`. A consumer can now depend on it with
+  `.package(url: ".../MarkdownPDF.git")`. One package, multiple `MarkdownPDF*`
+  targets: the `MarkdownPDF` library, the `MarkdownPDFLinux` and `MarkdownPDFMac`
+  renderer entry points, `MarkdownPDFResume`, and the engine documentation, with
+  the full `MarkdownPDFTests` and `MarkdownPDFResumeTests` suites kept in the
+  package (they `@testable`-import the engine, so they cannot live in a consumer).
+
+### Removed
+
+- The `markdownpdf` / `resumepdf` command-line executables and the `Apps/` and
+  `Main.xcworkspace` developer shell move to the separate `MarkdownPDFCli` repo,
+  which consumes this package plus MathTypeset. The engine repo is now library-only.
+
 ## [0.2.0] - 2026-06-03
 
 ### Added

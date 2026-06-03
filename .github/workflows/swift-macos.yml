@@ -37,7 +37,7 @@ jobs:
           export MARKDOWNPDF_OPEN_FONT_PATH="$HOME/Library/Fonts/LiberationSans-Regular.ttf"
           swiftformat . --config .swiftformat --lint
           swiftlint --config .swiftlint.yml --strict
-          cd Packages && swift build && swift test
+          swift build && swift test
       - name: Upload PDF witness artifacts
         if: always()
         uses: actions/upload-artifact@v4

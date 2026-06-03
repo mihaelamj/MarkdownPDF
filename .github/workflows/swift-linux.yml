@@ -43,7 +43,7 @@ jobs:
           MARKDOWNPDF_ARTIFACT_DIR: ${{ github.workspace }}/rendered-test-artifacts/linux
         run: |
           export MARKDOWNPDF_OPEN_FONT_PATH=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
-          cd Packages && swift build && swift test
+          swift build && swift test
       - name: Upload PDF witness artifacts
         if: always()
         uses: actions/upload-artifact@v4
