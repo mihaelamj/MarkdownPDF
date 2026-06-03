@@ -51,8 +51,8 @@ glyphs. Each page is validated by a Poppler + MuPDF witness battery.
       <sub><b>Mixed-script tables</b>: alignment, column measurement, wrapping, and empty cells across scripts.</sub>
     </td>
     <td valign="top">
-      <img src="Docs/images/combined.png" alt="Combined showcase page" width="100%"><br>
-      <sub><b>Everything at once</b>: multilingual prose, display math with scaling radicals, and charts in one document.</sub>
+      <img src="Docs/images/math.png" alt="Display mathematics rendered to PDF" width="100%"><br>
+      <sub><b>Mathematics</b>: display equations laid out by a box-and-glue engine, with nested fractions, sub/superscripts, and scaling stroke radicals.</sub>
     </td>
   </tr>
 </table>
