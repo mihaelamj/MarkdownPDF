@@ -7,12 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-03
+
 ### Added
 
+- Draw math symbols (operators, relations, Greek, arrows: `\sum` -> ∑, `\pm` ->
+  ±, `\sigma` -> σ, and so on) with their real Unicode glyphs when the active
+  embedded font covers them, falling back to the ASCII transliteration per
+  symbol only where the font has a gap. Previously every symbol used the ASCII
+  transliteration. The portable base-14 profile still renders all-ASCII (it
+  covers no math glyphs), so its output is unchanged; an embedded math-capable
+  font now matches a web/SVG render of the same source. Consumes the
+  `MathTypeset` 0.5.0 `unicodeWhereCovered` symbol style, with the embedded
+  font's `cmap` answering coverage.
 - Parse TeX horizontal spacing commands in math (`\quad`, `\qquad`, `\,`, `\:`,
   `\;`, `\!`, and `\ `) through MathTypeset 0.6.0. Previously any of these forced
   the whole formula to fall back to visible source; the math-handbook showcase
   rows that use `\qquad` now typeset.
+- README gallery of real rendered PDF pages, a four-panel hero banner
+  (multilingual text, native charts, a Mermaid diagram, and mathematics), and a
+  dedicated Mathematics showcase cell drawn from the scientific-article fixture.
 
 ### Changed
 
@@ -21,24 +35,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   nested sub/superscript glyphs (`a_{i,j}^{n+1}`, `2^{2^{x}}`) can report a
   zero-height quad. Only a clearly negative (flipped) line height is a defect;
   zero or negative width still fails.
-- Draw math symbols (operators, relations, Greek, arrows: `\sum` -> ∑, `\pm` ->
-  ±, `\sigma` -> σ, and so on) with their real Unicode glyphs when the active
-  embedded font covers them, falling back to the ASCII transliteration per
-  symbol only where the font has a gap. Previously every symbol used the ASCII
-  transliteration. The portable base-14 profile still renders all-ASCII (it
-  covers no math glyphs), so its output is unchanged; an embedded math-capable
-  font now matches a web/SVG render of the same source. Consumes the new
-  `MathTypeset` 0.5.0 `unicodeWhereCovered` symbol style, with the embedded
-  font's `cmap` answering coverage.
-
-### Added
-
-- README gallery of real rendered PDF pages, a four-panel hero banner
-  (multilingual text, native charts, a Mermaid diagram, and mathematics), and a
-  dedicated Mathematics showcase cell drawn from the scientific-article fixture.
-
-### Changed
-
 - Retire the completed child issues from the in-progress roadmap diagrams
   (Current Hardening and Math typesetting), keeping each diagram focused on the
   work that remains. Every epic stays visible as a node in the Epics overview.

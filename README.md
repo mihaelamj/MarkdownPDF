@@ -82,9 +82,12 @@ The generic renderer currently covers:
   themes plus a code-syntax color surface.
 - Opt-in TeX-style math parsing through `PDFOptions.MathTypesetting`, with a
   Pure Swift subset for inline math, display math, scripts, fractions, scaling
-  stroke radicals, fixed delimiters, symbols, extraction text, and visible
-  fallback for unsupported commands. The math engine lives in the shared,
-  dependency-free [MathTypeset](https://github.com/mihaelamj/MathTypeset)
+  stroke radicals, fixed delimiters, horizontal spacing (`\quad`, `\qquad`, and
+  the thin/medium/thick/negative spaces), extraction text, and visible fallback
+  for unsupported commands. Symbols draw with their real Unicode glyphs (∑, ±,
+  σ, ...) when the active embedded font covers them, falling back to an ASCII
+  transliteration per symbol where it does not. The math engine lives in the
+  shared, dependency-free [MathTypeset](https://github.com/mihaelamj/MathTypeset)
   package. `PDFOptions.MathTypesetting.fontBacked` additionally requires the
   styled math role to use an embedded OpenType font with a `MATH` table.
 - Opt-in Pure Swift `/FlateDecode` compression for page content streams and
@@ -459,29 +462,17 @@ flowchart TD
 
 ## Epics overview
 
-Every epic is shown here with its status color, so the whole set is legible at
-a glance: what is in progress, what is done, and what exists but has not
-started. In-progress epics also have a detailed roadmap further down. Finished
-epics keep only their node here. Update a node's color when an epic opens,
-starts, or closes.
+Only the epics still in flight are shown, so the diagram stays focused on
+remaining work. Completed epics are removed once their issue closes; the work
+they delivered is recorded in the CHANGELOG and the Completed epics section
+below. Update a node's color when an epic opens, starts, or closes.
 
 ```mermaid
 flowchart TD
-    E17["#17 Canonical PDF structure (research)"]
-    E27["#27 Canonical PDF document structure"]
-    E48["#48 Portable fidelity hardening"]
-    E63["#63 Embedded font foundation"]
-    E79["#79 Complex-script shaping and bidi"]
-    E99["#99 Source-code formatting"]
-    E126["#126 Native data charts"]
-    E127["#127 Pure-Swift DEFLATE"]
-    E128["#128 Tagged PDF and PDF/A"]
-    E130["#130 Theming and stylesheets"]
     E145["#145 Staged-research shortlist"]
     E131["#131 Math typesetting"]
     E10["#10 macOS article-grade renderer"]
 
-    E17 --> E27 --> E48 --> E63 --> E79 --> E99 --> E126 --> E127 --> E128 --> E130
     E145 --> E131
     E10
 
@@ -490,7 +481,6 @@ flowchart TD
     classDef review fill:#f3e5f5,stroke:#7b1fa2,color:#111;
     classDef next fill:#fff8e1,stroke:#f9a825,color:#111;
     classDef todo fill:#eef3ff,stroke:#3367d6,color:#111;
-    class E17,E27,E48,E63,E79,E99,E126,E127,E128,E130 done;
     class E145,E131 active;
     class E10 next;
 ```

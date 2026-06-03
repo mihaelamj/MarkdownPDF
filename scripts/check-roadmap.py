@@ -9,11 +9,11 @@ Enforces github-discipline Rule 1.8 against this repo's README:
      every classDef is within the shared legend palette.
   2. Legend: the first mermaid block is the shared legend (declares the palette)
      and therefore precedes every status diagram.
-  3. Coverage: every epic issue, open or closed, appears in at least one
-     README mermaid diagram. In-progress epics keep a detailed roadmap diagram;
-     finished epics retire their detailed diagram but stay visible as a node in
-     the shared Epics overview diagram, so the full set of epics is always
-     legible at a glance.
+  3. Coverage: every OPEN epic appears in at least one README mermaid diagram.
+     In-progress epics keep a detailed roadmap diagram and a node in the shared
+     Epics overview. A closed epic is removed from the roadmap once its issue
+     closes; the work it delivered is recorded in the CHANGELOG and the
+     Completed epics section, so the diagrams stay focused on remaining work.
 
 Structural and legend checks run offline and always. The epic-coverage check
 needs GitHub access, so it runs only when `gh` is available and authenticated;
@@ -84,7 +84,11 @@ def lint_block(block):
 def all_epics():
     if not shutil.which("gh"):
         return None, "gh not installed"
-    cmd = ["gh", "issue", "list", "--label", "epic", "--state", "all",
+    # Only open epics must appear in a diagram. A closed epic is removed from the
+    # roadmap once its issue closes; the work it delivered lives in the CHANGELOG
+    # and the Completed epics section, so the diagrams stay focused on remaining
+    # work.
+    cmd = ["gh", "issue", "list", "--label", "epic", "--state", "open",
            "--json", "number", "--limit", "200"]
     repo = os.environ.get("GITHUB_REPOSITORY")
     if repo:
@@ -140,7 +144,7 @@ def main():
             print(f"roadmap: epics with NO diagram: {['#' + n for n in missing]}", file=sys.stderr)
             fail = True
         else:
-            print(f"roadmap: all {len(epics)} epics (open and closed) appear in a diagram")
+            print(f"roadmap: all {len(epics)} open epics appear in a diagram")
 
     if fail:
         print("roadmap: gate failed. Rule: github-discipline Rule 1.8 "
