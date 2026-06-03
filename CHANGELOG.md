@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Draw math symbols (operators, relations, Greek, arrows: `\sum` -> ∑, `\pm` ->
+  ±, `\sigma` -> σ, and so on) with their real Unicode glyphs when the active
+  embedded font covers them, falling back to the ASCII transliteration per
+  symbol only where the font has a gap. Previously every symbol used the ASCII
+  transliteration. The portable base-14 profile still renders all-ASCII (it
+  covers no math glyphs), so its output is unchanged; an embedded math-capable
+  font now matches a web/SVG render of the same source. Consumes the new
+  `MathTypeset` 0.5.0 `unicodeWhereCovered` symbol style, with the embedded
+  font's `cmap` answering coverage.
+
 ### Added
 
 - README gallery of real rendered PDF pages, a four-panel hero banner
