@@ -13,6 +13,8 @@ The core renderer is built for macOS and Linux. It does not use PDFKit,
 CoreGraphics, WebKit, wkhtmltopdf, Chromium, LaTeX, browser renderers,
 JavaScript, Python, shell renderers, or C Markdown/PDF libraries.
 
+> If MarkdownPDF helps your Swift documentation or publishing workflow, consider [sponsoring its development](https://github.com/sponsors/mihaelamj). Sponsorship helps fund continued work on Unicode coverage, PDF conformance, and Apple/Linux support.
+
 > **Text coverage and help wanted.** ASCII and the full WinAnsi (Western
 > European) set render with no embedded font; Central European, Cyrillic, Greek,
 > and CJK render with an embedded font. Full Unicode is in progress and
