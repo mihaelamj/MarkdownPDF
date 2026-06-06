@@ -1,8 +1,10 @@
 name: Swift (Windows)
 
-# Windows builds the portable rendering core (MarkdownPDF). The witness-based test
-# tooling (poppler, mupdf, qpdf, verapdf) and font discovery are POSIX-only, so
-# this gate compiles the core engine rather than running the full test suite.
+# Windows builds the portable library targets (MarkdownPDF, MarkdownPDFLinux,
+# MarkdownPDFResume), debug and release. The witness-based test tooling (poppler,
+# mupdf, qpdf, verapdf) and font discovery are POSIX-only, so this gate compiles
+# the libraries rather than running the full test suite. MarkdownPDFMac is a
+# macOS-host target and is not part of this build.
 
 on:
   push:
@@ -23,6 +25,8 @@ jobs:
           branch: swift-6.1-release
           tag: 6.1-RELEASE
       - uses: actions/checkout@v6
-      - name: Build core engine
+      - name: Build portable libraries
         shell: bash
-        run: swift build --target MarkdownPDF
+        run: |
+          swift build --target MarkdownPDF --target MarkdownPDFLinux --target MarkdownPDFResume
+          swift build -c release --target MarkdownPDF --target MarkdownPDFLinux --target MarkdownPDFResume
