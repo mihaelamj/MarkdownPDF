@@ -8,8 +8,9 @@ MarkdownPDF is a Pure Swift Markdown to PDF renderer. The library parses
 Markdown into an AST, lays the document out, and serializes a PDF file by hand.
 This repository is the pure engine package; the `markdownpdf` and `resumepdf`
 command-line tools live in the separate
-[MarkdownPDFCli](https://github.com/mihaelamj/MarkdownPDFCli) repo. The code must
-build on macOS and Linux.
+[MarkdownPDFCli](https://github.com/mihaelamj/MarkdownPDFCli) repo. The full
+package must build on macOS and Linux, and the core engine must also build on
+Windows and WebAssembly (WASI).
 
 ## Rule Loading
 
@@ -26,7 +27,7 @@ or PDF libraries.
 ## Product Rules
 
 - Generate PDF bytes directly in Swift.
-- Keep the core Linux-buildable.
+- Keep the core portable: it must build on macOS, Linux, Windows, and WASI.
 - Do not embed font files in the public repo.
 - Use standard PDF base fonts by default. Apple system font names remain
   available through `PDFOptions.FontSet.appleSystem`.

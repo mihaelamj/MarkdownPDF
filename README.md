@@ -5,11 +5,15 @@
 [![Style and namespacing](https://github.com/mihaelamj/MarkdownPDF/actions/workflows/style.yml/badge.svg)](https://github.com/mihaelamj/MarkdownPDF/actions/workflows/style.yml)
 [![Swift macOS](https://github.com/mihaelamj/MarkdownPDF/actions/workflows/swift-macos.yml/badge.svg)](https://github.com/mihaelamj/MarkdownPDF/actions/workflows/swift-macos.yml)
 [![Swift Linux](https://github.com/mihaelamj/MarkdownPDF/actions/workflows/swift-linux.yml/badge.svg)](https://github.com/mihaelamj/MarkdownPDF/actions/workflows/swift-linux.yml)
+[![Swift Windows](https://github.com/mihaelamj/MarkdownPDF/actions/workflows/swift-windows.yml/badge.svg)](https://github.com/mihaelamj/MarkdownPDF/actions/workflows/swift-windows.yml)
+[![Swift WASM](https://github.com/mihaelamj/MarkdownPDF/actions/workflows/swift-wasm.yml/badge.svg)](https://github.com/mihaelamj/MarkdownPDF/actions/workflows/swift-wasm.yml)
 
 MarkdownPDF is a Pure Swift Markdown to PDF renderer. It parses Markdown, lays
 the document out, and serializes PDF bytes directly in Swift.
 
-The core renderer is built for macOS and Linux. It does not use PDFKit,
+The core renderer builds on macOS, Linux, Windows, and WebAssembly (wasm32-unknown-wasip1).
+The full package, including the witness-based test suite, runs on macOS and Linux;
+Windows and WASI are core build gates. It does not use PDFKit,
 CoreGraphics, WebKit, wkhtmltopdf, Chromium, LaTeX, browser renderers,
 JavaScript, Python, shell renderers, or C Markdown/PDF libraries.
 
@@ -347,8 +351,14 @@ swift build
 swift test
 ```
 
-The same package is expected to build on macOS and Linux. GitHub CI runs style,
-macOS Swift, and Linux Swift checks.
+The same package builds on macOS and Linux, and the core engine builds on Windows
+and WebAssembly (WASI). GitHub CI runs style, macOS Swift, Linux Swift, Windows
+core, and WASM build checks. Build the core for WebAssembly locally with:
+
+```sh
+swift sdk install https://github.com/swiftwasm/swift/releases/download/swift-wasm-6.3-RELEASE/swift-wasm-6.3-RELEASE-wasm32-unknown-wasip1.artifactbundle.zip --checksum 6704d137e532f1ac31eafedd80658f9ee61239f2b6291216a02da32361ea9dcb
+swift build --swift-sdk 6.3-RELEASE-wasm32-unknown-wasip1
+```
 
 Useful local checks from the repository root:
 
@@ -383,8 +393,12 @@ The catalog landing page groups every article under Topics.
 
 ## Platform Boundaries
 
-- Portable behavior means macOS and Linux.
-- `MarkdownPDFMac` is a macOS target hook, not a separate backend yet.
+- Portable behavior means macOS and Linux for the full package, plus Windows and
+  WebAssembly (WASI) for the core engine. The witness-based test tooling
+  (poppler, mupdf, qpdf, verapdf) and font discovery are POSIX-only, so Windows
+  and WASI are core build gates rather than full test runs.
+- `MarkdownPDFMac` is a macOS target hook, not a separate backend yet. It is
+  compiled into the package only on a macOS host.
 - iOS support is not implemented or tested.
 - The default portable text profile emits printable ASCII. Unsupported Unicode
   scalars, including Latin-1 letters, Windows-1252 punctuation, emoji, complex
