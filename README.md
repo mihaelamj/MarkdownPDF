@@ -356,8 +356,8 @@ and WebAssembly (WASI). GitHub CI runs style, macOS Swift, Linux Swift, Windows
 core, and WASM build checks. Build the core for WebAssembly locally with:
 
 ```sh
-swift sdk install https://github.com/swiftwasm/swift/releases/download/swift-wasm-6.3-RELEASE/swift-wasm-6.3-RELEASE-wasm32-unknown-wasip1.artifactbundle.zip --checksum 6704d137e532f1ac31eafedd80658f9ee61239f2b6291216a02da32361ea9dcb
-swift build --swift-sdk 6.3-RELEASE-wasm32-unknown-wasip1
+swift sdk install https://download.swift.org/swift-6.3.2-release/wasm-sdk/swift-6.3.2-RELEASE/swift-6.3.2-RELEASE_wasm.artifactbundle.tar.gz --checksum a61f0584c93283589f8b2f42db05c1f9a182b506c2957271402992655591dd7c
+swift build --swift-sdk swift-6.3.2-RELEASE_wasm
 ```
 
 Useful local checks from the repository root:

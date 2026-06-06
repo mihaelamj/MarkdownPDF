@@ -3,6 +3,10 @@ name: Swift (WASM)
 # Build the engine for WebAssembly (wasm32-unknown-wasip1) on every change so the
 # badge reflects current WASI build health. This is a build check; running wasm
 # tests needs a separate runtime and is out of scope for this gate.
+#
+# Uses swiftly + the official swift.org wasm SDK (the same path PureYAML uses).
+# The swift:6.3.0 container's `swift sdk install` segfaults on the swiftwasm
+# artifactbundle, so this route is the robust one.
 
 on:
   push:
@@ -16,17 +20,24 @@ jobs:
   build:
     name: Swift (WASM)
     runs-on: ubuntu-latest
-    # Pinned to the patch that matches the swiftwasm 6.3-RELEASE SDK below.
-    # WebAssembly .swiftmodules require an exact host-compiler match.
-    container: swift:6.3.0
     steps:
       - uses: actions/checkout@v6
-      - name: Install Swift WebAssembly SDK
+      - name: Install toolchain dependencies
         run: |
-          URL="https://github.com/swiftwasm/swift/releases/download/swift-wasm-6.3-RELEASE/swift-wasm-6.3-RELEASE-wasm32-unknown-wasip1.artifactbundle.zip"
-          SUM="6704d137e532f1ac31eafedd80658f9ee61239f2b6291216a02da32361ea9dcb"
-          swift sdk install "$URL" --checksum "$SUM"
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-openssl-dev
+      - name: Install swiftly
+        run: |
+          curl -L https://download.swift.org/swiftly/linux/swiftly-$(uname -m).tar.gz > swiftly.tar.gz
+          tar zxf swiftly.tar.gz
+          ./swiftly init --quiet-shell-followup --assume-yes --skip-install
+      - name: Install Swift 6.3.2 and the wasm SDK
+        run: |
+          . "${SWIFTLY_HOME_DIR:-$HOME/.local/share/swiftly}/env.sh"
+          swiftly install --use 6.3.2
+          swift sdk install https://download.swift.org/swift-6.3.2-release/wasm-sdk/swift-6.3.2-RELEASE/swift-6.3.2-RELEASE_wasm.artifactbundle.tar.gz --checksum a61f0584c93283589f8b2f42db05c1f9a182b506c2957271402992655591dd7c
       - name: Build for WebAssembly
         run: |
-          swift build --swift-sdk 6.3-RELEASE-wasm32-unknown-wasip1
-          swift build -c release --swift-sdk 6.3-RELEASE-wasm32-unknown-wasip1
+          . "${SWIFTLY_HOME_DIR:-$HOME/.local/share/swiftly}/env.sh"
+          swift build --swift-sdk swift-6.3.2-RELEASE_wasm
+          swift build -c release --swift-sdk swift-6.3.2-RELEASE_wasm
