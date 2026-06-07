@@ -67,6 +67,36 @@ struct TrueTypeGlyphMapperTests {
         }
     }
 
+    @Test("Folds precomposed Unicode sub/superscripts onto the base glyph when the font lacks them (#221)")
+    func foldsSubSuperscriptsOntoBaseGlyph() throws {
+        let fontData = SyntheticTrueTypeFont.data(cmapFormat: 12, glyphProfile: .cjkDiacriticWitness)
+        let metadata = try TrueTypeFontParser().parse(fontData)
+        let mapper = TrueTypeGlyphMapper(data: fontData, metadata: metadata)
+
+        let base = try mapper.map(text: "x12i", fontSize: 10)
+        // x, subscript one, subscript two, subscript i  ->  same glyphs as "x12i".
+        let folded = try mapper.map(text: "x\u{2081}\u{2082}\u{1D62}", fontSize: 10)
+
+        #expect(folded.glyphs.map(\.glyphID) == base.glyphs.map(\.glyphID))
+        // The resolved scalar collapses to the base character so the ToUnicode map stays consistent.
+        #expect(folded.glyphs.map(\.scalar) == ["x", "1", "2", "i"])
+    }
+
+    @Test("Still rejects a missing glyph that is not a foldable sub/superscript (#221)")
+    func stillRejectsNonFoldableMissingGlyph() throws {
+        let fontData = SyntheticTrueTypeFont.data(cmapFormat: 12, glyphProfile: .cjkDiacriticWitness)
+        let metadata = try TrueTypeFontParser().parse(fontData)
+        expectGlyphMappingError {
+            _ = try TrueTypeGlyphMapper(data: fontData, metadata: metadata).map(text: "未", fontSize: 10)
+        } verify: { error in
+            guard case let .missingGlyph(scalar) = error else {
+                Issue.record("Expected missing glyph")
+                return
+            }
+            #expect(scalar == "未")
+        }
+    }
+
     @Test("Maps format 4 glyph id arrays")
     func mapsFormat4GlyphIDArrays() throws {
         let fontData = SyntheticTrueTypeFont.data(cmapFormat4UsesGlyphArray: true)

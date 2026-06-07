@@ -7,7 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.4.1] - 2026-06-03
+## [0.4.2] - 2026-06-07
+
+### Fixed
+
+- Precomposed Unicode subscript and superscript characters (for example `x₁`,
+  `H₂O`, `xᵢ`, `n²`) no longer abort `render(markdown:)` when the embedded font
+  lacks those glyphs. TeX math fonts such as Latin Modern Math do not ship
+  precomposed sub/superscript glyphs, so the renderer now folds those codepoints
+  to their base character and renders the base glyph instead of throwing
+  `missingGlyph`. Genuinely unmappable characters still reject. Fixes #221.
 
 ### Fixed
 

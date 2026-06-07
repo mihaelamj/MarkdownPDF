@@ -89,13 +89,19 @@ struct PDFEmbeddedFontUsage: Equatable {
         var mappingsByCode = Dictionary(uniqueKeysWithValues: existing.map { ($0.code, $0.unicode) })
         for mapping in newMappings {
             if let existing = mappingsByCode[mapping.code] {
-                guard existing == mapping.unicode else {
+                guard existing != mapping.unicode else { continue }
+                // A glyph shared between a base character and a precomposed sub/superscript that
+                // folded onto it (see #221) is not a real conflict: a single glyph can only carry
+                // one ToUnicode value, so collapse both to the common base character.
+                let folded = foldingSubSuperscripts(existing)
+                guard folded == foldingSubSuperscripts(mapping.unicode) else {
                     throw PDFEmbeddedFontError.conflictingToUnicodeMapping(
                         code: mapping.code,
                         existing: existing,
                         duplicate: mapping.unicode,
                     )
                 }
+                mappingsByCode[mapping.code] = folded
             } else {
                 mappingsByCode[mapping.code] = mapping.unicode
             }
@@ -113,6 +119,10 @@ struct PDFEmbeddedFontUsage: Equatable {
             return scalar
         }
         return UnicodeScalar(0x100000 + UInt32(code)) ?? "\u{FFFD}"
+    }
+
+    private static func foldingSubSuperscripts(_ string: String) -> String {
+        String(String.UnicodeScalarView(string.unicodeScalars.map { TrueTypeGlyphMapper.subSuperscriptBase[$0] ?? $0 }))
     }
 
     private static func string(from scalars: [UnicodeScalar]) -> String {

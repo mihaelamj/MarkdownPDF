@@ -44,8 +44,8 @@ struct TrueTypeGlyphMapper {
         }
         let lookup = try glyphLookup()
         let glyphs = try text.unicodeScalars.map { scalar in
-            let glyphID = try glyphID(for: scalar, lookup: lookup)
-            return try glyph(for: scalar, glyphID: glyphID, fontSize: fontSize)
+            let resolved = try resolve(scalar: scalar, lookup: lookup)
+            return try glyph(for: resolved.scalar, glyphID: resolved.glyphID, fontSize: fontSize)
         }
         return TextMapping(sourceText: text, glyphs: glyphs)
     }
@@ -72,18 +72,70 @@ struct TrueTypeGlyphMapper {
         }
     }
 
-    private func glyphID(for scalar: UnicodeScalar, lookup: GlyphLookup) throws -> UInt16 {
+    /// Resolves a scalar to a glyph, returning the glyph id and the scalar that glyph actually
+    /// represents (the base scalar when a sub/superscript was folded, so the ToUnicode mapping
+    /// stays consistent for the shared glyph).
+    private func resolve(scalar: UnicodeScalar, lookup: GlyphLookup) throws -> (glyphID: UInt16, scalar: UnicodeScalar) {
         if let glyphID = try lookup.glyphID(for: scalar) {
-            return glyphID
+            return (glyphID, scalar)
+        }
+
+        // Many fonts (notably TeX math fonts such as Latin Modern Math) do not ship
+        // precomposed Unicode sub/superscript glyphs, because subscripts are produced
+        // by lowering a normal digit. Fold those codepoints to their base scalar and
+        // render the base glyph if the font has it, rather than aborting the document. See #221.
+        if let base = Self.subSuperscriptBase[scalar], let glyphID = try lookup.glyphID(for: base) {
+            return (glyphID, base)
         }
 
         switch missingGlyphPolicy {
         case .reject:
             throw TrueTypeGlyphMappingError.missingGlyph(scalar)
         case .useNotdef:
-            return 0
+            return (0, scalar)
         }
     }
+
+    /// Precomposed Unicode subscript/superscript codepoints mapped to their base ASCII/Latin/Greek
+    /// scalar. Used only as a fallback when the font lacks the precomposed glyph (see #221).
+    static let subSuperscriptBase: [UnicodeScalar: UnicodeScalar] = {
+        var map: [UnicodeScalar: UnicodeScalar] = [:]
+        func add(_ from: UInt32, _ to: UnicodeScalar) {
+            guard let scalar = UnicodeScalar(from) else { return }
+            map[scalar] = to
+        }
+        // Subscript digits U+2080..U+2089 -> 0..9
+        for d in 0 ... 9 {
+            add(0x2080 + UInt32(d), UnicodeScalar(UInt8(0x30 + d)))
+        }
+        // Superscript digits: U+2070, U+00B9, U+00B2, U+00B3, U+2074..U+2079 -> 0..9
+        add(0x2070, "0")
+        add(0x00B9, "1")
+        add(0x00B2, "2")
+        add(0x00B3, "3")
+        for d in 4 ... 9 {
+            add(0x2070 + UInt32(d), UnicodeScalar(UInt8(0x30 + d)))
+        }
+        // Subscript operators U+208A..U+208E and superscript operators U+207A..U+207E
+        let subOps: [(UInt32, UnicodeScalar)] = [(0x208A, "+"), (0x208B, "-"), (0x208C, "="), (0x208D, "("), (0x208E, ")")]
+        let supOps: [(UInt32, UnicodeScalar)] = [(0x207A, "+"), (0x207B, "-"), (0x207C, "="), (0x207D, "("), (0x207E, ")")]
+        for (cp, ch) in subOps + supOps {
+            add(cp, ch)
+        }
+        // Latin subscript letters U+2090..U+209C
+        let subLetters: [(UInt32, UnicodeScalar)] = [
+            (0x2090, "a"), (0x2091, "e"), (0x2092, "o"), (0x2093, "x"), (0x2095, "h"), (0x2096, "k"),
+            (0x2097, "l"), (0x2098, "m"), (0x2099, "n"), (0x209A, "p"), (0x209B, "s"), (0x209C, "t"),
+        ]
+        // Latin subscript letters from the Phonetic Extensions block U+1D62..U+1D6A
+        let phoneticSub: [(UInt32, UnicodeScalar)] = [(0x1D62, "i"), (0x1D63, "r"), (0x1D64, "u"), (0x1D65, "v")]
+        // Superscript Latin letters (common subset)
+        let supLetters: [(UInt32, UnicodeScalar)] = [(0x2071, "i"), (0x207F, "n")]
+        for (cp, ch) in subLetters + phoneticSub + supLetters {
+            add(cp, ch)
+        }
+        return map
+    }()
 
     private func glyph(for scalar: UnicodeScalar, glyphID: UInt16, fontSize: Double) throws -> Glyph {
         guard glyphID < metadata.maxp.numGlyphs else {
