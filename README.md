@@ -140,8 +140,11 @@ degrade visibly and recoverably, never with a silent `?`.
 | `MarkdownPDFLinux` | Library | Linux-facing entry point for the portable renderer. |
 | `MarkdownPDFMac` | Library | macOS-only entry point. It currently delegates to the portable renderer. |
 | `MarkdownPDFResume` | Library | Structured resume JSON to Markdown template. |
-| `markdownpdf` | Executable | Markdown file to PDF file command. |
-| `resumepdf` | Executable | Resume JSON file to PDF file command. |
+
+This package ships libraries only. The `markdownpdf` and `resumepdf`
+command-line tools live in the separate
+[MarkdownPDFCli](https://github.com/mihaelamj/MarkdownPDFCli) repository, which
+depends on these libraries.
 
 `MarkdownPDFMac` is available only when the package is built on macOS. iOS
 support is not claimed.
