@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- License changed from MIT to AGPL-3.0. MarkdownPDF is now dual licensed:
+  AGPL-3.0 for open-source use, with a commercial license available for
+  closed-source or otherwise AGPL-incompatible use (see `COMMERCIAL.md`).
+  Versions published before this change remain available under their original
+  MIT terms.
+
 ## [0.4.2] - 2026-06-07
 
 ### Fixed

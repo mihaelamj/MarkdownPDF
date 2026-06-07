@@ -7,6 +7,7 @@
 [![Swift Linux](https://github.com/mihaelamj/MarkdownPDF/actions/workflows/swift-linux.yml/badge.svg)](https://github.com/mihaelamj/MarkdownPDF/actions/workflows/swift-linux.yml)
 [![Swift Windows](https://github.com/mihaelamj/MarkdownPDF/actions/workflows/swift-windows.yml/badge.svg)](https://github.com/mihaelamj/MarkdownPDF/actions/workflows/swift-windows.yml)
 [![Swift WASM](https://github.com/mihaelamj/MarkdownPDF/actions/workflows/swift-wasm.yml/badge.svg)](https://github.com/mihaelamj/MarkdownPDF/actions/workflows/swift-wasm.yml)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
 MarkdownPDF is a Pure Swift Markdown to PDF renderer. It parses Markdown, lays
 the document out, and serializes PDF bytes directly in Swift.
@@ -649,4 +650,13 @@ CoreText in the core. See [CONTRIBUTING.md](CONTRIBUTING.md) to get started.
 
 ## License
 
-See [LICENSE](LICENSE).
+MarkdownPDF is dual licensed as [AGPL-3.0](LICENSE) / commercial.
+
+The AGPL is a free, open-source license, but that does not mean the software is
+free of obligations. It is a copyleft license: any derivative work, including
+software or a network service that incorporates MarkdownPDF, must also be
+released under the AGPL-3.0 with its complete corresponding source. If you are
+building something that cannot comply with the AGPL terms, a
+[commercial license](COMMERCIAL.md) is available that exempts you from them.
+
+See [COMMERCIAL.md](COMMERCIAL.md) for commercial licensing.
